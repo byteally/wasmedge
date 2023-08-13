@@ -2,6 +2,7 @@ module WasmEdge.Internal.FFI.Version
   ( getVersion
   , getMajorVersion
   , getMinorVersion
+  , getPatchVersion
   ) where
 
 import Data.Text (Text)
@@ -18,15 +19,17 @@ import System.IO.Unsafe
 --   cstr <- {#call unsafe WasmEdge_VersionGet as versionGet1 #}
 --   T.fromPtr0 (castPtr cstr)
 
-{#fun pure unsafe WasmEdge_VersionGet as getVersion {} -> `Text' fromCStrToText#}
+{#fun pure unsafe WasmEdge_VersionGet as getVersion {} -> `Text' fromPureCStrToText#}
 
 {#fun pure unsafe WasmEdge_VersionGetMajor as getMajorVersion {} -> `Word' fromIntegral#}
 
 {#fun pure unsafe WasmEdge_VersionGetMinor as getMinorVersion {} -> `Word' fromIntegral#}
+
+{#fun pure unsafe WasmEdge_VersionGetPatch as getPatchVersion {} -> `Word' fromIntegral#}
     
 
 -- fromCStrToTextIO :: CString -> IO Text
 -- fromCStrToTextIO = T.fromPtr0 . castPtr
 
-fromCStrToText :: CString -> Text
-fromCStrToText cs = unsafePerformIO $ T.fromPtr0 $ castPtr cs
+fromPureCStrToText :: CString -> Text
+fromPureCStrToText cs = unsafePerformIO $ T.fromPtr0 $ castPtr cs
