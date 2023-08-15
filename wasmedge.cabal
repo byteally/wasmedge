@@ -110,6 +110,7 @@ common ghc2021Shim
 common common-build-deps
   build-depends:       base              >= 4.13 && < 5
                      , text              >= 2.0
+                     , bytestring        >= 0.11
                                             
 library
     import:              ghc-opts

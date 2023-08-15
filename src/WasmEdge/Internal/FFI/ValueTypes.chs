@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( i32Value
@@ -6,6 +8,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   , wasmStringEq
   , wasmStringLength
   , toText
+  , mkStringFromBytes
+  , stringCopy
   , ConfigureContext
   , ProgramOptionType (..)
   , Proposal (..)
@@ -30,9 +34,13 @@ import Data.Word
 -- import Foreign
 import Foreign.C
 -- import Foreign.C.Types
--- import Foreign.ForeignPtr
+import Foreign.Ptr
+import Foreign.ForeignPtr
 -- import GHC.Ptr
 import System.IO.Unsafe
+import Data.String
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 
 #include "wasmedge/wasmedge.h"
 
@@ -48,13 +56,87 @@ void StringCreateByCStringOut(WasmEdge_String* strOut, const char *Str)
   strOut->Length = str.Length;
   strOut->Buf = str.Buf;
 }
+void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uint32_t Len)
+{
+  WasmEdge_String str = WasmEdge_StringCreateByBuffer(Str, Len);
+  strOut->Length = str.Length;
+  strOut->Buf = str.Buf;
+}
+
+WasmEdge_String StringWrapOut(WasmEdge_String* strOut, const char *Buf, const uint32_t Len)
+{
+  WasmEdge_String str = WasmEdge_StringWrap(Buf, Len);
+  strOut->Length = str.Length;
+  strOut->Buf = str.Buf;
+}
+void C_Result_Success(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Success.Code;}
+void C_Result_Terminate(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Terminate.Code;}
+void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code;}
 #endc
 
+-- {#pointer *WasmEdge_Value as WasmValue foreign newtype #}
 {#pointer *WasmEdge_String as WasmString foreign finalizer WasmEdge_StringDelete as deleteString newtype #}
+{#pointer *WasmEdge_Result as WasmResult foreign newtype #}
+{#pointer *WasmEdge_Limit as Limit foreign newtype #}
+-- Program option for plugins.
+{#pointer *WasmEdge_ProgramOption as ProgramOption foreign newtype #}
+-- Module descriptor for plugins.
+{#pointer *WasmEdge_ModuleDescriptor as ModuleDescriptor foreign newtype #}
+-- Version data for plugins.
+{#pointer *WasmEdge_PluginVersionData as PluginVersionData foreign newtype #}
+-- Plugin descriptor for plugins.
+{#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
+
 
 {#fun pure unsafe StringCreateByCStringOut as mkString {+, `String'} -> `WasmString' #}
-
+{#fun pure unsafe StringCreateByBufferOut as mkStringFromBytes {+, useAsCStringLenBS*`ByteString'& packCStringLenBS*} -> `WasmString' #}
+-- {#fun pure unsafe StringWrapOut as stringWrap {+, `String'} -> `WasmString' #}
 {#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq {%`WasmString', %`WasmString'} -> `Bool' #}
+{#fun pure unsafe WasmEdge_StringCopy as stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
+{#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
+{#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
+{#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
+
+useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
+useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
+
+packCStringLenBS :: CString -> CUInt -> IO ByteString
+packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
+
+data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
+
+allocMemBuff :: Int -> IO MemBuff
+allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
+
+memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
+memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> (f (p, fromIntegral $ memBuffLen mem)) 
+
+instance Eq WasmString where
+  (==) = wasmStringEq
+
+instance IsString WasmString where
+  fromString = mkString
+
+instance Eq WasmResult where
+  wr1 == wr2 = unsafePerformIO $ withWasmResult wr1 $ \wrp1 ->
+    withWasmResult wr2 $ \wrp2 -> do
+    r1 <- {#get WasmEdge_Result.Code #} wrp1
+    r2 <- {#get WasmEdge_Result.Code #} wrp2
+    pure $ r1 == r2
+    
+pattern WRSuccess :: WasmResult
+pattern WRSuccess <- ((mkResultSuccess ==) -> True) where
+  WRSuccess = mkResultSuccess
+
+pattern WRTerminate :: WasmResult
+pattern WRTerminate <- ((mkResultTerminate ==) -> True) where
+  WRTerminate = mkResultTerminate
+
+pattern WRFail :: WasmResult
+pattern WRFail <- ((mkResultFail ==) -> True) where
+  WRFail = mkResultFail
+
+{-# COMPLETE WRSuccess, WRTerminate, WRFail #-}  
 
 wasmStringLength :: WasmString -> IO Word32
 wasmStringLength wstr = withWasmString wstr (fmap fromIntegral . {#get WasmEdge_String.Length #})
@@ -92,10 +174,6 @@ toText wstr = unsafePerformIO $ withWasmString wstr $ \p -> do
 {#enum WasmEdge_ProgramOptionType as ProgramOptionType {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
-
-{#pointer *WasmEdge_ModuleDescriptor as ModuleDescriptor foreign newtype #}
-{#pointer *WasmEdge_PluginVersionData as PluginVersionData foreign newtype #}
-{#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
 -- WasmEdge logging functions
 {#fun pure unsafe WasmEdge_LogSetErrorLevel as setLogErrorLevel {} -> `()'#}
