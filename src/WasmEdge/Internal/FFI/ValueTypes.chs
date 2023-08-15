@@ -89,10 +89,10 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 
 
 {#fun pure unsafe StringCreateByCStringOut as mkString {+, `String'} -> `WasmString' #}
-{#fun pure unsafe StringCreateByBufferOut as mkStringFromBytes {+, useAsCStringLenBS*`ByteString'& packCStringLenBS*} -> `WasmString' #}
+{#fun pure unsafe StringCreateByBufferOut as mkStringFromBytes {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 -- {#fun pure unsafe StringWrapOut as stringWrap {+, `String'} -> `WasmString' #}
 {#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq {%`WasmString', %`WasmString'} -> `Bool' #}
-{#fun pure unsafe WasmEdge_StringCopy as stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
+{#fun pure unsafe WasmEdge_StringCopy as _stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
@@ -100,16 +100,22 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
 useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
 
-packCStringLenBS :: CString -> CUInt -> IO ByteString
-packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
+_packCStringLenBS :: CString -> CUInt -> IO ByteString
+_packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
+
+memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
+memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> f (p, fromIntegral (memBuffLen mem))
 
 data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
 
 allocMemBuff :: Int -> IO MemBuff
 allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
 
-memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
-memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> (f (p, fromIntegral $ memBuffLen mem)) 
+stringCopy :: Word32 -> WasmString -> ByteString
+stringCopy sz wstr = unsafePerformIO $ do
+  mem <- allocMemBuff (fromIntegral sz)
+  let cpLen = _stringCopy wstr mem
+  withForeignPtr (memBuff mem) $ \p -> BS.packCStringLen (p, fromIntegral cpLen)
 
 instance Eq WasmString where
   (==) = wasmStringEq
