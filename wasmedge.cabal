@@ -111,6 +111,8 @@ common common-build-deps
   build-depends:       base              >= 4.13 && < 5
                      , text              >= 2.0
                      , bytestring        >= 0.11
+                     , vector            >= 0.13
+                     , wide-word         >= 0.1.5
                                             
 library
     import:              ghc-opts

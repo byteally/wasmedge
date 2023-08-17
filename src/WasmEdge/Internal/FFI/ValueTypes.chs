@@ -10,6 +10,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   , toText
   , mkStringFromBytes
   , stringCopy
+  , configureAddHostRegistration
   , ConfigureContext
   , ProgramOptionType (..)
   , Proposal (..)
@@ -44,31 +45,34 @@ import qualified Data.ByteString as BS
 
 #include "wasmedge/wasmedge.h"
 
+{#context prefix = "WasmEdge"#}
+
 {#fun pure unsafe WasmEdge_ValueGenI32 as i32Value
    { `Int32'
    } -> `()'
 #}
 
 #c
+
 void StringCreateByCStringOut(WasmEdge_String* strOut, const char *Str)
 {
-  WasmEdge_String str = WasmEdge_StringCreateByCString(Str);
-  strOut->Length = str.Length;
-  strOut->Buf = str.Buf;
+  *strOut = WasmEdge_StringCreateByCString(Str);
 }
 void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uint32_t Len)
 {
-  WasmEdge_String str = WasmEdge_StringCreateByBuffer(Str, Len);
-  strOut->Length = str.Length;
-  strOut->Buf = str.Buf;
+  *strOut = WasmEdge_StringCreateByBuffer(Str, Len);
 }
 
 WasmEdge_String StringWrapOut(WasmEdge_String* strOut, const char *Buf, const uint32_t Len)
 {
-  WasmEdge_String str = WasmEdge_StringWrap(Buf, Len);
-  strOut->Length = str.Length;
-  strOut->Buf = str.Buf;
+  *strOut = WasmEdge_StringWrap(Buf, Len);
 }
+
+void ResultGenOut(WasmEdge_Result* out, const enum WasmEdge_ErrCategory Category, const uint32_t Code)
+{
+  *out = WasmEdge_ResultGen(Category, Code);
+}
+
 void C_Result_Success(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Success.Code;}
 void C_Result_Terminate(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Terminate.Code;}
 void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code;}
@@ -102,6 +106,9 @@ useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> s
 
 _packCStringLenBS :: CString -> CUInt -> IO ByteString
 _packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
+
+packCStringBS :: CString -> IO ByteString
+packCStringBS cstr = BS.packCString cstr
 
 memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
 memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> f (p, fromIntegral (memBuffLen mem))
@@ -152,6 +159,21 @@ toText wstr = unsafePerformIO $ withWasmString wstr $ \p -> do
   cstr <- {#get WasmEdge_String.Buf #} p
   cstrLen <- {#get WasmEdge_String.Length #} p
   T.peekCStringLen (cstr, fromIntegral cstrLen)
+
+cToEnum :: Enum a => CInt -> a
+cToEnum = toEnum . fromIntegral
+
+cFromEnum :: Enum a => a -> CInt
+cFromEnum = fromIntegral . fromEnum
+
+{#fun pure unsafe ResultGenOut as resultGen {+, cFromEnum`ErrCategory', `CUInt'} -> `WasmResult' #}
+{#fun pure unsafe WasmEdge_ResultGetCode as getResultCode {%`WasmResult'} -> `Word32' #}
+{#fun pure unsafe WasmEdge_ResultGetCategory as getResultCategory {%`WasmResult'} -> `ErrCategory'cToEnum #}
+{#fun pure unsafe WasmEdge_ResultGetMessage as getResultMessage {%`WasmResult'} -> `ByteString'packCStringBS* #}
+{#fun pure unsafe WasmEdge_LimitIsEqual as limitEq_ {%`Limit',%`Limit'} -> `Bool'#}
+
+instance Eq Limit where
+  (==) = limitEq_
 
 {#pointer *WasmEdge_ConfigureContext as ConfigureContext foreign finalizer WasmEdge_ConfigureDelete as deleteConfigureContext newtype #}
 {#pointer *WasmEdge_StatisticsContext as StatisticsContext foreign finalizer WasmEdge_StatisticsDelete as deleteStatisticsContext newtype #}
@@ -239,3 +261,54 @@ toText wstr = unsafePerformIO $ withWasmString wstr $ \p -> do
 {#enum WasmEdge_ExternalType as ExternalType {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+
+-- Configure
+{#fun unsafe ConfigureCreate as ^ {} -> `ConfigureContext'#}
+{#fun unsafe ConfigureAddProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
+{#fun unsafe ConfigureRemoveProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
+{#fun unsafe ConfigureHasProposal as ^ {`ConfigureContext',`Proposal'} -> `Bool'#}
+{#fun unsafe ConfigureAddHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
+{#fun unsafe ConfigureRemoveHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
+{#fun unsafe ConfigureHasHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `Bool'#}
+{#fun unsafe ConfigureSetMaxMemoryPage as ^ {`ConfigureContext', `Word32'} -> `()'#}
+{#fun unsafe ConfigureGetMaxMemoryPage as ^ {`ConfigureContext'} -> `Word32'#}
+{#fun unsafe ConfigureSetForceInterpreter as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureIsForceInterpreter as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerSetOptimizationLevel as ^ {`ConfigureContext', `CompilerOptimizationLevel'} -> `()'#}
+{#fun unsafe ConfigureCompilerGetOptimizationLevel as ^ {`ConfigureContext'} -> `CompilerOptimizationLevel'#}
+{#fun unsafe ConfigureCompilerSetOutputFormat as ^ {`ConfigureContext', `CompilerOutputFormat'} -> `()'#}
+{#fun unsafe ConfigureCompilerGetOutputFormat as ^ {`ConfigureContext'} -> `CompilerOutputFormat'#}
+{#fun unsafe ConfigureCompilerSetDumpIR as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerIsDumpIR as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerSetGenericBinary as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerIsGenericBinary as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerSetInterruptible as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerIsInterruptible as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsSetInstructionCounting as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsIsInstructionCounting as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsSetCostMeasuring as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsIsCostMeasuring as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsSetTimeMeasuring as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsIsTimeMeasuring as ^ {`ConfigureContext'} -> `Bool'#}
+
+-- Statistics
+{#fun unsafe StatisticsCreate as ^ {} -> `StatisticsContext'#}
+{#fun unsafe StatisticsGetInstrCount as ^ {`StatisticsContext'} -> `Word64'#}
+{#fun unsafe StatisticsGetInstrPerSecond as ^ {`StatisticsContext'} -> `Double'#}
+{#fun unsafe StatisticsGetTotalCost as ^ {`StatisticsContext'} -> `Word64'#}
+-- TODO:
+-- {#fun unsafe StatisticsSetCostTable as ^ {`StatisticsContext', `MemBuff'} -> `()'#}
+{#fun unsafe StatisticsSetCostLimit as ^ {`StatisticsContext', `Word64'} -> `()'#}
+{#fun unsafe StatisticsClear as ^ {`StatisticsContext'} -> `()'#}
+
+-- * Module
+-- TODO:
+-- {#fun unsafe ASTModuleListImports as ^ {`ASTModuleContext'} -> `()'#}
+{#fun unsafe ASTModuleListExportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
+-- TODO:
+-- {#fun unsafe ASTModuleListExports as ^ {`ASTModuleContext'} -> `()'#}
+
+-- * Function
+-- TODO:
+-- {#fun unsafe FunctionTypeCreate as ^ {_1`[ValType]'&, _2`ValType', `Word32'} -> `FunctionTypeContext'#}
+{#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
