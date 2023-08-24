@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE DerivingVia #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( i32Value
@@ -37,11 +38,17 @@ import Foreign.C
 -- import Foreign.C.Types
 import Foreign.Ptr
 import Foreign.ForeignPtr
+import Foreign.Storable (Storable (..))
 -- import GHC.Ptr
 import System.IO.Unsafe
 import Data.String
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.Vector.Storable (Vector)
+import qualified Data.Vector.Storable as VS
+
+-- import Data.Vector.Storable.Mutable (IOVector)
+-- import qualified Data.Vector.Storable.Mutable as VSM
 
 #include "wasmedge/wasmedge.h"
 
@@ -240,7 +247,9 @@ instance Eq Limit where
 -- WASM Value type C enumeration.
 {#enum WasmEdge_ValType as ValType {}
   with prefix = "WasmEdge_"
-  deriving (Show, Eq) #}
+  deriving (Show, Eq)
+#}
+deriving via ViaFromEnum ValType instance Storable ValType
 
 -- WASM Number type C enumeration.
 {#enum WasmEdge_NumType as NumType {}
@@ -309,6 +318,20 @@ instance Eq Limit where
 -- {#fun unsafe ASTModuleListExports as ^ {`ASTModuleContext'} -> `()'#}
 
 -- * Function
--- TODO:
--- {#fun unsafe FunctionTypeCreate as ^ {_1`[ValType]'&, _2`ValType', `Word32'} -> `FunctionTypeContext'#}
+{#fun unsafe FunctionTypeCreate as ^ {fromIOVecOr0Ptr*`Vector ValType'&, fromIOVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
 {#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
+-- {#fun unsafe FunctionTypeGetParameters as ^ {`FunctionTypeContext', +} -> `(Vector ValType'#}
+
+
+fromIOVecOr0Ptr :: Vector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromIOVecOr0Ptr v f
+  | VS.null v = f (nullPtr, 0)
+  | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
+
+newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
+
+instance Enum t => Storable (ViaFromEnum t) where
+  sizeOf = sizeOf . fromEnum . getHsEnumTy
+  alignment = alignment . fromEnum . getHsEnumTy
+  peek = fmap (ViaFromEnum . toEnum) . peek @Int . castPtr 
+  poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
