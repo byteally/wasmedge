@@ -4,7 +4,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( i32Value
-  , mkString
   , deleteString
   , wasmStringEq
   , wasmStringLength
@@ -12,6 +11,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   , mkStringFromBytes
   , stringCopy
   , configureAddHostRegistration
+  , logSetErrorLevel
+  , logSetDebugLevel
   , ConfigureContext
   , ProgramOptionType (..)
   , Proposal (..)
@@ -30,7 +31,7 @@ module WasmEdge.Internal.FFI.ValueTypes
 
 import Data.Int
 import Data.Text (Text)
--- import qualified Data.Text as T
+import qualified Data.Text as T
 import qualified Data.Text.Foreign as T
 import Data.Word
 -- import Foreign
@@ -44,6 +45,7 @@ import System.IO.Unsafe
 import Data.String
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as Char8
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
 
@@ -51,6 +53,7 @@ import qualified Data.Vector.Storable as VS
 -- import qualified Data.Vector.Storable.Mutable as VSM
 
 #include "wasmedge/wasmedge.h"
+#include <stdio.h>
 
 {#context prefix = "WasmEdge"#}
 
@@ -61,10 +64,6 @@ import qualified Data.Vector.Storable as VS
 
 #c
 
-void StringCreateByCStringOut(WasmEdge_String* strOut, const char *Str)
-{
-  *strOut = WasmEdge_StringCreateByCString(Str);
-}
 void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uint32_t Len)
 {
   *strOut = WasmEdge_StringCreateByBuffer(Str, Len);
@@ -73,6 +72,12 @@ void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uin
 WasmEdge_String StringWrapOut(WasmEdge_String* strOut, const char *Buf, const uint32_t Len)
 {
   *strOut = WasmEdge_StringWrap(Buf, Len);
+}
+
+void StringDeleteByPtr(WasmEdge_String* Str)
+{
+  printf("string is getting deleted\n");
+  WasmEdge_StringDelete(*Str);
 }
 
 void ResultGenOut(WasmEdge_Result* out, const enum WasmEdge_ErrCategory Category, const uint32_t Code)
@@ -86,7 +91,7 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 #endc
 
 -- {#pointer *WasmEdge_Value as WasmValue foreign newtype #}
-{#pointer *WasmEdge_String as WasmString foreign finalizer WasmEdge_StringDelete as deleteString newtype #}
+{#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
 {#pointer *WasmEdge_Result as WasmResult foreign newtype #}
 {#pointer *WasmEdge_Limit as Limit foreign newtype #}
 -- Program option for plugins.
@@ -99,14 +104,19 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 {#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
 
-{#fun pure unsafe StringCreateByCStringOut as mkString {+, `String'} -> `WasmString' #}
-{#fun pure unsafe StringCreateByBufferOut as mkStringFromBytes {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
--- {#fun pure unsafe StringWrapOut as stringWrap {+, `String'} -> `WasmString' #}
+{#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
+{#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
 {#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq {%`WasmString', %`WasmString'} -> `Bool' #}
 {#fun pure unsafe WasmEdge_StringCopy as _stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
+
+mkStringFromBytes :: ByteString -> WasmString
+mkStringFromBytes bs = unsafePerformIO $ do
+  ws@(WasmString fp) <- mkStringFromBytesIO bs
+  addForeignPtrFinalizer deleteString fp
+  pure ws
 
 useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
 useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
@@ -135,7 +145,7 @@ instance Eq WasmString where
   (==) = wasmStringEq
 
 instance IsString WasmString where
-  fromString = mkString
+  fromString = mkStringFromBytes . Char8.pack
 
 instance Eq WasmResult where
   wr1 == wr2 = unsafePerformIO $ withWasmResult wr1 $ \wrp1 ->
@@ -167,6 +177,9 @@ toText wstr = unsafePerformIO $ withWasmString wstr $ \p -> do
   cstrLen <- {#get WasmEdge_String.Length #} p
   T.peekCStringLen (cstr, fromIntegral cstrLen)
 
+instance Show WasmString where
+  show = T.unpack . toText
+
 cToEnum :: Enum a => CInt -> a
 cToEnum = toEnum . fromIntegral
 
@@ -182,92 +195,99 @@ cFromEnum = fromIntegral . fromEnum
 instance Eq Limit where
   (==) = limitEq_
 
-{#pointer *WasmEdge_ConfigureContext as ConfigureContext foreign finalizer WasmEdge_ConfigureDelete as deleteConfigureContext newtype #}
-{#pointer *WasmEdge_StatisticsContext as StatisticsContext foreign finalizer WasmEdge_StatisticsDelete as deleteStatisticsContext newtype #}
-{#pointer *WasmEdge_ASTModuleContext as ASTModuleContext foreign finalizer WasmEdge_ASTModuleDelete as deleteASTModule newtype #}
-{#pointer *WasmEdge_FunctionTypeContext as FunctionTypeContext foreign finalizer WasmEdge_FunctionTypeDelete as deleteFunctionTypeContext newtype #}
-{#pointer *WasmEdge_MemoryTypeContext as MemoryTypeContext foreign finalizer WasmEdge_MemoryTypeDelete as deleteMemoryTypeContext newtype #}
-{#pointer *WasmEdge_TableTypeContext as TableTypeContext foreign finalizer WasmEdge_TableTypeDelete as deleteTableTypeContext newtype #}
-{#pointer *WasmEdge_GlobalTypeContext as GlobalTypeContext foreign finalizer WasmEdge_GlobalTypeDelete as deleteGlobalTypeContext newtype #}
-{#pointer *WasmEdge_ImportTypeContext as ImportTypeContext foreign newtype #}
-{#pointer *WasmEdge_ExportTypeContext as ExportTypeContext foreign newtype #}
-{#pointer *WasmEdge_CompilerContext as CompilerContext foreign finalizer WasmEdge_CompilerDelete as deleteCompilerContext newtype #}
-{#pointer *WasmEdge_LoaderContext as LoaderContext foreign finalizer WasmEdge_LoaderDelete as deleteLoaderContext newtype #}
-{#pointer *WasmEdge_ValidatorContext as ValidatorContext foreign finalizer WasmEdge_ValidatorDelete as deleteValidatorContext newtype #}
-{#pointer *WasmEdge_ExecutorContext as ExecutorContext foreign finalizer WasmEdge_ExecutorDelete as deleteExecutorContext newtype #}
-{#pointer *WasmEdge_StoreContext as StoreContext foreign finalizer WasmEdge_StoreDelete as deleteStore newtype #}
-{#pointer *WasmEdge_ModuleInstanceContext as ModuleInstanceContext foreign finalizer WasmEdge_ModuleInstanceDelete as deleteModuleInstanceContext newtype #}
-{#pointer *WasmEdge_FunctionInstanceContext as FunctionInstanceContext foreign finalizer WasmEdge_FunctionInstanceDelete as deleteFunctionInstanceContext newtype #}
-{#pointer *WasmEdge_TableInstanceContext as TableInstanceContext foreign finalizer WasmEdge_TableInstanceDelete as deleteTableInstanceContext newtype #}
-{#pointer *WasmEdge_MemoryInstanceContext as MemoryInstanceContext foreign finalizer WasmEdge_MemoryInstanceDelete as deleteMemoryInstanceContext newtype #}
-{#pointer *WasmEdge_GlobalInstanceContext as GlobalInstanceContext foreign finalizer WasmEdge_GlobalInstanceDelete as deleteGlobalInstanceContext newtype #}
-{#pointer *WasmEdge_CallingFrameContext as CallingFrameContext foreign newtype #}
-{#pointer *WasmEdge_Async as Async foreign finalizer WasmEdge_AsyncDelete as deleteAsync newtype #}
-{#pointer *WasmEdge_VMContext as VMContext foreign finalizer WasmEdge_VMDelete as deleteVMContext newtype #}
-{#pointer *WasmEdge_PluginContext as PluginContext foreign newtype #}
+{#pointer *ConfigureContext as ^ foreign finalizer ConfigureDelete as ^ newtype #}
+{#pointer *StatisticsContext as ^ foreign finalizer StatisticsDelete as ^ newtype #}
+{#pointer *ASTModuleContext as ^ foreign finalizer ASTModuleDelete as ^ newtype #}
+{#pointer *FunctionTypeContext as ^ foreign finalizer FunctionTypeDelete as ^ newtype #}
+{#pointer *MemoryTypeContext as ^ foreign finalizer MemoryTypeDelete as ^ newtype #}
+{#pointer *TableTypeContext as ^ foreign finalizer TableTypeDelete as ^ newtype #}
+{#pointer *GlobalTypeContext as ^ foreign finalizer GlobalTypeDelete as ^ newtype #}
+{#pointer *ImportTypeContext as ^ foreign newtype #}
+{#pointer *ExportTypeContext as ^ foreign newtype #}
+{#pointer *CompilerContext as ^ foreign finalizer CompilerDelete as ^ newtype #}
+{#pointer *LoaderContext as ^ foreign finalizer LoaderDelete as ^ newtype #}
+{#pointer *ValidatorContext as ^ foreign finalizer ValidatorDelete as ^ newtype #}
+{#pointer *ExecutorContext as ^ foreign finalizer ExecutorDelete as ^ newtype #}
+{#pointer *StoreContext as ^ foreign finalizer StoreDelete as ^ newtype #}
+{#pointer *ModuleInstanceContext as ^ foreign finalizer ModuleInstanceDelete as ^ newtype #}
+{#pointer *FunctionInstanceContext as ^ foreign finalizer FunctionInstanceDelete as ^ newtype #}
+{#pointer *TableInstanceContext as ^ foreign finalizer TableInstanceDelete as ^ newtype #}
+{#pointer *MemoryInstanceContext as ^ foreign finalizer MemoryInstanceDelete as ^ newtype #}
+{#pointer *GlobalInstanceContext as ^ foreign finalizer GlobalInstanceDelete as ^ newtype #}
+{#pointer *CallingFrameContext as ^ foreign newtype #}
+{#pointer *Async as ^ foreign finalizer AsyncDelete as ^ newtype #}
+{#pointer *VMContext as ^ foreign finalizer VMDelete as ^ newtype #}
+{#pointer *PluginContext as ^ foreign newtype #}
 
-{#enum WasmEdge_ProgramOptionType as ProgramOptionType {}
+{#enum ProgramOptionType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- WasmEdge logging functions
-{#fun pure unsafe WasmEdge_LogSetErrorLevel as setLogErrorLevel {} -> `()'#}
-{#fun pure unsafe WasmEdge_LogSetDebugLevel as setLogDebugLevel {} -> `()'#}
+{-|
+  Set the logging system to filter to error level.
+-}
+{#fun unsafe LogSetErrorLevel as ^ {} -> `()'#}
+
+{-|
+  Set the logging system to filter to debug level.
+-}
+{#fun unsafe LogSetDebugLevel as ^ {} -> `()'#}
 
 -- WASM Proposal C enumeration.
-{#enum WasmEdge_Proposal as Proposal {}
+{#enum Proposal as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- Host Module Registration C enumeration.
-{#enum WasmEdge_HostRegistration as HostRegistration {}
+{#enum HostRegistration as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- AOT compiler optimization level C enumeration.
-{#enum WasmEdge_CompilerOptimizationLevel as CompilerOptimizationLevel {}
+{#enum CompilerOptimizationLevel as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- AOT compiler output binary format C enumeration.
-{#enum WasmEdge_CompilerOutputFormat as CompilerOutputFormat {}
+{#enum CompilerOutputFormat as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- Error category C enumeration.
-{#enum WasmEdge_ErrCategory as ErrCategory {}
+{#enum ErrCategory as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- Error code C enumeration.
-{#enum WasmEdge_ErrCode as ErrCode {}
+{#enum ErrCode as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- WASM Value type C enumeration.
-{#enum WasmEdge_ValType as ValType {}
+{#enum ValType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq)
 #}
 deriving via ViaFromEnum ValType instance Storable ValType
 
 -- WASM Number type C enumeration.
-{#enum WasmEdge_NumType as NumType {}
+{#enum NumType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- WASM Reference type C enumeration.
-{#enum WasmEdge_RefType as RefType {}
+{#enum RefType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- WASM Mutability C enumeration.
-{#enum WasmEdge_Mutability as Mutability {}
+{#enum Mutability as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
 -- WASM External type C enumeration.
-{#enum WasmEdge_ExternalType as ExternalType {}
+{#enum ExternalType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
