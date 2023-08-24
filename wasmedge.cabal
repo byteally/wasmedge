@@ -144,7 +144,7 @@ test-suite wasmedge-test
                        , ghc2021Shim
                        , common-build-deps
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: Test.FFI
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -160,4 +160,8 @@ test-suite wasmedge-test
 
     -- Test dependencies.
     build-depends:
-        wasmedge
+                  wasmedge
+                , hedgehog >= 1.4
+                , tasty-hedgehog >= 1.4
+                , tasty >= 1.4
+

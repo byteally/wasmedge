@@ -1,4 +1,9 @@
 module Main (main) where
 
+import Test.FFI
+import Test.Tasty
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = do
+  defaultMain ffiTT
+
