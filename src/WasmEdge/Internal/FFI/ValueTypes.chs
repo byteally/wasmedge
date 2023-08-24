@@ -301,8 +301,9 @@ instance Eq Limit where
 {#fun unsafe StatisticsSetCostLimit as ^ {`StatisticsContext', `Word64'} -> `()'#}
 {#fun unsafe StatisticsClear as ^ {`StatisticsContext'} -> `()'#}
 
--- * Module
+-- AST Module
 -- TODO:
+{#fun unsafe ASTModuleListImportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
 -- {#fun unsafe ASTModuleListImports as ^ {`ASTModuleContext'} -> `()'#}
 {#fun unsafe ASTModuleListExportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
 -- TODO:
