@@ -1,0 +1,35 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: haskell/actions/setup@v2
+      with:
+        ghc-version: '9.2.8'
+        cabal-version: '3.6'
+    
+       
+    - name: Build
+      run: |
+        cabal update
+        curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+        source $HOME/.wasmedge/env 
+        cabal build # --enable-tests --enable-benchmarks all
+    # - name: Run tests
+    #   run: |
+    #     curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+    #     source $HOME/.wasmedge/env 
+    #     cabal run
