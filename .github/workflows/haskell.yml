@@ -21,6 +21,16 @@ jobs:
         ghc-version: '9.2.8'
         cabal-version: '3.6'
     
+    - name: cache
+      uses: actions/cache@v3
+      with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ matrix.ghc }}-v1-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project*') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.ghc }}-v1-
        
     - name: Build
       run: |
@@ -28,8 +38,4 @@ jobs:
         curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
         source $HOME/.wasmedge/env 
         cabal build # --enable-tests --enable-benchmarks all
-    # - name: Run tests
-    #   run: |
-    #     curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
-    #     source $HOME/.wasmedge/env 
-    #     cabal run
+        cabal run
