@@ -50,6 +50,11 @@ build-type:         Simple
 -- Extra doc files to be distributed with the package, such as a CHANGELOG or a README.
 extra-doc-files:    CHANGELOG.md
 
+flag TestOnly
+    description: Enable TestOnly code. It Should only be turned-on by test-suites
+    manual: True
+    default: False                    
+
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 common ghc-opts
@@ -113,6 +118,7 @@ common common-build-deps
                      , bytestring        >= 0.11
                      , vector            >= 0.13
                      , wide-word         >= 0.1.5
+                     , containers        >= 0.6
                                             
 library
     import:              ghc-opts
@@ -139,6 +145,9 @@ library
     hs-source-dirs:   src
     extra-libraries: wasmedge
 
+    if flag(TestOnly)
+      cpp-options:   -DTESTONLY 
+
 test-suite wasmedge-test
     import:              ghc-opts
                        , ghc2021Shim
@@ -164,4 +173,6 @@ test-suite wasmedge-test
                 , hedgehog >= 1.4
                 , tasty-hedgehog >= 1.4
                 , tasty >= 1.4
+
+    ghc-options: -threaded
 

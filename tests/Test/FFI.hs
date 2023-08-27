@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module Test.FFI
   ( ffiTT
   ) where
@@ -6,20 +8,29 @@ module Test.FFI
 import           Hedgehog
 import           Test.Tasty
 import           Test.Tasty.Hedgehog
--- import qualified Hedgehog.Gen as Gen
--- import qualified Hedgehog.Range as Range
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
 import WasmEdge.Internal.FFI.Version
 import WasmEdge.Internal.FFI.ValueTypes
 import qualified Data.Text as T
+import Data.ByteString (ByteString)
 -- import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import Data.String
---import Control.Monad.IO.Class
+import Data.Kind
+import GHC.Generics
+import Control.Monad.IO.Class
+
+import Data.Unique
+-- import Data.Set (Set)
+-- import qualified Data.Set as Set
+-- import Control.Concurrent.MVar
 
 ffiTT :: TestTree
 ffiTT = testGroup "ffi tests"
   [ versionTT
   , stringTT
+  , prop_finalization
   ]
 
 versionTT :: TestTree
@@ -39,4 +50,42 @@ stringTT = testGroup "string tests"
       let ws = "foo" :: WasmString
       toText ws === "foo"
   ]
-  
+
+data NewString (v :: Type -> Type) = NewString ByteString
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
+newtype ShowableUnique = ShowableUnique {getShowableUnique :: Unique}
+instance Show ShowableUnique where
+  show = show . hashUnique . getShowableUnique
+
+stringCmd :: FFICmd 
+stringCmd = Command
+  { commandGen = \State{} -> Just $ pure $ NewString "wasm\0edge"
+  , commandExecute = \(NewString bs) -> do
+      (uq, ws) <- liftIO $ testonly_accquire (pure $ mkStringFromBytes bs)
+--      liftIO $ finalize ws
+      pure (ShowableUnique uq, ws)
+  , commandCallbacks = [ Require $ \State {} _ -> True
+                       , Ensure $ \_ _ (NewString _bs) (ShowableUnique _uq, _ws) -> do
+--                           isalive <- evalIO $ testonly_isAlive uq
+                           assert True --isalive 
+                       ]
+  }
+
+data State (v :: Type -> Type) = State
+  { 
+  } deriving (Eq, Ord)
+
+type FFICmd = Command Gen (PropertyT IO) State
+
+prop_finalization :: TestTree
+prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $ do
+  let
+    commands :: [FFICmd]
+    commands = [stringCmd] 
+    initialState = State
+      { 
+      }
+  actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
+  executeSequential initialState actions

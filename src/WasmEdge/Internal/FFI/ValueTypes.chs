@@ -1,6 +1,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( i32Value
@@ -13,6 +14,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   , configureAddHostRegistration
   , logSetErrorLevel
   , logSetDebugLevel
+  , finalize
+  , HasFinalizer
   , ConfigureContext
   , ProgramOptionType (..)
   , Proposal (..)
@@ -27,6 +30,11 @@ module WasmEdge.Internal.FFI.ValueTypes
   , ExternalType (..)
   , Mutability (..)
   , WasmString
+#if TESTONLY
+  , testonly_accquire
+  , testonly_isAlive
+  , testonly_release
+#endif
   ) where
 
 import Data.Int
@@ -48,6 +56,14 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
+import Data.Coerce
+#if TESTONLY
+import Data.Unique
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Control.Concurrent.MVar
+import GHC.Stack
+#endif
 
 -- import Data.Vector.Storable.Mutable (IOVector)
 -- import qualified Data.Vector.Storable.Mutable as VSM
@@ -56,6 +72,42 @@ import qualified Data.Vector.Storable as VS
 #include <stdio.h>
 
 {#context prefix = "WasmEdge"#}
+
+#if TESTONLY
+testonly_ref_barrier :: MVar Unique
+testonly_ref_barrier = unsafePerformIO newEmptyMVar
+{-# NOINLINE testonly_ref_barrier #-}
+
+testonly_ref_count :: MVar (Set Unique)
+testonly_ref_count = unsafePerformIO $ newMVar mempty
+{-# NOINLINE testonly_ref_count #-}
+
+testonly_accquire :: HasCallStack => IO a -> IO (Unique, a)
+testonly_accquire act = do
+  uq <- newUnique
+  putMVar testonly_ref_barrier uq
+  !r <- act
+  isUnlocked <- fmap (maybe True (uq/=)) $ tryReadMVar testonly_ref_barrier
+  if isUnlocked
+    then pure (uq, r)
+    else error $ "No C finalizer added for resource accquired with ref: " ++ (show $ hashUnique uq)
+
+testonly_release :: Unique -> IO ()
+testonly_release uq = modifyMVar_ testonly_ref_count (pure . Set.delete uq)
+
+testonly_isAlive :: Unique -> IO Bool
+testonly_isAlive uq = withMVar testonly_ref_count (pure . Set.member uq)
+
+testonly_ref :: IO (Maybe Unique)
+testonly_ref = do
+  modifyMVar testonly_ref_count $ \uqs -> do
+    uqMay <- tryTakeMVar testonly_ref_barrier
+    pure (maybe uqs (\uq -> Set.insert uq uqs) uqMay, uqMay)
+
+foreign import ccall "wrapper" releaseFnPtr :: (Ptr a -> IO ()) -> IO (FunPtr (Ptr a -> IO ()))
+    
+
+#endif
 
 {#fun pure unsafe WasmEdge_ValueGenI32 as i32Value
    { `Int32'
@@ -92,6 +144,8 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 
 -- {#pointer *WasmEdge_Value as WasmValue foreign newtype #}
 {#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
+instance HasFinalizer WasmString
+
 {#pointer *WasmEdge_Result as WasmResult foreign newtype #}
 {#pointer *WasmEdge_Limit as Limit foreign newtype #}
 -- Program option for plugins.
@@ -113,10 +167,29 @@ void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
 
 mkStringFromBytes :: ByteString -> WasmString
-mkStringFromBytes bs = unsafePerformIO $ do
-  ws@(WasmString fp) <- mkStringFromBytesIO bs
-  addForeignPtrFinalizer deleteString fp
-  pure ws
+mkStringFromBytes bs = unsafePerformIO $ wrapCFinalizer deleteString $ mkStringFromBytesIO bs
+
+wrapCFinalizer :: forall t.(Coercible t (ForeignPtr t)) => FinalizerPtr t -> IO t -> IO t
+wrapCFinalizer final tAct = tAct >>= \t -> do
+  addForeignPtrFinalizer final (coerce t)
+#if TESTONLY
+  uqMay <- testonly_ref
+  case uqMay of
+    Nothing -> pure ()
+    Just _ -> pure ()
+    -- Just uq -> do
+    --   relFin <- releaseFnPtr @t (const $ testonly_release uq)
+    --   addForeignPtrFinalizer relFin (coerce t)
+#endif  
+  pure t
+{-#INLINE wrapCFinalizer #-}
+
+class Coercible t (ForeignPtr t) => HasFinalizer t where
+  getFinalizer :: t -> IO ()
+  getFinalizer t = finalizeForeignPtr @t (coerce t)
+  
+finalize :: HasFinalizer t => t -> IO ()
+finalize = getFinalizer
 
 useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
 useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
