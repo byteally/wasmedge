@@ -69,7 +69,7 @@ void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uin
   *strOut = WasmEdge_StringCreateByBuffer(Str, Len);
 }
 
-WasmEdge_String StringWrapOut(WasmEdge_String* strOut, const char *Buf, const uint32_t Len)
+void StringWrapOut(WasmEdge_String* strOut, const char *Buf, const uint32_t Len)
 {
   *strOut = WasmEdge_StringWrap(Buf, Len);
 }
@@ -88,6 +88,37 @@ void ResultGenOut(WasmEdge_Result* out, const enum WasmEdge_ErrCategory Category
 void C_Result_Success(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Success.Code;}
 void C_Result_Terminate(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Terminate.Code;}
 void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code;}
+void ImportTypeGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetModuleName(Ctx); }
+void ImportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetExternalName(Ctx); }
+void ExportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ExportTypeContext* Ctx){ *strOut = WasmEdge_ExportTypeGetExternalName(Ctx); }
+void CompilerCompileOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const char* InPath,const char* OutPath){ *resOut = WasmEdge_CompilerCompile(Ctx,InPath,OutPath); }
+void CompilerCompileFromBufferOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const uint8_t *InBuffer,const uint64_t InBufferLen,const char *OutPath){ 
+  *resOut = WasmEdge_CompilerCompileFromBuffer(Ctx,InBuffer,InBufferLen,OutPath); 
+  }
+void ValidatorValidateOut(WasmEdge_Result* resOut,WasmEdge_ValidatorContext* Ctx,const WasmEdge_ASTModuleContext *ASTCxt){ *resOut = WasmEdge_ValidatorValidate(Ctx,ASTCxt); }
+//void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
+void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
+*resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
+void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,
+                        const WasmEdge_FunctionInstanceContext *FuncCxt,
+                        const WasmEdge_Value *Params, const uint32_t ParamLen,
+                        WasmEdge_Value *Returns, const uint32_t ReturnLen){ *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,Params,ParamLen,Returns,ReturnLen); }
+void ModuleInstanceGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ModuleInstanceContext* Ctx){ *strOut = WasmEdge_ModuleInstanceGetModuleName(Ctx); }
+void TableInstanceGrowOut(WasmEdge_Result* resOut,WasmEdge_TableInstanceContext* Ctx,const uint32_t Size){ *resOut = WasmEdge_TableInstanceGrow(Ctx,Size); }
+void MemoryInstanceGetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
+*resOut = WasmEdge_MemoryInstanceGetData(Ctx,Data,Offset,Length); }
+void MemoryInstanceSetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
+*resOut = WasmEdge_MemoryInstanceSetData(Ctx,Data,Offset,Length); }
+void MemoryInstanceGrowPageOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext *Cxt,const uint32_t Page){ *resOut = WasmEdge_MemoryInstanceGrowPage(Cxt,Page); }
+void PluginGetPluginNameOut(WasmEdge_String* strOut,const WasmEdge_PluginContext *Cxt){ *strOut = WasmEdge_PluginGetPluginName(Cxt); }
+void VMRegisterModuleFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const char *Path){ *resOut = WasmEdge_VMRegisterModuleFromFile(Cxt,ModuleName,Path); }
+void VMInstantiateOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt){ *resOut = WasmEdge_VMInstantiate(Cxt); }
+void VMValidateOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt){ *resOut = WasmEdge_VMValidate(Cxt); }
+void VMLoadWasmFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt){ *resOut = WasmEdge_VMLoadWasmFromASTModule(Cxt,ASTCxt); }
+void VMLoadWasmFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt, const char *Path){ *resOut = WasmEdge_VMLoadWasmFromFile(Cxt,Path); }
+void VMRegisterModuleFromImportOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ *resOut = WasmEdge_VMRegisterModuleFromImport(Cxt,ImportCxt); }
+void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName, const WasmEdge_ASTModuleContext *ASTCxt){ 
+*resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
 #endc
 
 -- {#pointer *WasmEdge_Value as WasmValue foreign newtype #}
@@ -362,12 +393,12 @@ instance Enum t => Storable (ViaFromEnum t) where
 
 -- Table Type
 -- TODO:                                            
--- {#fun unsafe TableTypeCreate as ^ {`RefType','Limit'} -> `TableTypeContext' #} -- Need wrapper for Limit
+{#fun unsafe TableTypeCreate as ^ {`RefType',%`Limit'} -> `TableTypeContext' #}
 {#fun unsafe TableTypeGetRefType as ^ {`TableTypeContext'} -> `RefType'#}      
 -- TODO: 
--- {#fun unsafe TableTypeGetLimit as ^ {`TableTypeContext'} -> `Limit'#} -- Need wrapper for Limit, similar to WasmString? Giving error Expected: Ptr Limit Actual: Ptr ()
+-- {#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#} -- Wrote wrapper but giving some weird warning,Structure wrapping not allowed in return types..why?
 -- Memory Type
--- {#fun unsafe MemoryTypeCreate as ^ {`Limit'} -> `MemoryTypeContext'#}  -- Expected Ptr () Actual Ptr Limit
+{#fun unsafe MemoryTypeCreate as ^ {%`Limit'} -> `MemoryTypeContext'#}  
 -- {#fun unsafe MemoryTypeGetLimit as ^ {`MemoryTypeContext'} -> `Limit'#} -- Expected Ptr Limit Actual Ptr ()
 
 -- Global Type
@@ -377,8 +408,8 @@ instance Enum t => Storable (ViaFromEnum t) where
 
 -- Import Type
 -- TODO:
--- {#fun unsafe ImportTypeGetModuleName as ^ {`ImportTypeContext'} -> `WasmString'#} -- Need wrapper function here
--- {#fun unsafe ImportTypeGetExternalName as ^ {`ImportTypeContext'} -> `WasmString'#} -- Need wrapper function here
+{#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName {+,`ImportTypeContext'} -> `WasmString'#} -- It didn't work when I wrote as ImportTypeGetModuleName ... 'I' why?
+{#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName {+,`ImportTypeContext'} -> `WasmString'#}
 {#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'#} 
 {#fun unsafe ImportTypeGetTableType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `TableTypeContext'#} 
 {#fun unsafe ImportTypeGetMemoryType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `MemoryTypeContext'#} 
@@ -387,7 +418,7 @@ instance Enum t => Storable (ViaFromEnum t) where
 -- Export Type
 {#fun unsafe ExportTypeGetExternalType as ^ {`ExportTypeContext'} -> `ExternalType'#} 
 -- TODO:
--- {#fun unsafe ExportTypeGetExternalName as ^ {`ExportTypeContext'} -> `WasmString'#} -- Need wrapper function here 
+{#fun unsafe ExportTypeGetExternalNameOut as exportTypeGetExternalName {+,`ExportTypeContext'} -> `WasmString'#} 
 {#fun unsafe ExportTypeGetFunctionType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `FunctionTypeContext'#} 
 {#fun unsafe ExportTypeGetTableType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `TableTypeContext'#}
 {#fun unsafe ExportTypeGetMemoryType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `MemoryTypeContext'#}
@@ -395,58 +426,58 @@ instance Enum t => Storable (ViaFromEnum t) where
 
 -- AOT Compiler
 {#fun unsafe CompilerCreate as ^ {`ConfigureContext'} -> `CompilerContext'#}
--- {#fun unsafe CompilerCompile as ^ {`CompilerContext',`String',`String'} -> `WasmResult'#}  -- Need wrapper function here, not sure what to pass at the place of const char*
--- {#fun unsafe CompilerCompileFromBuffer as ^ {`CompilerContext',`Word8',`Word64',`String'} -> `WasmResult'#} -- Need wrapper function here, not sure what to pass at the place of const char*
+{#fun unsafe CompilerCompileOut as compilerCompile {+,`CompilerContext',`String',`String'} -> `WasmResult'#} 
+{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext',`Word8',`Word64',`String'} -> `WasmResult'#} 
 
 -- Loader
 {#fun unsafe LoaderCreate as ^ {`ConfigureContext'} -> `LoaderContext'#}
--- {#fun unsafe LoaderParseFromFile as ^ {`LoaderContext',`ASTModuleContext',`String'} -> `WasmResult'#} -- needs wrapper, double pointer for ASTModuleContext and something for const char*
+-- {#fun unsafe LoaderParseFromFileOut as loaderParseFromFile {+,`LoaderContext',`ASTModuleContext',`String'} -> `WasmResult'#} -- needs wrapper, double pointer for ASTModuleContext and something for const char*
 -- {#fun unsafe LoaderParseFromBuffer as ^ {`LoaderContext',`ASTModuleContext',`ForeignPtr Word8',`Word32'} -> `WasmResult'#} -- needs wrapper, double pointer for ASTModuleContext 
 
 -- Validator
--- {#fun unsafe ValidatorCreate as ^ {`ConfigureContext'} -> `ValidatorContext'#}
--- {#fun unsafe ValidatorValidate as ^ {`ValidatorContext',`ASTModuleContext'} -> `WasmResult'#} -- needs wrapper
+{#fun unsafe ValidatorCreate as ^ {`ConfigureContext'} -> `ValidatorContext'#}
+{#fun unsafe ValidatorValidateOut as validatorValidate {+,`ValidatorContext',`ASTModuleContext'} -> `WasmResult'#}
 
 -- Executor
 {#fun unsafe ExecutorCreate as ^ {`ConfigureContext',`StatisticsContext'} -> `ExecutorContext'#}
--- {#fun unsafe ExecutorInstantiate as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext'} -> `WasmResult'#} -- needs wrapper
+-- {#fun unsafe ExecutorInstantiate as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext'} -> `WasmResult'#} -- needs wrapper, double pointer
 -- {#fun unsafe ExecutorRegister as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#} -- needs wrapper and WasmString substitute
--- {#fun unsafe ExecutorRegisterImport as ^ {`ExecutorContext',`StatisticsContext',`ModuleInstanceContext'} -> `WasmResult'#}
--- {#fun unsafe ExecutorInvoke as ^ {`ExecutorContext',`FunctionInstanceContext',`ModuleInstanceContext',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#}
--- {#fun unsafe ExecutorAsyncInvoke as ^ {`ExecutorContext',`FunctionInstanceContext',`WasmValue',`Word32'} -> `Async'#} -- WasmValue and Word32 
+{#fun unsafe ExecutorRegisterImportOut as executorRegisterImport {+,`ExecutorContext',`StoreContext',`ModuleInstanceContext'} -> `WasmResult'#}
+-- {#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#}
+-- {#fun unsafe ExecutorAsyncInvoke as ^ {`ExecutorContext',`FunctionInstanceContext',%`WasmValue',`Word32'} -> `Async'#} -- WasmValue and Word32 
 
 -- Store
-{#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} -- WasmValue and Word32 
--- {#fun unsafe StoreFindModule as ^ {`StoreContext',`WasmString'} -> `ModuleInstanceContext'#} -- WasmValue 
+{#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} 
+{#fun unsafe StoreFindModule as ^ {`StoreContext',%`WasmString'} -> `ModuleInstanceContext'#}
 {#fun unsafe StoreListModuleLength as ^ {`StoreContext'} -> `Word32'#}
--- {#fun unsafe StoreListModule as ^ {`StoreContext',`WasmString',`Word32'} -> `Word32'#} -- WasmString
+{#fun unsafe StoreListModule as ^ {`StoreContext',`WasmString',`Word32'} -> `Word32'#}
 
 -- Module Instance
--- {#fun unsafe ModuleInstanceCreate as ^ {`WasmString'} -> `ModuleInstanceContext'#} --WasmString
--- {#fun unsafe ModuleInstanceCreateWithData as ^ {`WasmString',`Void *',`void (*finalizer)(void *)'} -> `ModuleInstanceContext'#} -- WasmString and that void data
--- {#fun unsafe ModuleInstanceCreate as ^ {`String',`Word32',`String',`String',`Word32',`String',`Word32'} -> `ModuleInstanceContext'#} -- char* const,uinst32_t 
+{#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
+-- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`void (*finalizer)(void *)'} -> `ModuleInstanceContext'#} -- WasmString and that void data
+-- {#fun unsafe ModuleInstanceCreateWASI as ^ {`String',`Word32',`String',`String',`Word32',`String',`Word32'} -> `ModuleInstanceContext'#} -- char* const,uinst32_t 
 -- {#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',`Const char *const',`Word32',`const char* const',`Word32',`Const char* const',`Word32'} -> `()'#} -- char* const,uinst32_t 
 {#fun unsafe ModuleInstanceWASIGetExitCode as ^ {`ModuleInstanceContext'} -> `Word32'#}
 {#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',`Word64'} -> `Word32'#} -- at Word64 substituting uint64_t *
 -- {#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ {`Char* Const',`Word32',`Bool'} -> `()'#} --
--- {#fun unsafe ModuleInstanceGetModuleName as ^ {`ModuleInstanceContext'} -> `WasmString'#} --
+{#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName {+,`ModuleInstanceContext'} -> `WasmString'#} --
 {#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `()'#} --
--- {#fun unsafe ModuleInstanceFindFunction as ^ {`ModuleInstanceContext',WasmString} -> `FunctionInstanceContext'#} -- WasmString
--- {#fun unsafe ModuleInstanceFindTable as ^ {`ModuleInstanceContext',WasmString} -> `TableInstanceContext'#} -- WasmString
--- {#fun unsafe ModuleInstanceFindMemory as ^ {`ModuleInstanceContext',WasmString} -> `MemoryInstanceContext'#} -- WasmString
--- {#fun unsafe ModuleInstanceFindGlobal as ^ {`ModuleInstanceContext',WasmString} -> `GlobalInstanceContext'#} -- WasmString
+{#fun unsafe ModuleInstanceFindFunction as ^ {`ModuleInstanceContext',%`WasmString'} -> `FunctionInstanceContext'#}
+{#fun unsafe ModuleInstanceFindTable as ^ {`ModuleInstanceContext',%`WasmString'} -> `TableInstanceContext'#}
+{#fun unsafe ModuleInstanceFindMemory as ^ {`ModuleInstanceContext',%`WasmString'} -> `MemoryInstanceContext'#}
+{#fun unsafe ModuleInstanceFindGlobal as ^ {`ModuleInstanceContext',%`WasmString'} -> `GlobalInstanceContext'#}
 {#fun unsafe ModuleInstanceListFunctionLength as ^ {`ModuleInstanceContext'} -> `Word32'#}
--- {#fun unsafe ModuleInstanceListFunction as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} -- WasmString
+{#fun unsafe ModuleInstanceListFunction as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#}
 {#fun unsafe ModuleInstanceListTableLength as ^ {`ModuleInstanceContext'} -> `Word32'#} 
--- {#fun unsafe ModuleInstanceListTable as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} --WasmString 
+{#fun unsafe ModuleInstanceListTable as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#}
 {#fun unsafe ModuleInstanceListMemoryLength as ^ {`ModuleInstanceContext'} -> `Word32'#} 
--- {#fun unsafe ModuleInstanceListMemory as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListMemory as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
 {#fun unsafe ModuleInstanceListGlobalLength as ^ {`ModuleInstanceContext'} -> `Word32'#} 
--- {#fun unsafe ModuleInstanceListGlobal as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
--- {#fun unsafe ModuleInstanceAddFunction as ^ {`ModuleInstanceContext',`WasmString',`FunctionInstanceContext'} -> `()'#} -- wasmString 
--- {#fun unsafe ModuleInstanceAddTable as ^ {`ModuleInstanceContext',`WasmString',`TableInstanceContext'} -> `()'#} -- wasmString 
--- {#fun unsafe ModuleInstanceAddMemory as ^ {`ModuleInstanceContext',`WasmString',`MemoryInstanceContext'} -> `()'#} -- wasmString 
--- {#fun unsafe ModuleInstanceAddGlobal as ^ {`ModuleInstanceContext',`WasmString',`GlobalInstanceContext'} -> `()'#} -- wasmString 
+{#fun unsafe ModuleInstanceListGlobal as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceAddFunction as ^ {`ModuleInstanceContext',%`WasmString',`FunctionInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddTable as ^ {`ModuleInstanceContext',%`WasmString',`TableInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddMemory as ^ {`ModuleInstanceContext',%`WasmString',`MemoryInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddGlobal as ^ {`ModuleInstanceContext',%`WasmString',`GlobalInstanceContext'} -> `()'#}
 
 -- Function Instance
 {-
@@ -460,6 +491,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     const WasmEdge_Value *Params, const uint32_t ParamLen,
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 -}
+{#pointer HostFunc_t as WasmHostFunc newtype #}
 -- {#fun unsafe FunctionInstanceCreate as ^ {`FunctionTypeContext',`HostFunc_t',`void *',`Word64'} -> `FunctionTypeContext'#}  --some random typedef
 -- {#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFunc_t',`void *',`void *',`Word64'} -> `FunctionInstanceContext'#} -- some random typedef
 {#fun unsafe FunctionInstanceGetFunctionType as ^ {`FunctionInstanceContext'} -> `FunctionTypeContext'#}
@@ -470,17 +502,17 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 -- {#fun unsafe TableInstanceGetData as ^ {`TableInstanceContext',`WasmValue',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
 -- {#fun unsafe TableInstanceSetData as ^ {`TableInstanceContext',`WasmValue',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
 {#fun unsafe TableInstanceGetSize as ^ {`TableInstanceContext'} -> `Word32'#} 
--- {#fun unsafe TableInstanceGrow as ^ {`TableInstanceContext',`Word32'} -> `WasmResult'#} -- wasmResult
+{#fun unsafe TableInstanceGrowOut as tableInstanceGrow {+,`TableInstanceContext',`Word32'} -> `WasmResult'#}
 
 -- Memory Instance
 {#fun unsafe MemoryInstanceCreate as ^ {`MemoryTypeContext'} -> `MemoryInstanceContext'#} 
 {#fun unsafe MemoryInstanceGetMemoryType as ^ {`MemoryInstanceContext'} -> `MemoryTypeContext'#} 
--- {#fun unsafe  MemoryInstanceGetData as ^ {`MemoryInstanceContext',`Word8',`Word32',`Word32'} -> `WasmResult'#} -- wasmresult word8 *
--- {#fun unsafe  MemoryInstanceSetData as ^ {`MemoryInstanceContext',`Word8',`Word32',`Word32'} -> `WasmResult'#} -- wasmresult word8 *
--- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} -- word8 *
--- {#fun unsafe MemoryInstanceGetPointerConst as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} -- word8 *
+{#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData {+,`MemoryInstanceContext',`Word8',`Word32',`Word32'} -> `WasmResult'#} 
+-- {#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',`Vector Word8'&} -> `WasmResult'#} -- use wrapper with offset before data
+-- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Vector Word8'#} -- Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
+-- {#fun unsafe MemoryInstanceGetPointerConst as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} --Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
 {#fun unsafe MemoryInstanceGetPageSize as ^ {`MemoryInstanceContext'} -> `Word32'#} 
--- {#fun unsafe MemoryInstanceGrowPage as ^ {`MemoryInstanceContext',`Word32'} -> `WasmResult'#} --WasmREsult 
+{#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage {+,`MemoryInstanceContext',`Word32'} -> `WasmResult'#} 
 
 -- Global Instance
 -- {#fun unsafe GlobalInstanceCreate as ^ {`GlobalTypeContext',`WasmValue'} -> `GlobalInstanceContext'#} --WasmValue 
@@ -498,41 +530,44 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe AsyncWaitFor as ^ {`Async',`Word64'} -> `Bool'#}
 {#fun unsafe AsyncCancel as ^ {`Async'} -> `()'#}
 {#fun unsafe AsyncGetReturnsLength as ^ {`Async'} -> `Word32'#}
--- {#fun unsafe AsyncGet as ^ {`Async',`WasmResult',`Word32'} -> `WasmResult'#} -- wasmresult
+-- {#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmValue',`Word32'} -> `WasmResult'#} -- wasmresult
 
 -- VM
 {#fun unsafe VMCreate as ^ {`ConfigureContext',`StoreContext'} -> `VMContext'#}
+{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#} --wasmresult
+
 {-
-{#fun unsafe VMRegisterModuleFromFile as ^ {`VMContext',`WasmString',`String'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMRegisterModuleFromBuffer as ^ {`VMContext',`WasmString',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRegisterModuleFromASTModule as ^ {`VMContext',`WasmString',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRegisterModuleFromImport as ^ {`VMContext',`ModuleInstanceContext'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMRunWasmFromFile as ^ {`VMContext',`String',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMRunWasmFromBuffer as ^ {`VMContext',`Word8',`Word32',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMRunWasmFromASTModule as ^ {`VMContext',`ASTModuleContext',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMAsyncRunWasmFromFile as ^ {`VMContext',`String',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
 {#fun unsafe VMAsyncRunWasmFromBuffer as ^ {`VMContext',`Word8',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
 {#fun unsafe VMAsyncRunWasmFromASTModule as ^ {`VMContext',`ASTModuleContext',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMLoadWasmFromFile as ^ {`VMContext',`String'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMLoadWasmFromBuffer as ^ {`VMContext',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMLoadWasmFromASTModule as ^ {`VMContext',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMValidate as ^ {`VMContext'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMInstantiate as ^ {`VMContext'} -> `WasmResult'#} --wasmresult
+-}
+{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport {+,`VMContext',`ModuleInstanceContext'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile {+,`VMContext',`String'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMValidateOut as vMValidate  {+,`VMContext'} -> `WasmResult'#}
+{#fun unsafe VMInstantiateOut as vMInstantiate  {+,`VMContext'} -> `WasmResult'#}
+{-
 {#fun unsafe VMExecute as ^ {`VMContext',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMExecuteRegistered as ^ {`VMContext',`WasmString',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
 {#fun unsafe VMAsyncExecute as ^ {`VMContext',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMAsyncExecuteRegistered as ^ {`VMContext',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMGetFunctionType as ^ {`VMContext',`WasmString'} -> `FunctionTypeContext'#} --wasmresult
-{#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',`WasmString',`WasmString'} -> `FunctionTypeContext'#} --wasmresult
+{#fun unsafe VMAsyncExecuteRegistered as ^ {`VMContext',%`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
 -}
+{#fun unsafe VMGetFunctionType as ^ {`VMContext',%`WasmString'} -> `FunctionTypeContext'#}
+{#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
 {#fun unsafe VMGetFunctionListLength as ^ {`VMContext'} -> `Word32'#} 
--- {#fun unsafe VMGetFunctionList as ^ {`VMContext',`WasmString',`FunctionTypeContext',`Word32'} -> `Word32'#} -- Expected FunctionTypeContext Actual Ptr FunctionTypeContext
+-- {#fun unsafe VMGetFunctionList as ^ {`VMContext',`WasmString',`FunctionTypeContext',`Word32'} -> `Word32'#} --Double pointer, Expected FunctionTypeContext Actual Ptr FunctionTypeContext
 {#fun unsafe VMGetImportModuleContext as ^ {`VMContext',`HostRegistration'} -> `ModuleInstanceContext'#} 
 {#fun unsafe VMGetActiveModule as ^ {`VMContext'} -> `ModuleInstanceContext'#} 
--- {#fun unsafe VMGetRegisteredModule as ^ {`VMContext',`WasmString'} -> `ModuleInstanceContext'#} 
+{#fun unsafe VMGetRegisteredModule as ^ {`VMContext',%`WasmString'} -> `ModuleInstanceContext'#}
 {#fun unsafe VMListRegisteredModuleLength as ^ {`VMContext'} -> `Word32'#} 
--- {#fun unsafe VMListRegisteredModule as ^ {`VMContext',`WasmString',Word32} -> `Word32'#} 
+{#fun unsafe VMListRegisteredModule as ^ {`VMContext',`WasmString',`Word32'} -> `Word32'#} 
 {#fun unsafe VMGetStoreContext as ^ {`VMContext'} -> `StoreContext'#} 
 {#fun unsafe VMGetLoaderContext as ^ {`VMContext'} -> `LoaderContext'#} 
 {#fun unsafe VMGetValidatorContext as ^ {`VMContext'} -> `ValidatorContext'#} 
@@ -540,18 +575,18 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe VMGetStatisticsContext as ^ {`VMContext'} -> `StatisticsContext'#} 
 
 -- Driver
--- {#fun unsafe Driver_Compiler as ^ {`Int',`String'} -> `Int'#} -- Const Char* 
+-- {#fun unsafe Driver_Compiler as ^ {`Int',`Ptr String'} -> `Int'#} -- Const Char* 
 -- {#fun unsafe Driver_Tool as ^ {`Int',`String'} -> `Int'#} -- Const Char* 
 -- {#fun unsafe Driver_UniTool as ^ {`Int',`String'} -> `Int'#} -- Const Char* 
 
 -- Plugin Function
 {#fun unsafe PluginLoadWithDefaultPaths as ^ {} -> `()'#} 
-{#fun unsafe PluginLoadFromPath as ^ {`String'} -> `()'#} -- Const Char* 
--- {#fun unsafe PluginListPluginsLength as ^ {} -> `Word32'#} 
--- {#fun unsafe PluginListPlugins as ^ {`WasmString',`Word32'} -> `Word32'#} 
--- {#fun unsafe PluginFind as ^ {`WasmString',`Word32'} -> `PluginContext'#} 
--- {#fun unsafe PluginGetPluginName as ^ {`PluginContext'} -> `WasmString'#} 
+{#fun unsafe PluginLoadFromPath as ^ {`String'} -> `()'#}
+{#fun unsafe PluginListPluginsLength as ^ {} -> `Word32'#} 
+{#fun unsafe PluginListPlugins as ^ {`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe PluginFind as ^ {%`WasmString'} -> `PluginContext'#} 
+{#fun unsafe PluginGetPluginNameOut as pluginGetPluginName {+,`PluginContext'} -> `WasmString'#} 
 {#fun unsafe PluginListModuleLength as ^ {`PluginContext'} -> `Word32'#} 
--- {#fun unsafe PluginListModule as ^ {`PluginContext',`WasmString',`Word32'} -> `Word32'#} 
--- {#fun unsafe PluginCreateModule as ^ {`PluginContext',`WasmString'} -> `ModuleInstanceContext'#} 
+{#fun unsafe PluginListModule as ^ {`PluginContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe PluginCreateModule as ^ {`PluginContext',%`WasmString'} -> `ModuleInstanceContext'#} 
 {#fun unsafe Plugin_GetDescriptor as ^ {} -> `PluginDescriptor'#} 
