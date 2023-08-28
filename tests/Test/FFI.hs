@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE LambdaCase #-}
 module Test.FFI
   ( ffiTT
   ) where
@@ -29,6 +30,7 @@ import Data.Unique
 ffiTT :: TestTree
 ffiTT = testGroup "ffi tests"
   [ versionTT
+  , valueTT
   , stringTT
   , prop_finalization
   ]
@@ -49,6 +51,30 @@ stringTT = testGroup "string tests"
   , testProperty "finalizeString" $ withTests 1 $ property $ do
       let ws = "foo" :: WasmString
       toText ws === "foo"
+  ]
+
+valueTT :: TestTree
+valueTT = testGroup "value tests"
+  [ testProperty "int32" $ property $ do
+      i <- forAll $ Gen.int32 $ Range.constantBounded
+      tripping i WasmInt32 (\case
+                               WasmInt32 v -> Just v
+                               _ -> Nothing)
+  , testProperty "int64" $ property $ do
+      i <- forAll $ Gen.int64 $ Range.constantBounded
+      tripping i WasmInt64 (\case
+                               WasmInt64 v -> Just v
+                               _ -> Nothing)
+  , testProperty "float" $ property $ do
+      i <- forAll $ Gen.float $ Range.linearFrac 0 10
+      tripping i WasmFloat (\case
+                               WasmFloat v -> Just v
+                               _ -> Nothing)
+  , testProperty "double" $ property $ do
+      i <- forAll $ Gen.double $ Range.linearFrac 0 10
+      tripping i WasmDouble (\case
+                               WasmDouble v -> Just v
+                               _ -> Nothing)
   ]
 
 data NewString (v :: Type -> Type) = NewString ByteString

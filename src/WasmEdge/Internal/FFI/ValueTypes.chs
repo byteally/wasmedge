@@ -1,10 +1,12 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( i32Value
+  , valueGenI32
   , deleteString
   , wasmStringEq
   , wasmStringLength
@@ -30,6 +32,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   , ExternalType (..)
   , Mutability (..)
   , WasmString
+  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble)
 #if TESTONLY
   , testonly_accquire
   , testonly_isAlive
@@ -57,6 +60,8 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
 import Data.Coerce
+import Control.Arrow ((&&&))
+import Data.WideWord.Int128
 #if TESTONLY
 import Data.Unique
 import Data.Set (Set)
@@ -140,9 +145,119 @@ void ResultGenOut(WasmEdge_Result* out, const enum WasmEdge_ErrCategory Category
 void C_Result_Success(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Success.Code;}
 void C_Result_Terminate(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Terminate.Code;}
 void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code;}
+
+typedef struct U128 {
+  uint64_t High;
+  uint64_t Low;
+} U128;
+
+typedef struct WasmVal {
+  U128 Val;
+  enum WasmEdge_ValType Type;
+} WasmVal;
+
+uint128_t u128Touint128_t(U128 u128)
+{
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  if (0 == u128.High) {return (unsigned __int128)(u128.Low);}
+  else { return (((unsigned __int128)(u128.High) << 64) + u128.Low); }
+#else
+  uint128_t r = {.Low = u128.Low, .High = u128.High};
+  return r;
+#endif
+}
+
+U128 uint128_tToU128(WasmEdge_Value v)
+{
+  #if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  switch (v.Type){
+    case WasmEdge_ValType_I32: case WasmEdge_ValType_I64: case WasmEdge_ValType_F32:
+    case WasmEdge_ValType_F64:
+         {U128 r = {.High = 0, .Low = (uint64_t)v.Value}; return r;}
+    default:
+      if ((unsigned __int128)0xFFFFFFFFFFFFFFFF < v.Value) {
+        // TODO: Handle val greater than (maxBound :: Word64)
+        U128 r = {.High = 0, .Low = 0};
+        return r;
+      }
+      else {
+        {U128 r = {.High = 0, .Low = (uint64_t)v.Value}; return r;
+        return r;
+      }
+    }
+  }
+#else
+  U128 r = {.High = u128.High, .Low = u128.Low};
+  return r; 
+#endif
+}
+
+void ValueGenI32(WasmVal* valOut, const int32_t Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenI32(Val);
+  valOut->Type = r.Type;
+  valOut->Val = uint128_tToU128(r);
+}
+
+int32_t ValueGetI32 (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetI32(val);
+}
+
+void ValueGenI64(WasmVal* valOut, const int64_t Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenI64(Val);
+  valOut->Type = r.Type;
+  valOut->Val = uint128_tToU128(r);
+}
+
+int64_t ValueGetI64 (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetI64(val);
+}
+
+void ValueGenF32(WasmVal* valOut, const float Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenF32(Val);
+  valOut->Type = r.Type;
+  valOut->Val = uint128_tToU128(r);
+}
+
+float ValueGetF32 (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetF32(val);
+}
+
+void ValueGenF64(WasmVal* valOut, const double Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenF64(Val);
+  valOut->Type = r.Type;
+  valOut->Val = uint128_tToU128(r);
+}
+
+double ValueGetF64 (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetF64(val);
+}
+
+void ValueGenV128(WasmVal* valOut, const U128 Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenV128(u128Touint128_t(Val));
+  valOut->Type = r.Type;
+  valOut->Val = uint128_tToU128(r);
+}
+/*
+int32_t ValueGetV128 (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetI32(val);
+}
+*/
 #endc
 
--- {#pointer *WasmEdge_Value as WasmValue foreign newtype #}
+
+{#pointer *WasmVal as WasmVal foreign newtype #}
 {#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
 instance HasFinalizer WasmString
 
@@ -157,6 +272,49 @@ instance HasFinalizer WasmString
 -- Plugin descriptor for plugins.
 {#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
+-- Value
+
+pattern WasmInt32 :: Int32 -> WasmVal
+pattern WasmInt32 i32 <- ((valueGetI32 &&& getValType) -> (i32, ValType_I32)) where
+  WasmInt32 i32 = valueGenI32 i32
+
+pattern WasmInt64 :: Int64 -> WasmVal
+pattern WasmInt64 i64 <- ((valueGetI64 &&& getValType) -> (i64, ValType_I64)) where
+  WasmInt64 i64 = valueGenI64 i64
+
+pattern WasmFloat :: Float -> WasmVal
+pattern WasmFloat f32 <- ((valueGetF32 &&& getValType) -> (f32, ValType_F32)) where
+  WasmFloat f32 = valueGenF32 f32
+
+pattern WasmDouble :: Double -> WasmVal
+pattern WasmDouble f64 <- ((valueGetF64 &&& getValType) -> (f64, ValType_F64)) where
+  WasmDouble f64 = valueGenF64 f64  
+
+{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble #-}
+
+instance Show WasmVal where
+  show = \case
+    WasmInt32 v -> show v
+    WasmInt64 v -> show v
+    WasmFloat v -> show v
+    WasmDouble v -> show v
+
+getValType :: WasmVal -> ValType
+getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Type #})
+
+{#fun pure unsafe ValueGenI32 as valueGenI32 {+, `Int32'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetI32 as valueGetI32 {`WasmVal'} -> `Int32' #}
+
+{#fun pure unsafe ValueGenI64 as valueGenI64 {+, `Int64'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetI64 as valueGetI64 {`WasmVal'} -> `Int64' #}
+
+{#fun pure unsafe ValueGenF32 as valueGenF32 {+, `Float'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetF32 as valueGetF32 {`WasmVal'} -> `Float' #}
+
+{#fun pure unsafe ValueGenF64 as valueGenF64 {+, `Double'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetF64 as valueGetF64 {`WasmVal'} -> `Double' #}
+
+{#fun pure unsafe ValueGenV128 as valueGenV128 {+, fromI128*`Int128'} -> `WasmVal' #}
 
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
@@ -165,6 +323,9 @@ instance HasFinalizer WasmString
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
+
+fromI128 :: Int128 -> (Ptr () -> IO a) -> IO a
+fromI128 = undefined
 
 mkStringFromBytes :: ByteString -> WasmString
 mkStringFromBytes bs = unsafePerformIO $ wrapCFinalizer deleteString $ mkStringFromBytesIO bs
