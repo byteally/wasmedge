@@ -38,4 +38,4 @@ jobs:
         curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
         source $HOME/.wasmedge/env 
         cabal build # --enable-tests --enable-benchmarks all
-        cabal run
+        cabal test all --flag TestOnly
