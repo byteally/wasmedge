@@ -5,9 +5,7 @@
 {-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
-  ( i32Value
-  , valueGenI32
-  , deleteString
+  ( valueGenI32
   , wasmStringEq
   , wasmStringLength
   , toText
@@ -32,7 +30,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   , ExternalType (..)
   , Mutability (..)
   , WasmString
-  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble)
+  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128)
 #if TESTONLY
   , testonly_accquire
   , testonly_isAlive
@@ -114,11 +112,6 @@ foreign import ccall "wrapper" releaseFnPtr :: (Ptr a -> IO ()) -> IO (FunPtr (P
 
 #endif
 
-{#fun pure unsafe WasmEdge_ValueGenI32 as i32Value
-   { `Int32'
-   } -> `()'
-#}
-
 #c
 
 void StringCreateByBufferOut(WasmEdge_String* strOut, const char *Str, const uint32_t Len)
@@ -156,7 +149,7 @@ typedef struct WasmVal {
   enum WasmEdge_ValType Type;
 } WasmVal;
 
-uint128_t u128Touint128_t(U128 u128)
+uint128_t pack_uint128_t(U128 u128)
 {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
@@ -168,7 +161,57 @@ uint128_t u128Touint128_t(U128 u128)
 #endif
 }
 
-U128 uint128_tToU128(WasmEdge_Value v)
+int128_t pack_int128_t(U128 u128)
+{
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  if (0 == u128.High) {return (__int128)(u128.Low);}
+  else { return (((__int128)(u128.High) << 64) + u128.Low); }
+#else
+  int128_t r = {.Low = u128.Low, .High = u128.High};
+  return r;
+#endif
+}
+
+U128 unpack_int128_t(const int128_t i128)
+{
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  if ((__int128)0xFFFFFFFFFFFFFFFF < i128) {
+    // TODO: Handle val greater than (maxBound :: Word64)
+    U128 r = {.High = (uint64_t)((i128)>>64), .Low = (uint64_t)i128};
+    return r;
+  }
+  else {
+    U128 r = {.High = 0, .Low = (uint64_t)i128};
+    return r;
+  }    
+#else
+  U128 r = {.High = i128.High, .Low = i128.Low};
+  return r;
+#endif
+}
+
+U128 unpack_uint128_t(const uint128_t i128)
+{
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  if ((unsigned __int128)0xFFFFFFFFFFFFFFFF < i128) {
+    // TODO: Handle val greater than (maxBound :: Word64)
+    U128 r = {.High = (uint64_t)(i128>>64), .Low = (uint64_t)i128};
+    return r;
+  }
+  else {
+    U128 r = {.High = 0, .Low = (uint64_t)i128};
+    return r;
+  }    
+#else
+  U128 r = {.High = i128.High, .Low = i128.Low};
+  return r;
+#endif
+}
+
+U128 WasmEdge_ValueToU128(WasmEdge_Value v)
 {
   #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
@@ -177,19 +220,10 @@ U128 uint128_tToU128(WasmEdge_Value v)
     case WasmEdge_ValType_F64:
          {U128 r = {.High = 0, .Low = (uint64_t)v.Value}; return r;}
     default:
-      if ((unsigned __int128)0xFFFFFFFFFFFFFFFF < v.Value) {
-        // TODO: Handle val greater than (maxBound :: Word64)
-        U128 r = {.High = 0, .Low = 0};
-        return r;
-      }
-      else {
-        {U128 r = {.High = 0, .Low = (uint64_t)v.Value}; return r;
-        return r;
-      }
-    }
+      unpack_uint128_t(v.Value);
   }
 #else
-  U128 r = {.High = u128.High, .Low = u128.Low};
+  U128 r = {.High = v.Value.High, .Low = v.Value.Low};
   return r; 
 #endif
 }
@@ -197,63 +231,63 @@ U128 uint128_tToU128(WasmEdge_Value v)
 void ValueGenI32(WasmVal* valOut, const int32_t Val)
 { WasmEdge_Value r = WasmEdge_ValueGenI32(Val);
   valOut->Type = r.Type;
-  valOut->Val = uint128_tToU128(r);
+  valOut->Val = WasmEdge_ValueToU128(r);
 }
 
 int32_t ValueGetI32 (WasmVal* v)
 {
-  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetI32(val);
 }
 
 void ValueGenI64(WasmVal* valOut, const int64_t Val)
 { WasmEdge_Value r = WasmEdge_ValueGenI64(Val);
   valOut->Type = r.Type;
-  valOut->Val = uint128_tToU128(r);
+  valOut->Val = WasmEdge_ValueToU128(r);
 }
 
 int64_t ValueGetI64 (WasmVal* v)
 {
-  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetI64(val);
 }
 
 void ValueGenF32(WasmVal* valOut, const float Val)
 { WasmEdge_Value r = WasmEdge_ValueGenF32(Val);
   valOut->Type = r.Type;
-  valOut->Val = uint128_tToU128(r);
+  valOut->Val = WasmEdge_ValueToU128(r);
 }
 
 float ValueGetF32 (WasmVal* v)
 {
-  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetF32(val);
 }
 
 void ValueGenF64(WasmVal* valOut, const double Val)
 { WasmEdge_Value r = WasmEdge_ValueGenF64(Val);
   valOut->Type = r.Type;
-  valOut->Val = uint128_tToU128(r);
+  valOut->Val = WasmEdge_ValueToU128(r);
 }
 
 double ValueGetF64 (WasmVal* v)
 {
-  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetF64(val);
 }
 
-void ValueGenV128(WasmVal* valOut, const U128 Val)
-{ WasmEdge_Value r = WasmEdge_ValueGenV128(u128Touint128_t(Val));
+void ValueGenV128(WasmVal* valOut, const U128* Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenV128(pack_int128_t(*Val));
   valOut->Type = r.Type;
-  valOut->Val = uint128_tToU128(r);
+  valOut->Val = WasmEdge_ValueToU128(r);
 }
-/*
-int32_t ValueGetV128 (WasmVal* v)
+
+void ValueGetV128 (WasmVal* v, U128* u128Out)
 {
-  WasmEdge_Value val = {.Value = u128Touint128_t(v->Val), .Type = v->Type};
-  return WasmEdge_ValueGetI32(val);
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  *u128Out = unpack_int128_t(WasmEdge_ValueGetV128(val));
 }
-*/
+
 #endc
 
 
@@ -288,9 +322,13 @@ pattern WasmFloat f32 <- ((valueGetF32 &&& getValType) -> (f32, ValType_F32)) wh
 
 pattern WasmDouble :: Double -> WasmVal
 pattern WasmDouble f64 <- ((valueGetF64 &&& getValType) -> (f64, ValType_F64)) where
-  WasmDouble f64 = valueGenF64 f64  
+  WasmDouble f64 = valueGenF64 f64
 
-{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble #-}
+pattern WasmInt128 :: Int128 -> WasmVal
+pattern WasmInt128 f64 <- ((valueGetV128 &&& getValType) -> (f64, ValType_V128)) where
+  WasmInt128 v128 = valueGenV128 v128  
+
+{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128 #-}
 
 instance Show WasmVal where
   show = \case
@@ -298,6 +336,7 @@ instance Show WasmVal where
     WasmInt64 v -> show v
     WasmFloat v -> show v
     WasmDouble v -> show v
+    WasmInt128 v -> show v
 
 getValType :: WasmVal -> ValType
 getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Type #})
@@ -315,6 +354,7 @@ getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Typ
 {#fun pure unsafe ValueGetF64 as valueGetF64 {`WasmVal'} -> `Double' #}
 
 {#fun pure unsafe ValueGenV128 as valueGenV128 {+, fromI128*`Int128'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetV128 as valueGetV128 {`WasmVal', fromI128Alloc-`Int128'toI128*} -> `()' #}
 
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
@@ -325,7 +365,23 @@ getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Typ
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
 
 fromI128 :: Int128 -> (Ptr () -> IO a) -> IO a
-fromI128 = undefined
+fromI128 i128 f = do
+  fp <- mallocForeignPtrBytes {#sizeof U128#}
+  withForeignPtr fp $ \p -> do
+    {#set U128.High#} p (fromIntegral $ int128Hi64 i128)
+    {#set U128.Low#} p (fromIntegral $ int128Lo64 i128)
+    f p
+
+fromI128Alloc :: (Ptr () -> IO Int128) -> IO Int128
+fromI128Alloc f = do
+  fp <- mallocForeignPtrBytes {#sizeof U128#}
+  withForeignPtr fp f
+
+toI128 :: Ptr () -> IO Int128
+toI128 p = do
+  hi <- {#get U128.High#} p
+  lo <- {#get U128.Low#} p
+  pure $ Int128 {int128Hi64 = fromIntegral hi, int128Lo64 = fromIntegral lo}
 
 mkStringFromBytes :: ByteString -> WasmString
 mkStringFromBytes bs = unsafePerformIO $ wrapCFinalizer deleteString $ mkStringFromBytesIO bs
