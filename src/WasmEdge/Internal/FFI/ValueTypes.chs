@@ -287,7 +287,7 @@ void ValueGetV128 (WasmVal* v, U128* u128Out)
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *u128Out = unpack_int128_t(WasmEdge_ValueGetV128(val));
 }
-*/
+
 void ImportTypeGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetModuleName(Ctx); }
 void ImportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetExternalName(Ctx); }
 void ExportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ExportTypeContext* Ctx){ *strOut = WasmEdge_ExportTypeGetExternalName(Ctx); }
