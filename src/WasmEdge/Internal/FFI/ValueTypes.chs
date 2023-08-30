@@ -299,17 +299,78 @@ void ValidatorValidateOut(WasmEdge_Result* resOut,WasmEdge_ValidatorContext* Ctx
 //void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
 void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
 *resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
-void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,
-                        const WasmEdge_FunctionInstanceContext *FuncCxt,
-                        const WasmEdge_Value *Params, const uint32_t ParamLen,
-                        WasmEdge_Value *Returns, const uint32_t ReturnLen){ *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,Params,ParamLen,Returns,ReturnLen); }
+void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+    WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+    WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+    *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,&Params,ParamLen,&Returns,ReturnLen); //Is this correct??
+}
+WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v,const uint32_t ParamLen){
+    WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+    return WasmEdge_ExecutorAsyncInvoke(Cxt,FuncCxt,&Params,ParamLen);
+}
 void ModuleInstanceGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ModuleInstanceContext* Ctx){ *strOut = WasmEdge_ModuleInstanceGetModuleName(Ctx); }
+void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset){
+   WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  *resOut = WasmEdge_TableInstanceGetData(Cxt,&Data,Offset);
+}
+void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset){
+  WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  *resOut = WasmEdge_TableInstanceSetData(Cxt,Data,Offset);
+}
 void TableInstanceGrowOut(WasmEdge_Result* resOut,WasmEdge_TableInstanceContext* Ctx,const uint32_t Size){ *resOut = WasmEdge_TableInstanceGrow(Ctx,Size); }
 void MemoryInstanceGetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
 *resOut = WasmEdge_MemoryInstanceGetData(Ctx,Data,Offset,Length); }
 void MemoryInstanceSetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
 *resOut = WasmEdge_MemoryInstanceSetData(Ctx,Data,Offset,Length); }
 void MemoryInstanceGrowPageOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext *Cxt,const uint32_t Page){ *resOut = WasmEdge_MemoryInstanceGrowPage(Cxt,Page); }
+WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTypeContext *GlobType,WasmVal* v){
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_GlobalInstanceCreate(GlobType,val); 
+}
+void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal *v){
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  WasmEdge_GlobalInstanceSetValue(Cxt,val);
+}
+void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,const uint32_t ReturnLen){
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  *resOut = WasmEdge_AsyncGet(Cxt,&Returns,ReturnLen);
+}
+void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+  WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+  *resOut = WasmEdge_VMRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+}
+void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
+  WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+  *resOut = WasmEdge_VMRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
+}
+WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen){
+  WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_VMAsyncRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen);
+}
+WasmEdge_Async *VMAsyncRunWasmFromASTModuleOut(WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName,const WasmVal *v,const uint32_t ParamLen){
+  WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_VMAsyncRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen);
+}
+void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+  *resOut = WasmEdge_VMExecute(Cxt,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+}
+void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
+   WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+  *resOut = WasmEdge_VMExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
+}
+WasmEdge_Async *VMAsyncExecuteOut(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen){
+   WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+   return WasmEdge_VMAsyncExecute(Cxt,FuncName,&Params,ParamLen);
+}
+WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v,const uint32_t ParamLen){
+   WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+   return WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen);
+}
 void PluginGetPluginNameOut(WasmEdge_String* strOut,const WasmEdge_PluginContext *Cxt){ *strOut = WasmEdge_PluginGetPluginName(Cxt); }
 void VMRegisterModuleFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const char *Path){ *resOut = WasmEdge_VMRegisterModuleFromFile(Cxt,ModuleName,Path); }
 void VMInstantiateOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt){ *resOut = WasmEdge_VMInstantiate(Cxt); }
@@ -733,8 +794,8 @@ instance Enum t => Storable (ViaFromEnum t) where
 -- {#fun unsafe ExecutorInstantiate as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext'} -> `WasmResult'#} -- needs wrapper, double pointer
 -- {#fun unsafe ExecutorRegister as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#} -- needs wrapper and WasmString substitute
 {#fun unsafe ExecutorRegisterImportOut as executorRegisterImport {+,`ExecutorContext',`StoreContext',`ModuleInstanceContext'} -> `WasmResult'#}
--- {#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#}
--- {#fun unsafe ExecutorAsyncInvoke as ^ {`ExecutorContext',`FunctionInstanceContext',%`WasmValue',`Word32'} -> `Async'#} -- WasmValue and Word32 
+{#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32'} -> `Async'#} 
 
 -- Store
 {#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} 
@@ -789,8 +850,8 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 -- Table Instance
 {#fun unsafe TableInstanceCreate as ^ {`TableTypeContext'} -> `TableInstanceContext'#}
 {#fun unsafe TableInstanceGetTableType as ^ {`TableInstanceContext'} -> `TableTypeContext'#}
--- {#fun unsafe TableInstanceGetData as ^ {`TableInstanceContext',`WasmValue',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
--- {#fun unsafe TableInstanceSetData as ^ {`TableInstanceContext',`WasmValue',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
+{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
+{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
 {#fun unsafe TableInstanceGetSize as ^ {`TableInstanceContext'} -> `Word32'#} 
 {#fun unsafe TableInstanceGrowOut as tableInstanceGrow {+,`TableInstanceContext',`Word32'} -> `WasmResult'#}
 
@@ -805,10 +866,10 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage {+,`MemoryInstanceContext',`Word32'} -> `WasmResult'#} 
 
 -- Global Instance
--- {#fun unsafe GlobalInstanceCreate as ^ {`GlobalTypeContext',`WasmValue'} -> `GlobalInstanceContext'#} --WasmValue 
+{#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate {`GlobalTypeContext',`WasmVal'} -> `GlobalInstanceContext'#}
 {#fun unsafe GlobalInstanceGetGlobalType as ^ {`GlobalInstanceContext'} -> `GlobalTypeContext'#} 
--- {#fun unsafe GlobalInstanceGetValue as ^ {`GlobalInstanceContext'} -> `WasmValue'#} --wasmvalue 
--- {#fun unsafe GlobalInstanceSetValue as ^ {`GlobalInstanceContext',`WasmValue'} -> `()'#} --wasmvalue 
+-- {#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {`GlobalInstanceContext'} -> `WasmVal'#} --How to return wasmvalue 
+{#fun unsafe GlobalInstanceSetValueOut as globalInstanceSetValue {`GlobalInstanceContext',`WasmVal'} -> `()'#} 
 
 -- Calling Frame
 {#fun unsafe CallingFrameGetExecutor as ^ {`CallingFrameContext'} -> `ExecutorContext'#}
@@ -820,34 +881,31 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe AsyncWaitFor as ^ {`Async',`Word64'} -> `Bool'#}
 {#fun unsafe AsyncCancel as ^ {`Async'} -> `()'#}
 {#fun unsafe AsyncGetReturnsLength as ^ {`Async'} -> `Word32'#}
--- {#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmValue',`Word32'} -> `WasmResult'#} -- wasmresult
+{#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmVal',`Word32'} -> `WasmResult'#} -- wasmresult
 
 -- VM
 {#fun unsafe VMCreate as ^ {`ConfigureContext',`StoreContext'} -> `VMContext'#}
-{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#} --wasmresult
-
+{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule  {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
 {-
 {#fun unsafe VMRegisterModuleFromBuffer as ^ {`VMContext',`WasmString',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRunWasmFromFile as ^ {`VMContext',`String',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRunWasmFromBuffer as ^ {`VMContext',`Word8',`Word32',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRunWasmFromASTModule as ^ {`VMContext',`ASTModuleContext',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMAsyncRunWasmFromFile as ^ {`VMContext',`String',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
+{#fun unsafe VMRunWasmFromBuffer as ^ {`VMContext',`Word8',`Word32',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult + word8
 {#fun unsafe VMAsyncRunWasmFromBuffer as ^ {`VMContext',`Word8',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMAsyncRunWasmFromASTModule as ^ {`VMContext',`ASTModuleContext',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
 {#fun unsafe VMLoadWasmFromBuffer as ^ {`VMContext',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
 -}
-{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport {+,`VMContext',`ModuleInstanceContext'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile {+,`VMContext',`String'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport {+,`VMContext',`ModuleInstanceContext'} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile {+,`VMContext',`String'} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#}
 {#fun unsafe VMValidateOut as vMValidate  {+,`VMContext'} -> `WasmResult'#}
 {#fun unsafe VMInstantiateOut as vMInstantiate  {+,`VMContext'} -> `WasmResult'#}
-{-
-{#fun unsafe VMExecute as ^ {`VMContext',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMExecuteRegistered as ^ {`VMContext',`WasmString',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult
-{#fun unsafe VMAsyncExecute as ^ {`VMContext',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMAsyncExecuteRegistered as ^ {`VMContext',%`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
--}
+{#fun unsafe VMExecuteOut as vMExecuteOut {+,`VMContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
 {#fun unsafe VMGetFunctionType as ^ {`VMContext',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
