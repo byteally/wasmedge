@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
   ( valueGenI32
@@ -11,6 +12,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   , toText
   , mkStringFromBytes
   , stringCopy
+  , toHsRef
+  , fromHsRef
   , configureAddHostRegistration
   , logSetErrorLevel
   , logSetDebugLevel
@@ -30,7 +33,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   , ExternalType (..)
   , Mutability (..)
   , WasmString
-  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128)
+  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef)
 #if TESTONLY
   , testonly_accquire
   , testonly_isAlive
@@ -51,6 +54,7 @@ import Foreign.ForeignPtr
 import Foreign.Storable (Storable (..))
 -- import GHC.Ptr
 import System.IO.Unsafe
+import Unsafe.Coerce
 import Data.String
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -60,6 +64,9 @@ import qualified Data.Vector.Storable as VS
 import Data.Coerce
 import Control.Arrow ((&&&))
 import Data.WideWord.Int128
+import GHC.Stable
+import GHC.Fingerprint
+import Data.Typeable
 #if TESTONLY
 import Data.Unique
 import Data.Set (Set)
@@ -148,6 +155,12 @@ typedef struct WasmVal {
   U128 Val;
   enum WasmEdge_ValType Type;
 } WasmVal;
+
+typedef struct HsRef {
+  U128 Fingerprint;
+  void* Ref;
+} HsRef;
+
 
 uint128_t pack_uint128_t(U128 u128)
 {
@@ -288,6 +301,44 @@ void ValueGetV128 (WasmVal* v, U128* u128Out)
   *u128Out = unpack_int128_t(WasmEdge_ValueGetV128(val));
 }
 
+void ValueGenNullRef(WasmVal* valOut, const enum WasmEdge_RefType T)
+{ WasmEdge_Value r = WasmEdge_ValueGenNullRef(T);
+  valOut->Type = r.Type;
+  valOut->Val = WasmEdge_ValueToU128(r);
+}
+
+bool ValueIsNullRef (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueIsNullRef(val);
+}
+
+void ValueGenFuncRef(WasmVal* valOut, const WasmEdge_FunctionInstanceContext *Cxt)
+{ WasmEdge_Value r = WasmEdge_ValueGenFuncRef(Cxt);
+  valOut->Type = r.Type;
+  valOut->Val = WasmEdge_ValueToU128(r);
+}
+
+const WasmEdge_FunctionInstanceContext * ValueGetFuncRef (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_ValueGetFuncRef(val);
+}
+
+void ValueGenExternRef(WasmVal* valOut, HsRef *hsRef)
+{ WasmEdge_Value r = WasmEdge_ValueGenExternRef(hsRef);
+  valOut->Type = r.Type;
+  valOut->Val = WasmEdge_ValueToU128(r);
+}
+
+const HsRef * ValueGetExternRef (WasmVal* v)
+{
+  WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return (HsRef *) WasmEdge_ValueGetExternRef(val);
+}
+
+
+
 void ImportTypeGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetModuleName(Ctx); }
 void ImportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetExternalName(Ctx); }
 void ExportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ExportTypeContext* Ctx){ *strOut = WasmEdge_ExportTypeGetExternalName(Ctx); }
@@ -321,7 +372,7 @@ void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext
 *resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
 #endc
 
-
+{#pointer *HsRef as HsRefPtr foreign newtype #}
 {#pointer *WasmVal as WasmVal foreign newtype #}
 {#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
 instance HasFinalizer WasmString
@@ -337,7 +388,23 @@ instance HasFinalizer WasmString
 -- Plugin descriptor for plugins.
 {#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
--- Value
+---
+fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
+fromHsRefIn (HsRef (Fingerprint hi lo) sp) f = do
+  fp <- mallocForeignPtrBytes {#sizeof HsRef#} --mallocForeignPtr @HsRefPtr
+  withForeignPtr fp $ \p -> do
+    {#set HsRef.Fingerprint.High#} p (fromIntegral hi)
+    {#set HsRef.Fingerprint.Low#} p (fromIntegral lo)
+    {#set HsRef.Ref#} p (castStablePtrToPtr sp)
+    f p
+
+toHsRefOut :: Ptr HsRefPtr -> IO HsRef
+toHsRefOut hsr = do
+  hi <- {#get HsRef.Fingerprint.High#} hsr
+  lo <- {#get HsRef.Fingerprint.Low#} hsr
+  r <- {#get HsRef.Ref#} hsr
+  pure $ HsRef (Fingerprint (fromIntegral hi) (fromIntegral lo)) (castPtrToStablePtr r)
+  
 
 pattern WasmInt32 :: Int32 -> WasmVal
 pattern WasmInt32 i32 <- ((valueGetI32 &&& getValType) -> (i32, ValType_I32)) where
@@ -357,9 +424,42 @@ pattern WasmDouble f64 <- ((valueGetF64 &&& getValType) -> (f64, ValType_F64)) w
 
 pattern WasmInt128 :: Int128 -> WasmVal
 pattern WasmInt128 f64 <- ((valueGetV128 &&& getValType) -> (f64, ValType_V128)) where
-  WasmInt128 v128 = valueGenV128 v128  
+  WasmInt128 v128 = valueGenV128 v128
 
-{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128 #-}
+pattern WasmNullRef :: WasmVal
+pattern WasmNullRef <- ((valueIsNullRef) -> True) where
+  WasmNullRef = valueGenNullRef RefType_ExternRef
+
+pattern WasmExternRef :: HsRef -> WasmVal
+pattern WasmExternRef a <- ((valueGetExternRef &&& getValType) -> (a, ValType_ExternRef)) where
+  WasmExternRef href = valueGenExternRef href
+
+data HsRef where
+  HsRef :: Fingerprint -> StablePtr a -> HsRef
+
+instance Show HsRef where
+  show (HsRef fpr _) = show fpr
+
+instance Eq HsRef where
+  HsRef fpr1 sp1 == HsRef fpr2 sp2
+    | fpr1 == fpr2 = (unsafeCoerce sp1) == sp2
+    | otherwise = False
+
+toHsRef :: forall a.Typeable a => a -> IO HsRef
+toHsRef a = do
+  sp <- newStablePtr a
+  pure $ HsRef (typeRepFingerprint $ typeRep (Proxy @a)) sp
+
+fromHsRef :: forall a.Typeable a => HsRef -> IO (Maybe a)
+fromHsRef (HsRef fpr sp) =
+  if typeRepFingerprint (typeRep (Proxy @a)) == fpr
+    then fmap Just $ deRefStablePtr @a (coerceSP sp)
+    else pure Nothing
+  where         
+    coerceSP :: forall x. StablePtr x -> StablePtr a
+    coerceSP = unsafeCoerce
+
+{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmNullRef, WasmExternRef #-}
 
 instance Show WasmVal where
   show = \case
@@ -368,24 +468,29 @@ instance Show WasmVal where
     WasmFloat v -> show v
     WasmDouble v -> show v
     WasmInt128 v -> show v
+    WasmNullRef -> "Null"
+    WasmExternRef (HsRef fpr _) -> show fpr
 
 getValType :: WasmVal -> ValType
 getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Type #})
 
-{#fun pure unsafe ValueGenI32 as valueGenI32 {+, `Int32'} -> `WasmVal' #}
-{#fun pure unsafe ValueGetI32 as valueGetI32 {`WasmVal'} -> `Int32' #}
+{#fun pure unsafe ValueGenI32 as ^ {+, `Int32'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetI32 as ^ {`WasmVal'} -> `Int32' #}
 
-{#fun pure unsafe ValueGenI64 as valueGenI64 {+, `Int64'} -> `WasmVal' #}
-{#fun pure unsafe ValueGetI64 as valueGetI64 {`WasmVal'} -> `Int64' #}
+{#fun pure unsafe ValueGenI64 as ^ {+, `Int64'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetI64 as ^ {`WasmVal'} -> `Int64' #}
 
-{#fun pure unsafe ValueGenF32 as valueGenF32 {+, `Float'} -> `WasmVal' #}
-{#fun pure unsafe ValueGetF32 as valueGetF32 {`WasmVal'} -> `Float' #}
+{#fun pure unsafe ValueGenF32 as ^ {+, `Float'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetF32 as ^ {`WasmVal'} -> `Float' #}
 
-{#fun pure unsafe ValueGenF64 as valueGenF64 {+, `Double'} -> `WasmVal' #}
-{#fun pure unsafe ValueGetF64 as valueGetF64 {`WasmVal'} -> `Double' #}
+{#fun pure unsafe ValueGenF64 as ^ {+, `Double'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetF64 as ^ {`WasmVal'} -> `Double' #}
 
-{#fun pure unsafe ValueGenV128 as valueGenV128 {+, fromI128*`Int128'} -> `WasmVal' #}
-{#fun pure unsafe ValueGetV128 as valueGetV128 {`WasmVal', fromI128Alloc-`Int128'toI128*} -> `()' #}
+{#fun pure unsafe ValueGenV128 as ^ {+, fromI128*`Int128'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetV128 as ^ {`WasmVal', fromI128Alloc-`Int128'toI128*} -> `()' #}
+
+{#fun pure unsafe ValueGenNullRef as ^ {+, cFromEnum`RefType'} -> `WasmVal' #}
+{#fun pure unsafe ValueIsNullRef as ^ {`WasmVal'} -> `Bool' #}
 
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
@@ -539,6 +644,13 @@ instance Eq Limit where
 {#pointer *Async as ^ foreign finalizer AsyncDelete as ^ newtype #}
 {#pointer *VMContext as ^ foreign finalizer VMDelete as ^ newtype #}
 {#pointer *PluginContext as ^ foreign newtype #}
+
+{#fun pure unsafe ValueGenFuncRef as ^ {+, `FunctionInstanceContext'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetFuncRef as ^ {`WasmVal'} -> `FunctionInstanceContext' #}
+
+{#fun pure unsafe ValueGenExternRef as ^ {+, fromHsRefIn*`HsRef'} -> `WasmVal' #}
+{#fun pure unsafe ValueGetExternRef as ^ {`WasmVal'} -> `HsRef'toHsRefOut* #}
+
 
 {#enum ProgramOptionType as ^ {}
   with prefix = "WasmEdge_"

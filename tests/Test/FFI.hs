@@ -22,6 +22,7 @@ import Data.Kind
 import Data.WideWord.Int128
 import GHC.Generics
 import Control.Monad.IO.Class
+import System.IO.Unsafe (unsafePerformIO)
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -84,6 +85,12 @@ valueTT = testGroup "value tests"
   , testProperty "v128 for 0" $ withTests 1 $ property $ do
       tripping (-1) WasmInt128 (\case
                                WasmInt128 v -> Just v
+                               _ -> Nothing)
+
+  , testProperty "Haskell Ref" $ withTests 1 $ property $ do
+      let testStr =  ("hello from Haskell" :: String)
+      tripping testStr (WasmExternRef . unsafePerformIO . toHsRef) (\case
+                               WasmExternRef v -> unsafePerformIO $ fromHsRef @String v
                                _ -> Nothing)        
   ]
 
