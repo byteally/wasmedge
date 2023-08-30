@@ -19,6 +19,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import Data.String
 import Data.Kind
+import Data.WideWord.Int128
 import GHC.Generics
 import Control.Monad.IO.Class
 
@@ -75,6 +76,16 @@ valueTT = testGroup "value tests"
       tripping i WasmDouble (\case
                                WasmDouble v -> Just v
                                _ -> Nothing)
+   ,
+  testProperty "v128" $ property $ do
+      i <- forAll $ Gen.integral $ Range.constantBounded @Int128
+      tripping i WasmInt128 (\case
+                               WasmInt128 v -> Just v
+                               _ -> Nothing)
+  , testProperty "v128 for 0" $ withTests 1 $ property $ do
+      tripping (-1) WasmInt128 (\case
+                               WasmInt128 v -> Just v
+                               _ -> Nothing)        
   ]
 
 data NewString (v :: Type -> Type) = NewString ByteString
