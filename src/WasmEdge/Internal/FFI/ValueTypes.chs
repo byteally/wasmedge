@@ -330,7 +330,7 @@ WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTy
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_GlobalInstanceCreate(GlobType,val); 
 }
- WasmEdge_Value GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt){
+void GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt){
     WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
     val = WasmEdge_GlobalInstanceGetValue(Cxt);
 }
