@@ -446,8 +446,14 @@ void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext
 *resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
 #endc
 
+{-|
+  HsRef
+-}
 {#pointer *HsRef as HsRefPtr foreign newtype #}
 {#pointer *WasmVal as WasmVal foreign newtype #}
+{-|
+  WasmEdge string struct.
+-}
 {#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
 instance HasFinalizer WasmString
 
@@ -529,11 +535,17 @@ instance Eq HsRef where
     | fpr1 == fpr2 = (unsafeCoerce sp1) == sp2
     | otherwise = False
 
+{-|
+ To External Reference 
+-}
 toHsRef :: forall a.Typeable a => a -> IO HsRef
 toHsRef a = do
   sp <- newStablePtr a
   pure $ HsRef (typeRepFingerprint $ typeRep (Proxy @a)) sp
 
+{-|
+  From External Reference
+-}
 fromHsRef :: forall a.Typeable a => HsRef -> IO (Maybe a)
 fromHsRef (HsRef fpr sp) =
   if typeRepFingerprint (typeRep (Proxy @a)) == fpr
@@ -543,6 +555,9 @@ fromHsRef (HsRef fpr sp) =
     coerceSP :: forall x. StablePtr x -> StablePtr a
     coerceSP = unsafeCoerce
 
+{-|
+  Freeing External Reference
+-}
 freeHsRef :: HsRef -> IO ()
 freeHsRef (HsRef _ sp) = freeStablePtr sp
 
@@ -561,6 +576,14 @@ instance Show WasmVal where
 getValType :: WasmVal -> ValType
 getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Type #})
 
+{-|
+Generate the I32 WASM value.
+
+\param Val the reference of WasmEdge_Value struct where the I32 value would be returned
+\param Val the I32 value.
+
+\returns void
+-}
 {#fun pure unsafe ValueGenI32 as ^ {+, `Int32'} -> `WasmVal' #}
 {#fun pure unsafe ValueGetI32 as ^ {`WasmVal'} -> `Int32' #}
 
@@ -581,6 +604,16 @@ getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Typ
 
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
+
+{-|
+Compare the two WasmEdge_String objects.
+
+\param Str1 the first WasmEdge_String object to compare.
+\param Str2 the second WasmEdge_String object to compare.
+
+\returns true if the content of two WasmEdge_String objects are the same,
+false if not.
+-}
 {#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq {%`WasmString', %`WasmString'} -> `Bool' #}
 {#fun pure unsafe WasmEdge_StringCopy as _stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
@@ -606,6 +639,10 @@ toI128 p = do
   lo <- {#get U128.Low#} p
   pure $ Int128 {int128Hi64 = fromIntegral hi, int128Lo64 = fromIntegral lo}
 
+
+{-|
+  Converting ByteString to WasmEdge_String
+-}
 mkStringFromBytes :: ByteString -> WasmString
 mkStringFromBytes bs = unsafePerformIO $ wrapCFinalizer deleteString $ mkStringFromBytesIO bs
 
@@ -627,7 +664,10 @@ wrapCFinalizer final tAct = tAct >>= \t -> do
 class Coercible t (ForeignPtr t) => HasFinalizer t where
   getFinalizer :: t -> IO ()
   getFinalizer t = finalizeForeignPtr @t (coerce t)
-  
+ 
+{-|
+  Finalize
+-}
 finalize :: HasFinalizer t => t -> IO ()
 finalize = getFinalizer
 
@@ -648,6 +688,9 @@ data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
 allocMemBuff :: Int -> IO MemBuff
 allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
 
+{-|
+  Copy the content of WasmEdge_String object to the buffer.
+-}
 stringCopy :: Word32 -> WasmString -> ByteString
 stringCopy sz wstr = unsafePerformIO $ do
   mem <- allocMemBuff (fromIntegral sz)
@@ -681,9 +724,15 @@ pattern WRFail <- ((mkResultFail ==) -> True) where
 
 {-# COMPLETE WRSuccess, WRTerminate, WRFail #-}  
 
+{- |
+  Returning Length of WasmEdge_String 
+-}
 wasmStringLength :: WasmString -> IO Word32
 wasmStringLength wstr = withWasmString wstr (fmap fromIntegral . {#get WasmEdge_String.Length #})
 
+{-|
+  Converting WasmEdge_String to Text
+-}
 toText :: WasmString -> Text
 toText wstr = unsafePerformIO $ withWasmString wstr $ \p -> do
   cstr <- {#get WasmEdge_String.Buf #} p
@@ -708,9 +757,16 @@ cFromEnum = fromIntegral . fromEnum
 instance Eq Limit where
   (==) = limitEq_
 
+{-|
+  Opaque struct of WasmEdge configure.
+-}
 {#pointer *ConfigureContext as ^ foreign finalizer ConfigureDelete as ^ newtype #}
 {#pointer *StatisticsContext as ^ foreign finalizer StatisticsDelete as ^ newtype #}
 {#pointer *ASTModuleContext as ^ foreign finalizer ASTModuleDelete as ^ newtype #}
+
+{-|
+Opaque struct of WasmEdge function type.
+-}
 {#pointer *FunctionTypeContext as ^ foreign finalizer FunctionTypeDelete as ^ newtype #}
 {#pointer *MemoryTypeContext as ^ foreign finalizer MemoryTypeDelete as ^ newtype #}
 {#pointer *TableTypeContext as ^ foreign finalizer TableTypeDelete as ^ newtype #}
@@ -738,7 +794,9 @@ instance Eq Limit where
 {#fun pure unsafe ValueGenExternRef as ^ {+, fromHsRefIn*`HsRef'} -> `WasmVal' #}
 {#fun pure unsafe ValueGetExternRef as ^ {`WasmVal'} -> `HsRef'toHsRefOut* #}
 
-
+{-|
+Type of option value.
+-}
 {#enum ProgramOptionType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
@@ -754,59 +812,59 @@ instance Eq Limit where
 -}
 {#fun unsafe LogSetDebugLevel as ^ {} -> `()'#}
 
--- WASM Proposal C enumeration.
+-- | WASM Proposal C enumeration.
 {#enum Proposal as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- Host Module Registration C enumeration.
+-- | Host Module Registration C enumeration.
 {#enum HostRegistration as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- AOT compiler optimization level C enumeration.
+-- | AOT compiler optimization level C enumeration.
 {#enum CompilerOptimizationLevel as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- AOT compiler output binary format C enumeration.
+-- | AOT compiler output binary format C enumeration.
 {#enum CompilerOutputFormat as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- Error category C enumeration.
+-- | Error category C enumeration.
 {#enum ErrCategory as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- Error code C enumeration.
+-- | Error code C enumeration.
 {#enum ErrCode as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- WASM Value type C enumeration.
+-- | WASM Value type C enumeration.
 {#enum ValType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq)
 #}
 deriving via ViaFromEnum ValType instance Storable ValType
 
--- WASM Number type C enumeration.
+-- | WASM Number type C enumeration.
 {#enum NumType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- WASM Reference type C enumeration.
+-- | WASM Reference type C enumeration.
 {#enum RefType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- WASM Mutability C enumeration.
+-- | WASM Mutability C enumeration.
 {#enum Mutability as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
 
--- WASM External type C enumeration.
+-- | WASM External type C enumeration.
 {#enum ExternalType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
@@ -816,6 +874,10 @@ deriving via ViaFromEnum ValType instance Storable ValType
 {#fun unsafe ConfigureAddProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
 {#fun unsafe ConfigureRemoveProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
 {#fun unsafe ConfigureHasProposal as ^ {`ConfigureContext',`Proposal'} -> `Bool'#}
+
+{-|
+  Add a built-in host registration setting into WasmEdge_ConfigureContext.
+-}
 {#fun unsafe ConfigureAddHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
 {#fun unsafe ConfigureRemoveHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
 {#fun unsafe ConfigureHasHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `Bool'#}
@@ -863,6 +925,18 @@ deriving via ViaFromEnum ValType instance Storable ValType
 {#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
 {#fun unsafe FunctionTypeGetParameters as functionTypeGetParameters_ {`FunctionTypeContext', fromMutIOVecOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
+
+{-|
+Get the parameter types list from the WasmEdge_FunctionTypeContext.
+
+If the `List` buffer length is smaller than the length of the parameter type
+list, the overflowed values will be discarded.
+\param Cxt the WasmEdge_FunctionTypeContext.
+\param [out] List the WasmEdge_ValType buffer to fill the parameter value
+types.
+\param Len the value type buffer length.
+\returns the actual parameter types list length.
+-}
 functionTypeGetParameters :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
 functionTypeGetParameters fcxt buffLen = do
   v <- VSM.new (fromIntegral buffLen)
