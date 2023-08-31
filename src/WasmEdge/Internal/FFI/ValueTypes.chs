@@ -347,7 +347,10 @@ void CompilerCompileFromBufferOut(WasmEdge_Result* resOut,WasmEdge_CompilerConte
   *resOut = WasmEdge_CompilerCompileFromBuffer(Ctx,InBuffer,InBufferLen,OutPath); 
   }
 void ValidatorValidateOut(WasmEdge_Result* resOut,WasmEdge_ValidatorContext* Ctx,const WasmEdge_ASTModuleContext *ASTCxt){ *resOut = WasmEdge_ValidatorValidate(Ctx,ASTCxt); }
-//void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
+void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
+void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeContext *Cxt){
+  *limOut = WasmEdge_MemoryTypeGetLimit(Cxt); 
+}
 void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
 *resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
 void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
@@ -377,6 +380,10 @@ void MemoryInstanceGrowPageOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceCo
 WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTypeContext *GlobType,WasmVal* v){
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_GlobalInstanceCreate(GlobType,val); 
+}
+void GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt){
+    WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+    val = WasmEdge_GlobalInstanceGetValue(Cxt);
 }
 void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal *v){
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
@@ -835,7 +842,7 @@ deriving via ViaFromEnum ValType instance Storable ValType
 -- * Function
 {#fun unsafe FunctionTypeCreate as ^ {fromIOVecOr0Ptr*`Vector ValType'&, fromIOVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
 {#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
--- {#fun unsafe FunctionTypeGetParameters as ^ {`FunctionTypeContext', +} -> `(Vector ValType'#}
+{#fun unsafe FunctionTypeGetParameters as ^ {`FunctionTypeContext', fromIOVecOr0Ptr*`Vector ValType'&} -> `Word32'#}
 
 
 fromIOVecOr0Ptr :: Vector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
@@ -851,7 +858,6 @@ instance Enum t => Storable (ViaFromEnum t) where
   peek = fmap (ViaFromEnum . toEnum) . peek @Int . castPtr 
   poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
 -- * Function Type
--- TODO:
 {#fun unsafe FunctionTypeGetReturnsLength as ^ {`FunctionTypeContext'} -> `Word32'#}
 
 -- Table Type
@@ -859,19 +865,17 @@ instance Enum t => Storable (ViaFromEnum t) where
 {#fun unsafe TableTypeCreate as ^ {`RefType',%`Limit'} -> `TableTypeContext' #}
 {#fun unsafe TableTypeGetRefType as ^ {`TableTypeContext'} -> `RefType'#}      
 -- TODO: 
--- {#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#} -- Wrote wrapper but giving some weird warning,Structure wrapping not allowed in return types..why?
+{#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#} -- Wrote wrapper but giving some weird warning.
 -- Memory Type
 {#fun unsafe MemoryTypeCreate as ^ {%`Limit'} -> `MemoryTypeContext'#}  
--- {#fun unsafe MemoryTypeGetLimit as ^ {`MemoryTypeContext'} -> `Limit'#} -- Expected Ptr Limit Actual Ptr ()
+{#fun unsafe MemoryTypeGetLimitOut as memoryTypeGetLimit {+,`MemoryTypeContext'} -> `Limit'#} 
 
 -- Global Type
--- TODO:
-{#fun unsafe GlobalTypeCreate as ^ {`ValType',`Mutability'} -> `GlobalTypeContext'#}  -- ValType and Mutability enums are working some issue with Limit enum  -- ValType and Mutability enums are working some issue with Limit enum
+{#fun unsafe GlobalTypeCreate as ^ {`ValType',`Mutability'} -> `GlobalTypeContext'#} 
 {#fun unsafe GlobalTypeGetMutability as ^ {`GlobalTypeContext'} -> `Mutability'#}
 
 -- Import Type
--- TODO:
-{#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName {+,`ImportTypeContext'} -> `WasmString'#} -- It didn't work when I wrote as ImportTypeGetModuleName ... 'I' why?
+{#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName {+,`ImportTypeContext'} -> `WasmString'#}
 {#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName {+,`ImportTypeContext'} -> `WasmString'#}
 {#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'#} 
 {#fun unsafe ImportTypeGetTableType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `TableTypeContext'#} 
@@ -880,7 +884,6 @@ instance Enum t => Storable (ViaFromEnum t) where
 
 -- Export Type
 {#fun unsafe ExportTypeGetExternalType as ^ {`ExportTypeContext'} -> `ExternalType'#} 
--- TODO:
 {#fun unsafe ExportTypeGetExternalNameOut as exportTypeGetExternalName {+,`ExportTypeContext'} -> `WasmString'#} 
 {#fun unsafe ExportTypeGetFunctionType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `FunctionTypeContext'#} 
 {#fun unsafe ExportTypeGetTableType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `TableTypeContext'#}
@@ -962,8 +965,8 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 -- Table Instance
 {#fun unsafe TableInstanceCreate as ^ {`TableTypeContext'} -> `TableInstanceContext'#}
 {#fun unsafe TableInstanceGetTableType as ^ {`TableInstanceContext'} -> `TableTypeContext'#}
-{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
-{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#} -- WasmValue, WasmResult
+{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe TableInstanceGetSize as ^ {`TableInstanceContext'} -> `Word32'#} 
 {#fun unsafe TableInstanceGrowOut as tableInstanceGrow {+,`TableInstanceContext',`Word32'} -> `WasmResult'#}
 
@@ -980,7 +983,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 -- Global Instance
 {#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate {`GlobalTypeContext',`WasmVal'} -> `GlobalInstanceContext'#}
 {#fun unsafe GlobalInstanceGetGlobalType as ^ {`GlobalInstanceContext'} -> `GlobalTypeContext'#} 
--- {#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {`GlobalInstanceContext'} -> `WasmVal'#} --How to return wasmvalue 
+{#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {+,`GlobalInstanceContext'} -> `WasmVal'#} --How to return wasmvalue 
 {#fun unsafe GlobalInstanceSetValueOut as globalInstanceSetValue {`GlobalInstanceContext',`WasmVal'} -> `()'#} 
 
 -- Calling Frame
@@ -993,19 +996,19 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe AsyncWaitFor as ^ {`Async',`Word64'} -> `Bool'#}
 {#fun unsafe AsyncCancel as ^ {`Async'} -> `()'#}
 {#fun unsafe AsyncGetReturnsLength as ^ {`Async'} -> `Word32'#}
-{#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmVal',`Word32'} -> `WasmResult'#} -- wasmresult
+{#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmVal',`Word32'} -> `WasmResult'#}
 
 -- VM
 {#fun unsafe VMCreate as ^ {`ConfigureContext',`StoreContext'} -> `VMContext'#}
 {#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#}
 {#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
-{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
-{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule  {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
+{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule  {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
 {-
-{#fun unsafe VMRegisterModuleFromBuffer as ^ {`VMContext',`WasmString',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
+{#fun unsafe VMRegisterModuleFromBuffer as ^ {`VMContext',`WasmString',`Word8',`Word32'} -> `WasmResult'#} --wasmresult + WOrd8
 {#fun unsafe VMRunWasmFromBuffer as ^ {`VMContext',`Word8',`Word32',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult + word8
-{#fun unsafe VMAsyncRunWasmFromBuffer as ^ {`VMContext',`Word8',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult
+{#fun unsafe VMAsyncRunWasmFromBuffer as ^ {`VMContext',`Word8',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult + WOrd8
 {#fun unsafe VMLoadWasmFromBuffer as ^ {`VMContext',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
 -}
 {#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#}
@@ -1017,7 +1020,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe VMExecuteOut as vMExecuteOut {+,`VMContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
-{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32'} -> `Async'#} --wasmresult
+{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32'} -> `Async'#} 
 {#fun unsafe VMGetFunctionType as ^ {`VMContext',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
