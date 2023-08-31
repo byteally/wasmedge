@@ -59,13 +59,16 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Storable (Storable (..))
+import Foreign.Marshal.Alloc
 -- import GHC.Ptr
 import System.IO.Unsafe
 import Unsafe.Coerce
+import Data.Bifunctor
 import Data.String
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.Vector as V
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
 import Data.Vector.Storable.Mutable (IOVector)
@@ -352,7 +355,28 @@ void CompilerCompileOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,co
 void CompilerCompileFromBufferOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const uint8_t *InBuffer,const uint64_t InBufferLen,const char *OutPath){ 
   *resOut = WasmEdge_CompilerCompileFromBuffer(Ctx,InBuffer,InBufferLen,OutPath); 
   }
+void LoaderParseFromFileOut(WasmEdge_Result* resOut,WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module, const char *Path)
+{
+  *resOut = WasmEdge_LoaderParseFromFile(Cxt, Module, Path);
+}
+
+void LoaderParseFromBufferOut(WasmEdge_Result* resOut,WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module, const uint8_t *Buf, const uint32_t BufLen)
+{
+  *resOut = WasmEdge_LoaderParseFromBuffer(Cxt, Module, Buf, BufLen);
+}
+
 void ValidatorValidateOut(WasmEdge_Result* resOut,WasmEdge_ValidatorContext* Ctx,const WasmEdge_ASTModuleContext *ASTCxt){ *resOut = WasmEdge_ValidatorValidate(Ctx,ASTCxt); }
+
+void ExecutorInstantiateOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt, WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt)
+{
+  *resOut = WasmEdge_ExecutorInstantiate(Cxt, ModuleCxt, StoreCxt, ASTCxt);
+}
+
+void ExecutorRegisterOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt, WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt,WasmEdge_String* ModuleName)
+{
+  *resOut = WasmEdge_ExecutorRegister(Cxt, ModuleCxt, StoreCxt, ASTCxt, *ModuleName);
+}
+
 void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
 void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeContext *Cxt){
   *limOut = WasmEdge_MemoryTypeGetLimit(Cxt); 
@@ -455,7 +479,8 @@ void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext
   WasmEdge string struct.
 -}
 {#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
-instance HasFinalizer WasmString
+instance HasFinalizer WasmString where
+  getFinalizer = deleteString
 
 {#pointer *WasmEdge_Result as WasmResult foreign newtype #}
 {#pointer *WasmEdge_Limit as Limit foreign newtype #}
@@ -662,17 +687,29 @@ wrapCFinalizer final tAct = tAct >>= \t -> do
 {-#INLINE wrapCFinalizer #-}
 
 class Coercible t (ForeignPtr t) => HasFinalizer t where
-  getFinalizer :: t -> IO ()
-  getFinalizer t = finalizeForeignPtr @t (coerce t)
+  runFinalizer :: t -> IO ()
+  runFinalizer t = finalizeForeignPtr @t (coerce t)
+
+  getFinalizer :: FinalizerPtr t
  
 {-|
   Finalize
 -}
 finalize :: HasFinalizer t => t -> IO ()
-finalize = getFinalizer
+finalize = runFinalizer
+
+coercePtr :: Coercible a b => Ptr a -> Ptr b
+coercePtr = castPtr
 
 useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
 useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
+
+useAsPtrCUCharLenBS :: ByteString -> ((Ptr CUChar, CUInt) -> IO a) -> IO a
+useAsPtrCUCharLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (bimap convPtrCCharToPtrCUChar fromIntegral strLen))
+  where
+    convPtrCCharToPtrCUChar :: CString -> Ptr CUChar
+    convPtrCCharToPtrCUChar = castPtr
+    
 
 _packCStringLenBS :: CString -> CUInt -> IO ByteString
 _packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
@@ -771,8 +808,8 @@ Opaque struct of WasmEdge function type.
 {#pointer *MemoryTypeContext as ^ foreign finalizer MemoryTypeDelete as ^ newtype #}
 {#pointer *TableTypeContext as ^ foreign finalizer TableTypeDelete as ^ newtype #}
 {#pointer *GlobalTypeContext as ^ foreign finalizer GlobalTypeDelete as ^ newtype #}
-{#pointer *ImportTypeContext as ^ foreign newtype #}
-{#pointer *ExportTypeContext as ^ foreign newtype #}
+{#pointer *ImportTypeContext as ^ newtype #}
+{#pointer *ExportTypeContext as ^ newtype #}
 {#pointer *CompilerContext as ^ foreign finalizer CompilerDelete as ^ newtype #}
 {#pointer *LoaderContext as ^ foreign finalizer LoaderDelete as ^ newtype #}
 {#pointer *ValidatorContext as ^ foreign finalizer ValidatorDelete as ^ newtype #}
@@ -793,6 +830,12 @@ Opaque struct of WasmEdge function type.
 
 {#fun pure unsafe ValueGenExternRef as ^ {+, fromHsRefIn*`HsRef'} -> `WasmVal' #}
 {#fun pure unsafe ValueGetExternRef as ^ {`WasmVal'} -> `HsRef'toHsRefOut* #}
+
+deriving newtype instance Storable ImportTypeContext
+deriving newtype instance Storable ExportTypeContext
+
+instance HasFinalizer ModuleInstanceContext where
+  getFinalizer = moduleInstanceDelete
 
 {-|
 Type of option value.
@@ -816,31 +859,37 @@ Type of option value.
 {#enum Proposal as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum Proposal instance Storable Proposal
 
 -- | Host Module Registration C enumeration.
 {#enum HostRegistration as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum HostRegistration instance Storable HostRegistration
 
 -- | AOT compiler optimization level C enumeration.
 {#enum CompilerOptimizationLevel as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum CompilerOptimizationLevel instance Storable CompilerOptimizationLevel
 
 -- | AOT compiler output binary format C enumeration.
 {#enum CompilerOutputFormat as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum CompilerOutputFormat instance Storable CompilerOutputFormat
 
 -- | Error category C enumeration.
 {#enum ErrCategory as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum ErrCategory instance Storable ErrCategory
 
 -- | Error code C enumeration.
 {#enum ErrCode as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum ErrCode instance Storable ErrCode
 
 -- | WASM Value type C enumeration.
 {#enum ValType as ^ {}
@@ -853,21 +902,25 @@ deriving via ViaFromEnum ValType instance Storable ValType
 {#enum NumType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum NumType instance Storable NumType
 
 -- | WASM Reference type C enumeration.
 {#enum RefType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum RefType instance Storable RefType
 
 -- | WASM Mutability C enumeration.
 {#enum Mutability as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum Mutability instance Storable Mutability
 
 -- | WASM External type C enumeration.
 {#enum ExternalType as ^ {}
   with prefix = "WasmEdge_"
   deriving (Show, Eq) #}
+deriving via ViaFromEnum ExternalType instance Storable ExternalType
 
 -- Configure
 {#fun unsafe ConfigureCreate as ^ {} -> `ConfigureContext'#}
@@ -907,18 +960,15 @@ deriving via ViaFromEnum ValType instance Storable ValType
 {#fun unsafe StatisticsGetInstrCount as ^ {`StatisticsContext'} -> `Word64'#}
 {#fun unsafe StatisticsGetInstrPerSecond as ^ {`StatisticsContext'} -> `Double'#}
 {#fun unsafe StatisticsGetTotalCost as ^ {`StatisticsContext'} -> `Word64'#}
--- TODO:
--- {#fun unsafe StatisticsSetCostTable as ^ {`StatisticsContext', `MemBuff'} -> `()'#}
+{#fun unsafe StatisticsSetCostTable as ^ {`StatisticsContext', fromStoreVecOr0Ptr*`Vector Word64'&} -> `()'#}
 {#fun unsafe StatisticsSetCostLimit as ^ {`StatisticsContext', `Word64'} -> `()'#}
 {#fun unsafe StatisticsClear as ^ {`StatisticsContext'} -> `()'#}
 
 -- AST Module
 {#fun unsafe ASTModuleListImportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
--- TODO:
--- {#fun unsafe ASTModuleListImports as ^ {`ASTModuleContext'} -> `()'#}
+{#fun unsafe ASTModuleListImports as astModuleListImports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ImportTypeContext'&} -> `Word32'#}
 {#fun unsafe ASTModuleListExportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
--- TODO:
--- {#fun unsafe ASTModuleListExports as ^ {`ASTModuleContext'} -> `()'#}
+{#fun unsafe ASTModuleListExports as astModuleListExports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ExportTypeContext'&} -> `Word32'#}
 
 -- * Function
 {#fun unsafe FunctionTypeCreate as ^ {fromStoreVecOr0Ptr*`Vector ValType'&, fromStoreVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
@@ -942,17 +992,41 @@ functionTypeGetParameters fcxt buffLen = do
   v <- VSM.new (fromIntegral buffLen)
   len <- functionTypeGetParameters_ fcxt v
   VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
+
+astModuleListImports :: ASTModuleContext -> Word32 -> IO (Vector ImportTypeContext)
+astModuleListImports fcxt buffLen = do
+  v <- VSM.new (fromIntegral buffLen)
+  len <- astModuleListImports_ fcxt v
+  VS.unsafeFreeze $ VSM.unsafeCoerceMVector $ VSM.slice 0 (fromIntegral len) v
+
+astModuleListExports :: ASTModuleContext -> Word32 -> IO (Vector ExportTypeContext)
+astModuleListExports fcxt buffLen = do
+  v <- VSM.new (fromIntegral buffLen)
+  len <- astModuleListExports_ fcxt v
+  VS.unsafeFreeze $ VSM.unsafeCoerceMVector $ VSM.slice 0 (fromIntegral len) v  
   
 
-fromStoreVecOr0Ptr :: Vector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromStoreVecOr0Ptr :: (Storable a, Num n) => Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
 fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
-fromMutIOVecOr0Ptr :: IOVector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromVecOr0Ptr :: (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromVecOr0Ptr getPtr v f
+  | V.null v = f (nullPtr, 0)
+  | otherwise = do
+      ptrs <- VSM.generateM (fromIntegral $ V.length v) (getPtr . V.unsafeIndex v)
+      r <- fromMutIOVecOr0Ptr ptrs f
+      VSM.mapM_ free ptrs
+      pure r
+
+fromVecStringOr0Ptr :: V.Vector String -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromVecStringOr0Ptr = fromVecOr0Ptr newCString
+
+fromMutIOVecOr0Ptr :: (Storable a) => IOVector a -> ((Ptr n, CUInt) -> IO b) -> IO b
 fromMutIOVecOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
-  | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)  
+  | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
 
 newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
 
@@ -971,12 +1045,13 @@ functionTypeGetReturns fcxt buffLen = do
   len <- functionTypeGetReturns_ fcxt v
   VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
 
+noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
+noFinalizer = coerce . newForeignPtr_
+
 -- Table Type
--- TODO:                                            
 {#fun unsafe TableTypeCreate as ^ {`RefType',%`Limit'} -> `TableTypeContext' #}
 {#fun unsafe TableTypeGetRefType as ^ {`TableTypeContext'} -> `RefType'#}      
--- TODO: 
-{#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#} -- Wrote wrapper but giving some weird warning.
+{#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#}
 -- Memory Type
 {#fun unsafe MemoryTypeCreate as ^ {%`Limit'} -> `MemoryTypeContext'#}  
 {#fun unsafe MemoryTypeGetLimitOut as memoryTypeGetLimit {+,`MemoryTypeContext'} -> `Limit'#} 
@@ -988,7 +1063,7 @@ functionTypeGetReturns fcxt buffLen = do
 -- Import Type
 {#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName {+,`ImportTypeContext'} -> `WasmString'#}
 {#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName {+,`ImportTypeContext'} -> `WasmString'#}
-{#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'#} 
+{#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'noFinalizer*#} 
 {#fun unsafe ImportTypeGetTableType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `TableTypeContext'#} 
 {#fun unsafe ImportTypeGetMemoryType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `MemoryTypeContext'#} 
 {#fun unsafe ImportTypeGetGlobalType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `GlobalTypeContext'#} 
@@ -1008,8 +1083,8 @@ functionTypeGetReturns fcxt buffLen = do
 
 -- Loader
 {#fun unsafe LoaderCreate as ^ {`ConfigureContext'} -> `LoaderContext'#}
--- {#fun unsafe LoaderParseFromFileOut as loaderParseFromFile {+,`LoaderContext',`ASTModuleContext',`String'} -> `WasmResult'#} -- needs wrapper, double pointer for ASTModuleContext and something for const char*
--- {#fun unsafe LoaderParseFromBuffer as ^ {`LoaderContext',`ASTModuleContext',`ForeignPtr Word8',`Word32'} -> `WasmResult'#} -- needs wrapper, double pointer for ASTModuleContext 
+{#fun unsafe LoaderParseFromFileOut as loaderParseFromFile_ {+,`LoaderContext',id`Ptr (Ptr ASTModuleContext)',`String'} -> `WasmResult'#}
+{#fun unsafe LoaderParseFromBufferOut as loaderParseFromBuffer_ {+, `LoaderContext',id`Ptr (Ptr ASTModuleContext)',useAsPtrCUCharLenBS*`ByteString'&} -> `WasmResult'#}
 
 -- Validator
 {#fun unsafe ValidatorCreate as ^ {`ConfigureContext'} -> `ValidatorContext'#}
@@ -1017,11 +1092,17 @@ functionTypeGetReturns fcxt buffLen = do
 
 -- Executor
 {#fun unsafe ExecutorCreate as ^ {`ConfigureContext',`StatisticsContext'} -> `ExecutorContext'#}
--- {#fun unsafe ExecutorInstantiate as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext'} -> `WasmResult'#} -- needs wrapper, double pointer
--- {#fun unsafe ExecutorRegister as ^ {`ExecutorContext',`ForeignPtr ModuleInstanceContext',`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#} -- needs wrapper and WasmString substitute
+{#fun unsafe ExecutorInstantiateOut as executorInstantiate {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe ExecutorRegisterOut as ^ {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#}
 {#fun unsafe ExecutorRegisterImportOut as executorRegisterImport {+,`ExecutorContext',`StoreContext',`ModuleInstanceContext'} -> `WasmResult'#}
 {#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
-{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32'} -> `Async'#} 
+{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32'} -> `Async'#}
+
+peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
+peekOutPtr pout = do
+  pres <- peek pout
+  fmap coerce $ newForeignPtr getFinalizer pres
+
 
 -- Store
 {#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} 
@@ -1032,13 +1113,13 @@ functionTypeGetReturns fcxt buffLen = do
 -- Module Instance
 {#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
 -- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`void (*finalizer)(void *)'} -> `ModuleInstanceContext'#} -- WasmString and that void data
--- {#fun unsafe ModuleInstanceCreateWASI as ^ {`String',`Word32',`String',`String',`Word32',`String',`Word32'} -> `ModuleInstanceContext'#} -- char* const,uinst32_t 
--- {#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',`Const char *const',`Word32',`const char* const',`Word32',`Const char* const',`Word32'} -> `()'#} -- char* const,uinst32_t 
+{#fun unsafe ModuleInstanceCreateWASI as ^ {fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `ModuleInstanceContext'#}
+{#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `()'#}
 {#fun unsafe ModuleInstanceWASIGetExitCode as ^ {`ModuleInstanceContext'} -> `Word32'#}
-{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',`Word64'} -> `Word32'#} -- at Word64 substituting uint64_t *
--- {#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ {`Char* Const',`Word32',`Bool'} -> `()'#} --
-{#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName {+,`ModuleInstanceContext'} -> `WasmString'#} --
-{#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `()'#} --
+{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',`Word64'} -> `Word32'#} -- TODO: word*
+{#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ {fromVecStringOr0Ptr*`V.Vector String'&,`Bool'} -> `()'#}
+{#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName {+,`ModuleInstanceContext'} -> `WasmString'#}
+{#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `()'#} -- TODO: void*
 {#fun unsafe ModuleInstanceFindFunction as ^ {`ModuleInstanceContext',%`WasmString'} -> `FunctionInstanceContext'#}
 {#fun unsafe ModuleInstanceFindTable as ^ {`ModuleInstanceContext',%`WasmString'} -> `TableInstanceContext'#}
 {#fun unsafe ModuleInstanceFindMemory as ^ {`ModuleInstanceContext',%`WasmString'} -> `MemoryInstanceContext'#}
