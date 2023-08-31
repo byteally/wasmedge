@@ -19,7 +19,6 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import Data.String
 import Data.Kind
-import Data.WideWord.Int128
 import GHC.Generics
 import Control.Monad.IO.Class
 import System.IO.Unsafe (unsafePerformIO)

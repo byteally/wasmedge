@@ -14,12 +14,16 @@ module WasmEdge.Internal.FFI.ValueTypes
   , stringCopy
   , toHsRef
   , fromHsRef
+  , freeHsRef
   , configureAddHostRegistration
   , logSetErrorLevel
   , logSetDebugLevel
   , finalize
+  , functionTypeGetParameters
+  , HsRef
   , HasFinalizer
   , ConfigureContext
+  , FunctionTypeContext
   , ProgramOptionType (..)
   , Proposal (..)
   , HostRegistration (..)
@@ -33,7 +37,10 @@ module WasmEdge.Internal.FFI.ValueTypes
   , ExternalType (..)
   , Mutability (..)
   , WasmString
-  , WasmVal (WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef)
+  , WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
+            , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
+            )
+  , Int128
 #if TESTONLY
   , testonly_accquire
   , testonly_isAlive
@@ -61,6 +68,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
+import Data.Vector.Storable.Mutable (IOVector)
+import qualified Data.Vector.Storable.Mutable as VSM
 import Data.Coerce
 import Control.Arrow ((&&&))
 import Data.WideWord.Int128
@@ -74,9 +83,6 @@ import qualified Data.Set as Set
 import Control.Concurrent.MVar
 import GHC.Stack
 #endif
-
--- import Data.Vector.Storable.Mutable (IOVector)
--- import qualified Data.Vector.Storable.Mutable as VSM
 
 #include "wasmedge/wasmedge.h"
 #include <stdio.h>
@@ -487,13 +493,23 @@ pattern WasmInt128 :: Int128 -> WasmVal
 pattern WasmInt128 f64 <- ((valueGetV128 &&& getValType) -> (f64, ValType_V128)) where
   WasmInt128 v128 = valueGenV128 v128
 
-pattern WasmNullRef :: WasmVal
-pattern WasmNullRef <- ((valueIsNullRef) -> True) where
-  WasmNullRef = valueGenNullRef RefType_ExternRef
+pattern WasmNullExternRef :: WasmVal
+pattern WasmNullExternRef <- ((valueIsNullRef &&& getValType) -> (True, ValType_ExternRef)) where
+  WasmNullExternRef = valueGenNullRef RefType_ExternRef
+
+pattern WasmNullFuncRef :: WasmVal
+pattern WasmNullFuncRef <- ((valueIsNullRef &&& getValType) -> (True, ValType_FuncRef)) where
+  WasmNullFuncRef = valueGenNullRef RefType_FuncRef  
 
 pattern WasmExternRef :: HsRef -> WasmVal
 pattern WasmExternRef a <- ((valueGetExternRef &&& getValType) -> (a, ValType_ExternRef)) where
   WasmExternRef href = valueGenExternRef href
+
+pattern WasmFuncRef :: FunctionInstanceContext -> WasmVal
+pattern WasmFuncRef f <- ((valueGetFuncRef &&& getValType) -> (f, ValType_FuncRef)) where
+  WasmFuncRef f = valueGenFuncRef f
+
+{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmNullExternRef, WasmNullFuncRef, WasmExternRef, WasmFuncRef #-}  
 
 data HsRef where
   HsRef :: Fingerprint -> StablePtr a -> HsRef
@@ -520,7 +536,8 @@ fromHsRef (HsRef fpr sp) =
     coerceSP :: forall x. StablePtr x -> StablePtr a
     coerceSP = unsafeCoerce
 
-{-# COMPLETE WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmNullRef, WasmExternRef #-}
+freeHsRef :: HsRef -> IO ()
+freeHsRef (HsRef _ sp) = freeStablePtr sp
 
 instance Show WasmVal where
   show = \case
@@ -529,8 +546,10 @@ instance Show WasmVal where
     WasmFloat v -> show v
     WasmDouble v -> show v
     WasmInt128 v -> show v
-    WasmNullRef -> "Null"
-    WasmExternRef (HsRef fpr _) -> show fpr
+    WasmNullExternRef -> "Null"
+    WasmNullFuncRef -> "Null"
+    WasmExternRef hsref -> show hsref
+    WasmFuncRef fcxt -> unsafePerformIO $ withFunctionInstanceContext fcxt (pure . show)
 
 getValType :: WasmVal -> ValType
 getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Type #})
@@ -833,15 +852,26 @@ deriving via ViaFromEnum ValType instance Storable ValType
 -- {#fun unsafe ASTModuleListExports as ^ {`ASTModuleContext'} -> `()'#}
 
 -- * Function
-{#fun unsafe FunctionTypeCreate as ^ {fromIOVecOr0Ptr*`Vector ValType'&, fromIOVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
+{#fun unsafe FunctionTypeCreate as ^ {fromStoreVecOr0Ptr*`Vector ValType'&, fromStoreVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
 {#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
--- {#fun unsafe FunctionTypeGetParameters as ^ {`FunctionTypeContext', +} -> `(Vector ValType'#}
+{#fun unsafe FunctionTypeGetParameters as functionTypeGetParameters_ {`FunctionTypeContext', fromMutIOVecOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
+functionTypeGetParameters :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
+functionTypeGetParameters fcxt buffLen = do
+  v <- VSM.new (fromIntegral buffLen)
+  len <- functionTypeGetParameters_ fcxt v
+  VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
+  
 
-fromIOVecOr0Ptr :: Vector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
-fromIOVecOr0Ptr v f
+fromStoreVecOr0Ptr :: Vector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
+
+fromMutIOVecOr0Ptr :: IOVector ValType -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromMutIOVecOr0Ptr v f
+  | VSM.null v = f (nullPtr, 0)
+  | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)  
 
 newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
 
@@ -853,6 +883,13 @@ instance Enum t => Storable (ViaFromEnum t) where
 -- * Function Type
 -- TODO:
 {#fun unsafe FunctionTypeGetReturnsLength as ^ {`FunctionTypeContext'} -> `Word32'#}
+{#fun unsafe FunctionTypeGetReturns as functionTypeGetReturns_ {`FunctionTypeContext', fromMutIOVecOr0Ptr*`IOVector ValType'&} -> `Word32'#}
+
+functionTypeGetReturns :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
+functionTypeGetReturns fcxt buffLen = do
+  v <- VSM.new (fromIntegral buffLen)
+  len <- functionTypeGetReturns_ fcxt v
+  VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
 
 -- Table Type
 -- TODO:                                            
