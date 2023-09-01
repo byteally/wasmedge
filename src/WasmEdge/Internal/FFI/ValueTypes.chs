@@ -1,3 +1,11 @@
+{-|
+Module      : WasmEdge.Internal.FFI.ValueTypes
+Description : Haskell bindings for wasmedge runtime hosting
+Copyright   : (c) ByteAlly, 2023
+License     : GPL-3
+Author      : Magesh B
+Maintainer  : magesh85@gmail.com
+-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DerivingVia #-}
@@ -6,43 +14,283 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.ValueTypes
-  ( valueGenI32
-  , wasmStringEq
-  , wasmStringLength
-  , toText
-  , mkStringFromBytes
-  , stringCopy
-  , toHsRef
-  , fromHsRef
-  , freeHsRef
-  , configureAddHostRegistration
-  , logSetErrorLevel
-  , logSetDebugLevel
-  , finalize
-  , functionTypeGetParameters
-  , HsRef
-  , HasFinalizer
-  , ConfigureContext
-  , FunctionTypeContext
-  , ProgramOptionType (..)
-  , Proposal (..)
-  , HostRegistration (..)
-  , CompilerOptimizationLevel (..)
-  , CompilerOutputFormat (..)
-  , ErrCategory (..)
-  , ErrCode (..)
-  , ValType (..)
-  , NumType (..)
-  , RefType (..)
-  , ExternalType (..)
-  , Mutability (..)
-  , WasmString
-  , WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
-            , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
-            )
-  , Int128
-#if TESTONLY
-  , testonly_accquire
+  ( 
+  --pointer
+  HsRefPtr 
+  ,WasmVal
+  ,WasmString
+  ,WasmResult
+  ,Limit
+  ,ProgramOption
+  ,ModuleDescriptor
+  ,PluginVersionData
+  ,PluginDescriptor
+  ,ConfigureContext 
+  ,StatisticsContext
+  ,ASTModuleContext
+  ,FunctionTypeContext
+  ,MemoryTypeContext
+  ,TableTypeContext
+  ,GlobalTypeContext
+  ,ImportTypeContext
+  ,ExportTypeContext
+  ,CompilerContext
+  ,LoaderContext
+  ,ValidatorContext
+  ,ExecutorContext
+  ,StoreContext
+  ,ModuleInstanceContext
+  ,FunctionInstanceContext
+  ,TableInstanceContext
+  ,MemoryInstanceContext
+  ,GlobalInstanceContext
+  ,CallingFrameContext
+  ,Async
+  ,VMContext
+  ,PluginContext
+  ,WasmHostFunc 
+  --funs
+  ,valueGenI32
+  ,valueGetI32
+  ,valueGenI64
+  ,valueGetI64
+  ,valueGenF32
+  ,valueGetF32
+  ,valueGenF64
+  ,valueGetF64
+  ,valueGenV128
+  ,valueGetV128
+  ,valueGenNullRef
+  ,valueIsNullRef
+  ,mkStringFromBytesIO
+  ,stringWrap
+  ,wasmStringEq
+  ,_stringCopy
+  ,mkResultSuccess
+  ,mkResultTerminate 
+  ,mkResultFail
+  ,resultGen 
+  ,getResultCode
+  ,getResultCategory
+  ,getResultMessage
+  ,valueGenFuncRef 
+  ,valueGetFuncRef
+  ,valueGenExternRef 
+  ,valueGetExternRef 
+  ,logSetErrorLevel 
+  ,logSetDebugLevel
+  ,configureCreate 
+  ,configureAddProposal
+  ,configureRemoveProposal
+  ,configureHasProposal
+  ,configureAddHostRegistration
+  ,configureRemoveHostRegistration
+  ,configureHasHostRegistration
+  ,configureSetMaxMemoryPage
+  ,configureGetMaxMemoryPage
+  ,configureSetForceInterpreter
+  ,configureIsForceInterpreter
+  ,configureCompilerSetOptimizationLevel
+  ,configureCompilerGetOptimizationLevel
+  ,configureCompilerSetOutputFormat
+  ,configureCompilerGetOutputFormat
+  ,configureCompilerSetDumpIR
+  ,configureCompilerIsDumpIR
+  ,configureCompilerSetGenericBinary
+  ,configureCompilerIsGenericBinary
+  ,configureCompilerSetInterruptible
+  ,configureCompilerIsInterruptible
+  ,configureStatisticsSetInstructionCounting
+  ,configureStatisticsIsInstructionCounting
+  ,configureStatisticsSetCostMeasuring
+  ,configureStatisticsIsCostMeasuring
+  ,configureStatisticsSetTimeMeasuring
+  ,configureStatisticsIsTimeMeasuring
+  ,statisticsCreate
+  ,statisticsGetInstrCount
+  ,statisticsGetInstrPerSecond
+  ,statisticsGetTotalCost
+  ,statisticsSetCostTable
+  ,statisticsSetCostLimit
+  ,statisticsClear
+  ,aSTModuleListImportsLength
+  ,aSTModuleListExportsLength
+  ,functionTypeCreate
+  ,functionTypeGetParametersLength
+  ,functionTypeGetParameters
+  ,functionTypeGetReturnsLength 
+  ,tableTypeCreate 
+  ,tableTypeGetRefType
+  ,memoryTypeCreate
+  ,memoryTypeGetLimit
+  ,globalTypeCreate
+  ,globalTypeGetMutability
+  ,importTypeGetModuleName
+  ,importTypeGetExternalName
+  ,importTypeGetFunctionType
+  ,importTypeGetTableType
+  ,importTypeGetMemoryType
+  ,importTypeGetGlobalType
+  ,exportTypeGetExternalType
+  ,exportTypeGetExternalName
+  ,exportTypeGetFunctionType
+  ,exportTypeGetTableType
+  ,exportTypeGetMemoryType
+  ,exportTypeGetGlobalType
+  ,compilerCreate
+  ,compilerCompile
+  ,compilerCompileFromBuffer
+  ,loaderCreate
+  ,validatorCreate
+  ,validatorValidate
+  ,executorCreate
+  ,executorInstantiate
+  ,executorRegister
+  ,executorRegisterImport
+  ,executorInvoke
+  ,executorAsyncInvoke
+  ,functionInstanceGetFunctionType 
+  ,tableInstanceCreate
+  ,tableInstanceGetTableType
+  ,tableInstanceGetData
+  ,tableInstanceSetData
+  ,tableInstanceGetSize
+  ,tableInstanceGrow
+  ,memoryInstanceCreate
+  ,memoryInstanceGetMemoryType
+  ,memoryInstanceGetData
+  ,memoryInstanceGetPageSize
+  ,memoryInstanceGrowPage
+  ,globalInstanceCreate
+  ,globalInstanceGetGlobalType
+  ,globalInstanceGetValue
+  ,callingFrameGetExecutor
+  ,callingFrameGetModuleInstance
+  ,callingFrameGetMemoryInstance
+  ,asyncWait
+  ,asyncWaitFor
+  ,asyncCancel
+  ,asyncGetReturnsLength
+  ,asyncGet
+  ,vMCreate
+  ,vMRegisterModuleFromFile
+  ,vMRunWasmFromFile
+  ,vMRunWasmFromBuffer
+  ,vMRunWasmFromASTModule
+  ,vMAsyncRunWasmFromFile
+  ,vMAsyncRunWasmFromASTModule
+  ,vMAsyncRunWasmFromBuffer
+  ,vMRegisterModuleFromBuffer
+  ,vMRegisterModuleFromASTModule
+  ,vMRegisterModuleFromImport
+  ,vMLoadWasmFromFile
+  ,vMLoadWasmFromBuffer
+  ,vMLoadWasmFromASTModule
+  ,vMValidate
+  ,vMInstantiate
+  ,vMExecute
+  ,vMExecuteRegistered
+  ,vMAsyncExecute
+  ,vMAsyncExecuteRegistered
+  ,vMGetFunctionType
+  ,vMGetFunctionTypeRegistered
+  ,vMCleanup
+  ,vMGetFunctionListLength
+  ,vMGetFunctionList
+  ,vMGetImportModuleContext
+  ,vMGetActiveModule
+  ,vMGetRegisteredModule
+  ,vMListRegisteredModuleLength
+  ,vMListRegisteredModule
+  ,vMGetStoreContext
+  ,vMGetLoaderContext
+  ,vMGetValidatorContext
+  ,vMGetExecutorContext
+  ,vMGetStatisticsContext
+  ,pluginLoadWithDefaultPaths 
+  ,pluginLoadFromPath 
+  ,pluginListPluginsLength 
+  ,pluginListPlugins 
+  ,pluginFind 
+  ,pluginGetPluginName
+  ,pluginListModuleLength 
+  ,pluginListModule 
+  ,pluginCreateModule 
+  ,pluginGetDescriptor
+  --enum
+  ,ProgramOptionType (..)
+  ,Proposal  (..)
+  ,HostRegistration (..)
+  ,CompilerOptimizationLevel (..)
+  ,CompilerOutputFormat (..)
+  ,ErrCategory (..)
+  ,ErrCode (..)
+  ,ValType (..)
+  ,NumType (..)
+  ,RefType (..)
+  ,Mutability (..)
+  ,ExternalType (..)
+  --Haskell funcs
+  ,storeCreate 
+  ,storeFindModule
+  ,storeListModuleLength
+  ,storeListModule
+  ,moduleInstanceCreate
+  ,moduleInstanceCreateWASI
+  ,moduleInstanceInitWASI
+  ,moduleInstanceWASIGetExitCode
+  ,moduleInstanceWASIGetNativeHandler
+  ,moduleInstanceInitWasmEdgeProcess
+  ,moduleInstanceGetModuleName
+  ,moduleInstanceGetHostData
+  ,moduleInstanceFindFunction
+  ,moduleInstanceFindTable
+  ,moduleInstanceFindMemory
+  ,moduleInstanceFindGlobal
+  ,moduleInstanceListFunctionLength
+  ,moduleInstanceListFunction
+  ,moduleInstanceListTableLength
+  ,moduleInstanceListTable
+  ,moduleInstanceListMemoryLength 
+  ,moduleInstanceListMemory
+  ,moduleInstanceListGlobalLength 
+  ,moduleInstanceListGlobal
+  ,moduleInstanceAddFunction 
+  ,moduleInstanceAddTable
+  ,moduleInstanceAddMemory 
+  ,moduleInstanceAddGlobal
+  ,tableTypeGetLimit
+  -- something
+  ,fromHsRefIn
+  ,fromHsRef
+  ,toHsRef
+  ,fromI128
+  ,fromI128Alloc
+  ,toI128
+  ,mkStringFromBytes
+  ,wrapCFinalizer
+  ,finalize
+  ,coercePtr
+  ,useAsCStringLenBS
+  ,useAsPtrCUCharLenBS
+  ,_packCStringLenBS
+  ,packCStringBS
+  ,memBuffIn
+  ,getValType
+  ,allocMemBuff
+  ,stringCopy
+  ,wasmStringLength
+  ,toText
+  ,cToEnum
+  ,cFromEnum
+  ,fromStoreVecOr0Ptr
+  ,fromVecOr0Ptr
+  ,fromVecStringOr0Ptr
+  ,fromMutIOVecOr0Ptr
+  ,noFinalizer 
+  ,peekOutPtr
+  #if TESTONLY
+  ,testonly_accquire
   , testonly_isAlive
   , testonly_release
 #endif
@@ -352,9 +600,10 @@ void ImportTypeGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeConte
 void ImportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetExternalName(Ctx); }
 void ExportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ExportTypeContext* Ctx){ *strOut = WasmEdge_ExportTypeGetExternalName(Ctx); }
 void CompilerCompileOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const char* InPath,const char* OutPath){ *resOut = WasmEdge_CompilerCompile(Ctx,InPath,OutPath); }
-void CompilerCompileFromBufferOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const uint8_t *InBuffer,const uint64_t InBufferLen,const char *OutPath){ 
+void CompilerCompileFromBufferOut(WasmEdge_Result* resOut,WasmEdge_CompilerContext* Ctx,const uint8_t *InBuffer,const uint64_t InBufferLen,const char *OutPath)
+{ 
   *resOut = WasmEdge_CompilerCompileFromBuffer(Ctx,InBuffer,InBufferLen,OutPath); 
-  }
+}
 void LoaderParseFromFileOut(WasmEdge_Result* resOut,WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module, const char *Path)
 {
   *resOut = WasmEdge_LoaderParseFromFile(Cxt, Module, Path);
@@ -378,26 +627,32 @@ void ExecutorRegisterOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt,
 }
 
 void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
-void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeContext *Cxt){
+void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeContext *Cxt)
+{
   *limOut = WasmEdge_MemoryTypeGetLimit(Cxt); 
 }
 void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
 *resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
-void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,
+  const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+{
     WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
     WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
     *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,&Params,ParamLen,&Returns,ReturnLen); //Is this correct??
 }
-WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v,const uint32_t ParamLen){
+WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v,const uint32_t ParamLen)
+{
     WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
     return WasmEdge_ExecutorAsyncInvoke(Cxt,FuncCxt,&Params,ParamLen);
 }
 void ModuleInstanceGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ModuleInstanceContext* Ctx){ *strOut = WasmEdge_ModuleInstanceGetModuleName(Ctx); }
-void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset){
+void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
+{
    WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *resOut = WasmEdge_TableInstanceGetData(Cxt,&Data,Offset);
 }
-void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset){
+void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
+{
   WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *resOut = WasmEdge_TableInstanceSetData(Cxt,Data,Offset);
 }
@@ -407,55 +662,67 @@ void MemoryInstanceGetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceCon
 void MemoryInstanceSetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
 *resOut = WasmEdge_MemoryInstanceSetData(Ctx,Data,Offset,Length); }
 void MemoryInstanceGrowPageOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext *Cxt,const uint32_t Page){ *resOut = WasmEdge_MemoryInstanceGrowPage(Cxt,Page); }
-WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTypeContext *GlobType,WasmVal* v){
+WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTypeContext *GlobType,WasmVal* v)
+{
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_GlobalInstanceCreate(GlobType,val); 
 }
-void GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt){
+void GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt)
+{
     WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
     val = WasmEdge_GlobalInstanceGetValue(Cxt);
 }
-void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal *v){
+void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal *v)
+{
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   WasmEdge_GlobalInstanceSetValue(Cxt,val);
 }
-void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,const uint32_t ReturnLen){
+void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,const uint32_t ReturnLen)
+{
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *resOut = WasmEdge_AsyncGet(Cxt,&Returns,ReturnLen);
 }
-void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+{
   WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen,&Returns,ReturnLen);
 }
-void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
+void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+{
   WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
 }
-WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen){
+WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen)
+{
   WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_VMAsyncRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen);
 }
-WasmEdge_Async *VMAsyncRunWasmFromASTModuleOut(WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName,const WasmVal *v,const uint32_t ParamLen){
+WasmEdge_Async *VMAsyncRunWasmFromASTModuleOut(WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName,const WasmVal *v,const uint32_t ParamLen)
+{
   WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_VMAsyncRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen);
 }
-void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen){
+void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+{
   WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMExecute(Cxt,FuncName,&Params,ParamLen,&Returns,ReturnLen);
 }
-void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
-   WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+{
+  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
 }
-WasmEdge_Async *VMAsyncExecuteOut(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen){
+WasmEdge_Async *VMAsyncExecuteOut(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen)
+{
    WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
    return WasmEdge_VMAsyncExecute(Cxt,FuncName,&Params,ParamLen);
 }
-WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v,const uint32_t ParamLen){
+WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v,const uint32_t ParamLen)
+{
    WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
    return WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen);
 }
@@ -468,18 +735,19 @@ void VMLoadWasmFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt, cons
 void VMRegisterModuleFromImportOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ *resOut = WasmEdge_VMRegisterModuleFromImport(Cxt,ImportCxt); }
 void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName, const WasmEdge_ASTModuleContext *ASTCxt){ 
 *resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
-WasmEdge_Async* VMAsyncRunWasmFromBufferOut(WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName,WasmVal* v,const uint32_t ParamLen ){
+WasmEdge_Async* VMAsyncRunWasmFromBufferOut(WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName,WasmVal* v,const uint32_t ParamLen )
+{
   WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_VMAsyncRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen);
 }
-void VMLoadWasmFromBufferOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const uint8_t *Buf, const uint32_t BufLen){
-  *resOut = WasmEdge_VMLoadWasmFromBuffer(Cxt,Buf,BufLen); 
-}
-void VMRegisterModuleFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const uint8_t *Buf, const uint32_t BufLen ){
+void VMLoadWasmFromBufferOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const uint8_t *Buf, const uint32_t BufLen){ *resOut = WasmEdge_VMLoadWasmFromBuffer(Cxt,Buf,BufLen); }
+void VMRegisterModuleFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const uint8_t *Buf, const uint32_t BufLen )
+{
   *resOut = WasmEdge_VMRegisterModuleFromBuffer(Cxt,ModuleName,Buf,BufLen); 
 }
 void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName, const WasmVal *v1,
-const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
+  const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+{
   WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen,&Returns,ReturnLen);
@@ -853,6 +1121,9 @@ deriving newtype instance Storable ExportTypeContext
 instance HasFinalizer ModuleInstanceContext where
   getFinalizer = moduleInstanceDelete
 
+instance HasFinalizer FunctionTypeContext where
+  getFinalizer = functionTypeDelete 
+
 {-|
 Type of option value.
 -}
@@ -1109,7 +1380,7 @@ noFinalizer = coerce . newForeignPtr_
 -- Executor
 {#fun unsafe ExecutorCreate as ^ {`ConfigureContext',`StatisticsContext'} -> `ExecutorContext'#}
 {#fun unsafe ExecutorInstantiateOut as executorInstantiate {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext'} -> `WasmResult'#}
-{#fun unsafe ExecutorRegisterOut as ^ {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#}
+{#fun unsafe ExecutorRegisterOut as executorRegister {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#}
 {#fun unsafe ExecutorRegisterImportOut as executorRegisterImport {+,`ExecutorContext',`StoreContext',`ModuleInstanceContext'} -> `WasmResult'#}
 {#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32'} -> `Async'#}
@@ -1128,6 +1399,7 @@ peekOutPtr pout = do
 
 -- Module Instance
 {#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
+-- TODO:
 -- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`(FunPtr (Ptr () -> IO())'} -> `ModuleInstanceContext'#} -- Function as an argument
 {#fun unsafe ModuleInstanceCreateWASI as ^ {fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `ModuleInstanceContext'#}
 {#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `()'#}
@@ -1166,6 +1438,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 -}
 {#pointer HostFunc_t as WasmHostFunc newtype #}
+-- TODO:
 -- {#fun unsafe FunctionInstanceCreate as ^ {`FunctionTypeContext',`HostFunc_t',`void *',`Word64'} -> `FunctionTypeContext'#}  --some random typedef
 -- {#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFunc_t',`void *',`void *',`Word64'} -> `FunctionInstanceContext'#} -- some random typedef
 {#fun unsafe FunctionInstanceGetFunctionType as ^ {`FunctionInstanceContext'} -> `FunctionTypeContext'#}
@@ -1224,7 +1497,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#}
 {#fun unsafe VMValidateOut as vMValidate  {+,`VMContext'} -> `WasmResult'#}
 {#fun unsafe VMInstantiateOut as vMInstantiate  {+,`VMContext'} -> `WasmResult'#}
-{#fun unsafe VMExecuteOut as vMExecuteOut {+,`VMContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMExecuteOut as vMExecute {+,`VMContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
 {#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32'} -> `Async'#} 
@@ -1232,7 +1505,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
 {#fun unsafe VMGetFunctionListLength as ^ {`VMContext'} -> `Word32'#} 
--- {#fun unsafe VMGetFunctionList as ^ {`VMContext',`WasmString',`FunctionTypeContext',`Word32'} -> `Word32'#} --Double pointer, Expected FunctionTypeContext Actual Ptr FunctionTypeContext
+{#fun unsafe VMGetFunctionList as ^ {`VMContext',`WasmString',alloca-`FunctionTypeContext'peekOutPtr*,`Word32'} -> `Word32'#} --Double pointer, Expected FunctionTypeContext Actual Ptr FunctionTypeContext
 {#fun unsafe VMGetImportModuleContext as ^ {`VMContext',`HostRegistration'} -> `ModuleInstanceContext'#} 
 {#fun unsafe VMGetActiveModule as ^ {`VMContext'} -> `ModuleInstanceContext'#} 
 {#fun unsafe VMGetRegisteredModule as ^ {`VMContext',%`WasmString'} -> `ModuleInstanceContext'#}
