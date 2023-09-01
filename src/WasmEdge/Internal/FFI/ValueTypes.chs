@@ -697,6 +697,7 @@ WasmEdge_Result cbHostFunc_t (void *Data, const WasmEdge_CallingFrameContext *Ca
   }
   // free each returns array
   free(returns);
+  free(clsr);
   return (*resPtr);
 }
 
@@ -704,8 +705,12 @@ WasmEdge_FunctionInstanceContext * FunctionInstanceCreateBndr(const WasmEdge_Fun
 {
   uint32_t parLen = WasmEdge_FunctionTypeGetParametersLength(Type);
   uint32_t retLen = WasmEdge_FunctionTypeGetReturnsLength(Type);
-  HostFuncClosure clsr = {.Data = hsRef, .ParLen = parLen, .RetLen = retLen, .HostFunc = HostFunc};
-  WasmEdge_FunctionInstanceCreate(Type, cbHostFunc_t, &clsr, Cost);
+  HostFuncClosure* clsr = (HostFuncClosure*) malloc(sizeof(HostFuncClosure));
+  clsr->Data = hsRef;
+  clsr->ParLen = parLen;
+  clsr->RetLen = retLen;
+  clsr->HostFunc = HostFunc;
+  WasmEdge_FunctionInstanceCreate(Type, cbHostFunc_t, clsr, Cost);
 }
 
 void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
