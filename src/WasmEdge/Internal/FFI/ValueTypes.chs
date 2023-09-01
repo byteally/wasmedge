@@ -89,6 +89,7 @@ import GHC.Stack
 
 #include "wasmedge/wasmedge.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 {#context prefix = "WasmEdge"#}
 
@@ -393,6 +394,63 @@ WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmE
     return WasmEdge_ExecutorAsyncInvoke(Cxt,FuncCxt,&Params,ParamLen);
 }
 void ModuleInstanceGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ModuleInstanceContext* Ctx){ *strOut = WasmEdge_ModuleInstanceGetModuleName(Ctx); }
+
+typedef WasmEdge_Result* (*HostFunc_t)(
+    HsRef *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+    WasmVal **Params, WasmVal **Returns);
+
+typedef struct HostFuncClosure {
+  HsRef* Data;
+  uint32_t ParLen;
+  uint32_t RetLen;
+  HostFunc_t HostFunc;
+} HostFuncClosure;
+  
+
+WasmEdge_Result cbHostFunc_t (void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,const WasmEdge_Value *Params, WasmEdge_Value *Returns)
+{
+  HostFuncClosure* clsr = (HostFuncClosure*)Data;
+  HostFunc_t HostFunc = clsr->HostFunc;
+  uint32_t parLen = clsr->ParLen;
+  uint32_t retLen = clsr->RetLen;
+  WasmVal **params = (WasmVal **)malloc(parLen * sizeof(WasmVal *));
+  WasmVal **returns = (WasmVal **)malloc(retLen * sizeof(WasmVal *));
+  for(int i = 0; i < parLen; i++)
+  {
+    WasmEdge_Value r = Params[i];
+    WasmVal *pOut = (WasmVal*)malloc(sizeof(WasmVal));
+    pOut->Type = r.Type;
+    pOut->Val = WasmEdge_ValueToU128(r);
+    params[i] = pOut;
+  }
+  WasmEdge_Result* resPtr = HostFunc(clsr->Data, CallFrameCxt, params, returns);
+  // free each param itesm
+  for(int i = 0; i < parLen; i++)
+  {
+    WasmVal *pOut = params[i];
+    free(pOut);
+  }
+  // free each params array
+  free(params);
+  for (int i = 0; i <- retLen; i++)
+  {
+    const WasmVal *rOut = returns[i];
+    WasmEdge_Value rval = {.Value = pack_uint128_t(rOut->Val), .Type = rOut->Type};
+    Returns[i] = rval;
+  }
+  // free each returns array
+  free(returns);
+  return (*resPtr);
+}
+
+WasmEdge_FunctionInstanceContext * FunctionInstanceCreateBndr(const WasmEdge_FunctionTypeContext *Type, HostFunc_t HostFunc, HsRef* hsRef, const uint64_t Cost)
+{
+  uint32_t parLen = WasmEdge_FunctionTypeGetParametersLength(Type);
+  uint32_t retLen = WasmEdge_FunctionTypeGetReturnsLength(Type);
+  HostFuncClosure clsr = {.Data = hsRef, .ParLen = parLen, .RetLen = retLen, .HostFunc = HostFunc};
+  WasmEdge_FunctionInstanceCreate(Type, cbHostFunc_t, &clsr, Cost);
+}
+
 void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset){
    WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *resOut = WasmEdge_TableInstanceGetData(Cxt,&Data,Offset);
@@ -511,7 +569,13 @@ instance HasFinalizer WasmString where
 
 ---
 fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
-fromHsRefIn (HsRef (Fingerprint hi lo) sp) f = do
+fromHsRefIn = fromHsRefGenIn
+
+fromHsRefAsVoidPtrIn :: HsRef -> (Ptr () -> IO a) -> IO a
+fromHsRefAsVoidPtrIn = fromHsRefGenIn
+
+fromHsRefGenIn :: HsRef -> (Ptr p -> IO a) -> IO a
+fromHsRefGenIn (HsRef (Fingerprint hi lo) sp) f = do
   fp <- mallocForeignPtrBytes {#sizeof HsRef#} --mallocForeignPtr @HsRefPtr
   withForeignPtr fp $ \p -> do
     {#set HsRef.Fingerprint.High#} p (fromIntegral hi)
@@ -1154,20 +1218,15 @@ peekOutPtr pout = do
 {#fun unsafe ModuleInstanceAddGlobal as ^ {`ModuleInstanceContext',%`WasmString',`GlobalInstanceContext'} -> `()'#}
 
 -- Function Instance
-{-
-typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
-    void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
-    const WasmEdge_Value *Params, WasmEdge_Value *Returns);
--}
-{-
-typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
-    void *This, void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
-    const WasmEdge_Value *Params, const uint32_t ParamLen,
-    WasmEdge_Value *Returns, const uint32_t ReturnLen);
--}
-{#pointer HostFunc_t as WasmHostFunc newtype #}
--- {#fun unsafe FunctionInstanceCreate as ^ {`FunctionTypeContext',`HostFunc_t',`void *',`Word64'} -> `FunctionTypeContext'#}  --some random typedef
--- {#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFunc_t',`void *',`void *',`Word64'} -> `FunctionInstanceContext'#} -- some random typedef
+{#pointer HostFunc_t as ^#}
+type HostFun = Ptr HsRefPtr -> Ptr (CallingFrameContext) -> Ptr (Ptr WasmVal) -> Ptr (Ptr WasmVal) -> IO (Ptr WasmResult)
+-- {#type HostFuncT HostFuncT#}
+
+foreign import ccall "wrapper" toHostFuncT :: HostFun -> IO HostFuncT
+
+{#pointer WrapFunc_t as ^ #}
+{#fun FunctionInstanceCreateBndr as functionInstanceCreate {`FunctionTypeContext',`HostFuncT',fromHsRefIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
+--{#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFuncT',fromHsRefAsVoidPtrIn*`HsRef',fromHsRefAsVoidPtrIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
 {#fun unsafe FunctionInstanceGetFunctionType as ^ {`FunctionInstanceContext'} -> `FunctionTypeContext'#}
 
 -- Table Instance
