@@ -468,6 +468,22 @@ void VMLoadWasmFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt, cons
 void VMRegisterModuleFromImportOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ *resOut = WasmEdge_VMRegisterModuleFromImport(Cxt,ImportCxt); }
 void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName, const WasmEdge_ASTModuleContext *ASTCxt){ 
 *resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
+WasmEdge_Async* VMAsyncRunWasmFromBufferOut(WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName,WasmVal* v,const uint32_t ParamLen ){
+  WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
+  return WasmEdge_VMAsyncRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen);
+}
+void VMLoadWasmFromBufferOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const uint8_t *Buf, const uint32_t BufLen){
+  *resOut = WasmEdge_VMLoadWasmFromBuffer(Cxt,Buf,BufLen); 
+}
+void VMRegisterModuleFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const uint8_t *Buf, const uint32_t BufLen ){
+  *resOut = WasmEdge_VMRegisterModuleFromBuffer(Cxt,ModuleName,Buf,BufLen); 
+}
+void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName, const WasmVal *v1,
+const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen){
+  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
+  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
+  *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+}
 #endc
 
 {-|
@@ -1112,7 +1128,7 @@ peekOutPtr pout = do
 
 -- Module Instance
 {#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
--- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`void (*finalizer)(void *)'} -> `ModuleInstanceContext'#} -- WasmString and that void data
+-- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`(FunPtr (Ptr () -> IO())'} -> `ModuleInstanceContext'#} -- Function as an argument
 {#fun unsafe ModuleInstanceCreateWASI as ^ {fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `ModuleInstanceContext'#}
 {#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `()'#}
 {#fun unsafe ModuleInstanceWASIGetExitCode as ^ {`ModuleInstanceContext'} -> `Word32'#}
@@ -1166,7 +1182,8 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe MemoryInstanceCreate as ^ {`MemoryTypeContext'} -> `MemoryInstanceContext'#} 
 {#fun unsafe MemoryInstanceGetMemoryType as ^ {`MemoryInstanceContext'} -> `MemoryTypeContext'#} 
 {#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData {+,`MemoryInstanceContext',`Word8',`Word32',`Word32'} -> `WasmResult'#} 
--- {#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',`Vector Word8'&} -> `WasmResult'#} -- use wrapper with offset before data
+-- TODO:
+-- {#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',`Word32',fromStoreVecOr0Ptr*`Vector Word8'&} -> `WasmResult'#} -- use wrapper with offset before data
 -- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Vector Word8'#} -- Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
 -- {#fun unsafe MemoryInstanceGetPointerConst as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} --Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
 {#fun unsafe MemoryInstanceGetPageSize as ^ {`MemoryInstanceContext'} -> `Word32'#} 
@@ -1194,18 +1211,16 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 {#fun unsafe VMCreate as ^ {`ConfigureContext',`StoreContext'} -> `VMContext'#}
 {#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#}
 {#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& ,%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#} 
 {#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
 {#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
-{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule  {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
-{-
-{#fun unsafe VMRegisterModuleFromBuffer as ^ {`VMContext',`WasmString',`Word8',`Word32'} -> `WasmResult'#} --wasmresult + WOrd8
-{#fun unsafe VMRunWasmFromBuffer as ^ {`VMContext',`Word8',`Word32',`WasmString',`WasmValue',`Word32',`WasmValue',`Word32'} -> `WasmResult'#} --wasmresult + word8
-{#fun unsafe VMAsyncRunWasmFromBuffer as ^ {`VMContext',`Word8',`WasmString',`WasmValue',`Word32'} -> `Async'#} --wasmresult + WOrd8
-{#fun unsafe VMLoadWasmFromBuffer as ^ {`VMContext',`Word8',`Word32'} -> `WasmResult'#} --wasmresult
--}
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromStoreVecOr0Ptr*`Vector Word64'&, %`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer {+,`VMContext',%`WasmString',fromStoreVecOr0Ptr*`Vector Word8'& } -> `WasmResult'#}
 {#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#}
 {#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport {+,`VMContext',`ModuleInstanceContext'} -> `WasmResult'#}
 {#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile {+,`VMContext',`String'} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& } -> `WasmResult'#}
 {#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#}
 {#fun unsafe VMValidateOut as vMValidate  {+,`VMContext'} -> `WasmResult'#}
 {#fun unsafe VMInstantiateOut as vMInstantiate  {+,`VMContext'} -> `WasmResult'#}
