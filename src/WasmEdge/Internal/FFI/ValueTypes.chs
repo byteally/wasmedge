@@ -262,6 +262,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,moduleInstanceAddMemory 
   ,moduleInstanceAddGlobal
   ,tableTypeGetLimit
+  , hostFuncCallbackPure
+  , hostFuncCallback
   -- something
   ,fromHsRefIn
   ,fromHsRef
@@ -312,6 +314,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Storable (Storable (..))
 import Foreign.Marshal.Alloc
+import Foreign.Marshal.Array
 -- import GHC.Ptr
 import System.IO.Unsafe
 import Unsafe.Coerce
@@ -681,13 +684,7 @@ WasmEdge_Result cbHostFunc_t (void *Data, const WasmEdge_CallingFrameContext *Ca
     params[i] = pOut;
   }
   WasmEdge_Result* resPtr = HostFunc(clsr->Data, CallFrameCxt, params, returns);
-  // free each param itesm
-  for(int i = 0; i < parLen; i++)
-  {
-    WasmVal *pOut = params[i];
-    free(pOut);
-  }
-  // free each params array
+  // free params array
   free(params);
   for (int i = 0; i <- retLen; i++)
   {
@@ -695,7 +692,7 @@ WasmEdge_Result cbHostFunc_t (void *Data, const WasmEdge_CallingFrameContext *Ca
     WasmEdge_Value rval = {.Value = pack_uint128_t(rOut->Val), .Type = rOut->Type};
     Returns[i] = rval;
   }
-  // free each returns array
+  // free returns array
   free(returns);
   free(clsr);
   return (*resPtr);
@@ -1501,9 +1498,42 @@ peekOutPtr pout = do
 -- Function Instance
 {#pointer HostFunc_t as ^#}
 type HostFun = Ptr HsRefPtr -> Ptr (CallingFrameContext) -> Ptr (Ptr WasmVal) -> Ptr (Ptr WasmVal) -> IO (Ptr WasmResult)
--- {#type HostFuncT HostFuncT#}
 
 foreign import ccall "wrapper" toHostFuncT :: HostFun -> IO HostFuncT
+
+-- | Creates WasmEdge HostFunc callback reference
+hostFuncCallback ::
+  Word32 -- ^ Parameter count
+  -> Word32 -- ^ Returned values count
+  -> (Maybe HsRef -> CallingFrameContext -> V.Vector WasmVal -> IO (V.Vector WasmVal)) -- ^ Host Callback
+  -> IO HostFuncT -- ^ WasmEdge HostFunc callback reference
+hostFuncCallback parCnt retCnt cb = toHostFuncT $ \pHsRef pCFCxt pPars pRess -> do
+  hsRefMay <- if pHsRef == nullPtr
+              then pure Nothing
+              else fmap Just $ toHsRefOut pHsRef
+  ccxt <- CallingFrameContext <$> newForeignPtr_ pCFCxt
+  let
+    toVecWasmVal pVals = do
+      wasmVals <- mapM ((fmap WasmVal) . newForeignPtr finalizerFree) pVals
+      pure $ V.fromList wasmVals
+    toResValPtrs :: V.Vector WasmVal -> IO [Ptr WasmVal]
+    toResValPtrs = mapM (flip withWasmVal pure) . V.toList 
+
+  pars <- toVecWasmVal =<< peekArray (fromIntegral parCnt) pPars
+  ress <- cb hsRefMay ccxt pars
+  if V.length ress == (fromIntegral retCnt)
+    then do
+    pokeArray pRess =<< toResValPtrs ress
+    pure nullPtr -- WRSuccess -- TODO: Fix Status Ret by making it as out ptr
+    else pure nullPtr -- WRFail -- TODO: Fix Status Ret by making it as out ptr
+
+-- | Creates WasmEdge HostFunc callback reference
+hostFuncCallbackPure ::
+  Word32 -- ^ Parameter count
+  -> Word32 -- ^ Returned values count
+  -> (Maybe HsRef -> CallingFrameContext -> V.Vector WasmVal -> V.Vector WasmVal) -- ^ Host Callback
+  -> IO HostFuncT -- ^ WasmEdge HostFunc callback reference
+hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf pars -> pure $ cb ref cf pars
 
 {#pointer WrapFunc_t as ^ #}
 {#fun FunctionInstanceCreateBndr as functionInstanceCreate {`FunctionTypeContext',`HostFuncT',fromHsRefIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
