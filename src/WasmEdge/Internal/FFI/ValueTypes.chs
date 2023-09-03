@@ -162,6 +162,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,memoryInstanceGetMemoryType
   ,memoryInstanceGetData
   ,memoryInstanceSetData
+  ,memoryInstanceGetPointer
+  ,memoryInstanceGetPointerConst
   ,memoryInstanceGetPageSize
   ,memoryInstanceGrowPage
   ,globalInstanceCreate
@@ -239,6 +241,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,storeListModuleLength
   ,storeListModule
   ,moduleInstanceCreate
+  ,moduleInstanceCreateWithData
   ,moduleInstanceCreateWASI
   ,moduleInstanceInitWASI
   ,moduleInstanceWASIGetExitCode
@@ -263,8 +266,11 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,moduleInstanceAddMemory 
   ,moduleInstanceAddGlobal
   ,tableTypeGetLimit
-  , hostFuncCallbackPure
-  , hostFuncCallback
+  ,hostFuncCallbackPure
+  ,hostFuncCallback
+  ,driverCompiler
+  ,driverTool
+  ,driverUniTool
   -- something
   ,fromHsRefIn
   ,fromHsRef
@@ -842,6 +848,21 @@ void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, con
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen,&Returns,ReturnLen);
 }
+
+int Driver_Compiler(const char *Argv[], int Argc)
+{
+  WasmEdge_Driver_Compiler(Argc, Argv);
+}
+
+int Driver_Tool(const char *Argv[], int Argc)
+{
+  WasmEdge_Driver_Tool(Argc, Argv);
+}
+
+int Driver_UniTool(const char *Argv[], int Argc)
+{
+  WasmEdge_Driver_UniTool(Argc, Argv);
+}
 #endc
 
 {-|
@@ -889,7 +910,16 @@ toHsRefOut hsr = do
   lo <- {#get HsRef.Fingerprint.Low#} hsr
   r <- {#get HsRef.Ref#} hsr
   pure $ HsRef (Fingerprint (fromIntegral hi) (fromIntegral lo)) (castPtrToStablePtr r)
-  
+
+toHsRefFromVoidPtrOut :: Ptr () -> IO HsRef
+toHsRefFromVoidPtrOut = toHsRefOut . castPtr
+
+fromHsRefWithFinalzrIn :: HsRef -> ((Ptr (), FunPtr (Ptr () -> IO ())) -> IO a) -> IO a
+fromHsRefWithFinalzrIn hsRef f = do
+  hsDataFinalzr <- finalizerHSData $ const (freeHsRef hsRef)
+  fromHsRefAsVoidPtrIn hsRef $ \pRef -> f (pRef, hsDataFinalzr)
+
+foreign import ccall "wrapper" finalizerHSData :: (Ptr () -> IO ()) -> IO (FunPtr (Ptr () -> IO ()))
 
 pattern WasmInt32 :: Int32 -> WasmVal
 pattern WasmInt32 i32 <- ((valueGetI32 &&& getValType) -> (i32, ValType_I32)) where
@@ -1394,7 +1424,7 @@ fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
-fromVecOr0Ptr :: (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), CUInt) -> IO b) -> IO b
+fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
 fromVecOr0Ptr getPtr v f
   | V.null v = f (nullPtr, 0)
   | otherwise = do
@@ -1403,10 +1433,10 @@ fromVecOr0Ptr getPtr v f
       VSM.mapM_ free ptrs
       pure r
 
-fromVecStringOr0Ptr :: V.Vector String -> ((Ptr (Ptr CChar), CUInt) -> IO b) -> IO b
+fromVecStringOr0Ptr :: (Num sz) => V.Vector String -> ((Ptr (Ptr CChar), sz) -> IO b) -> IO b
 fromVecStringOr0Ptr = fromVecOr0Ptr newCString
 
-fromMutIOVecOr0Ptr :: (Storable a) => IOVector a -> ((Ptr a, CUInt) -> IO b) -> IO b
+fromMutIOVecOr0Ptr :: (Storable a, Num sz) => IOVector a -> ((Ptr a, sz) -> IO b) -> IO b
 fromMutIOVecOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
   | otherwise = VSM.unsafeWith v $ \p -> f (p, fromIntegral $ VSM.length v)
@@ -1495,6 +1525,8 @@ peekOutPtr pout = do
   pres <- peek pout
   fmap coerce $ newForeignPtr getFinalizer pres
 
+peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
+peekCoerce = fmap coerce peek
 
 -- Store
 {#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} 
@@ -1504,15 +1536,14 @@ peekOutPtr pout = do
 
 -- Module Instance
 {#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
--- TODO:
--- {#fun unsafe ModuleInstanceCreateWithData as ^ {%`WasmString',`Ptr ()',`(FunPtr (Ptr () -> IO())'} -> `ModuleInstanceContext'#} -- Function as an argument
+{#fun ModuleInstanceCreateWithData as ^ {%`WasmString',fromHsRefWithFinalzrIn*`HsRef'&} -> `ModuleInstanceContext'#}
 {#fun unsafe ModuleInstanceCreateWASI as ^ {fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `ModuleInstanceContext'#}
 {#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `()'#}
 {#fun unsafe ModuleInstanceWASIGetExitCode as ^ {`ModuleInstanceContext'} -> `Word32'#}
-{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',`Word64'} -> `Word32'#} -- TODO: word*
+{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',alloca-`Word64'peekCoerce*} -> `Word32'#}
 {#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ {fromVecStringOr0Ptr*`V.Vector String'&,`Bool'} -> `()'#}
 {#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName {+,`ModuleInstanceContext'} -> `WasmString'#}
-{#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `()'#} -- TODO: void*
+{#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `HsRef'toHsRefFromVoidPtrOut*#}
 {#fun unsafe ModuleInstanceFindFunction as ^ {`ModuleInstanceContext',%`WasmString'} -> `FunctionInstanceContext'#}
 {#fun unsafe ModuleInstanceFindTable as ^ {`ModuleInstanceContext',%`WasmString'} -> `TableInstanceContext'#}
 {#fun unsafe ModuleInstanceFindMemory as ^ {`ModuleInstanceContext',%`WasmString'} -> `MemoryInstanceContext'#}
@@ -1599,8 +1630,23 @@ memoryInstanceGetData micxt len off = do
   
 -- TODO:
 {#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
--- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Vector Word8'#}
--- {#fun unsafe MemoryInstanceGetPointerConst as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} --Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
+{#fun unsafe MemoryInstanceGetPointer as memoryInstanceGetPointer_ {`MemoryInstanceContext',`Word32',`Word32'} -> `Ptr Word8'coercePtr#}
+
+memoryInstanceGetPointer ::
+  MemoryInstanceContext
+  -> Word32 -- ^ Length of the Buffer
+  -> Word32 -- ^ the data start offset in the memory instance.
+  -> IO ByteString
+memoryInstanceGetPointer micxt len off = (BS.packCStringLen . \pW8 -> (castPtr pW8, fromIntegral len)) =<< memoryInstanceGetPointer_ micxt off len
+
+{#fun unsafe MemoryInstanceGetPointerConst as memoryInstanceGetPointerConst_ {`MemoryInstanceContext',`Word32',`Word32'} -> `Ptr Word8'coercePtr#}
+
+memoryInstanceGetPointerConst ::
+  MemoryInstanceContext
+  -> Word32 -- ^ Length of the Buffer
+  -> Word32 -- ^ the data start offset in the memory instance.
+  -> IO ByteString
+memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (castPtr pW8, fromIntegral len)) =<< memoryInstanceGetPointerConst_ micxt off len
 
 {#fun unsafe MemoryInstanceGetPageSize as ^ {`MemoryInstanceContext'} -> `Word32'#} 
 {#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage {+,`MemoryInstanceContext',`Word32'} -> `WasmResult'#} 
@@ -1608,7 +1654,7 @@ memoryInstanceGetData micxt len off = do
 -- Global Instance
 {#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate {`GlobalTypeContext',`WasmVal'} -> `GlobalInstanceContext'#}
 {#fun unsafe GlobalInstanceGetGlobalType as ^ {`GlobalInstanceContext'} -> `GlobalTypeContext'#} 
-{#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {+,`GlobalInstanceContext'} -> `WasmVal'#} --How to return wasmvalue 
+{#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {+,`GlobalInstanceContext'} -> `WasmVal'#}
 {#fun unsafe GlobalInstanceSetValueOut as globalInstanceSetValue {`GlobalInstanceContext',`WasmVal'} -> `()'#} 
 
 -- Calling Frame
@@ -1675,9 +1721,9 @@ vMGetFunctionList vmcxt sz = do
 {#fun unsafe VMGetStatisticsContext as ^ {`VMContext'} -> `StatisticsContext'#} 
 
 -- Driver
--- {#fun unsafe Driver_Compiler as ^ {`Int',`Ptr String'} -> `Int'#} -- Const Char* 
--- {#fun unsafe Driver_Tool as ^ {`Int',`String'} -> `Int'#} -- Const Char* 
--- {#fun unsafe Driver_UniTool as ^ {`Int',`String'} -> `Int'#} -- Const Char* 
+{#fun unsafe Driver_Compiler as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int'#}
+{#fun unsafe Driver_Tool as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int'#}
+{#fun unsafe Driver_UniTool as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int'#}
 
 -- Plugin Function
 {#fun unsafe PluginLoadWithDefaultPaths as ^ {} -> `()'#} 
