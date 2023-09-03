@@ -161,6 +161,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,memoryInstanceCreate
   ,memoryInstanceGetMemoryType
   ,memoryInstanceGetData
+  ,memoryInstanceSetData
   ,memoryInstanceGetPageSize
   ,memoryInstanceGrowPage
   ,globalInstanceCreate
@@ -323,6 +324,8 @@ import Data.String
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.ByteString.Unsafe as UnsafeBS
+import qualified Data.ByteString.Internal as IntBS
 import qualified Data.Vector as V
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as VS
@@ -710,6 +713,13 @@ WasmEdge_FunctionInstanceContext * FunctionInstanceCreateBndr(const WasmEdge_Fun
   WasmEdge_FunctionInstanceCreate(Type, cbHostFunc_t, clsr, Cost);
 }
 
+/* TODO: Required only for completion
+typedef WasmEdge_Result (*WrapFunc_t)(
+    void *This, HsRef *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
+    WasmVal **Params, const uint32_t ParamLen,
+    WasmVal **Returns, const uint32_t ReturnLen);
+*/  
+
 void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
 {
    WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
@@ -721,9 +731,9 @@ void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceConte
   *resOut = WasmEdge_TableInstanceSetData(Cxt,Data,Offset);
 }
 void TableInstanceGrowOut(WasmEdge_Result* resOut,WasmEdge_TableInstanceContext* Ctx,const uint32_t Size){ *resOut = WasmEdge_TableInstanceGrow(Ctx,Size); }
-void MemoryInstanceGetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
+void MemoryInstanceGetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data,const uint32_t Length, const uint32_t Offset){ 
 *resOut = WasmEdge_MemoryInstanceGetData(Ctx,Data,Offset,Length); }
-void MemoryInstanceSetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data, const uint32_t Offset,const uint32_t Length){ 
+void MemoryInstanceSetDataOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext* Ctx,uint8_t *Data,const uint32_t Length, const uint32_t Offset){ 
 *resOut = WasmEdge_MemoryInstanceSetData(Ctx,Data,Offset,Length); }
 void MemoryInstanceGrowPageOut(WasmEdge_Result* resOut,WasmEdge_MemoryInstanceContext *Cxt,const uint32_t Page){ *resOut = WasmEdge_MemoryInstanceGrowPage(Cxt,Page); }
 WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTypeContext *GlobType,WasmVal* v)
@@ -789,6 +799,22 @@ WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmE
 {
    WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
    return WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen);
+}
+
+uint32_t VMGetFunctionListOut(
+    const WasmEdge_VMContext *Cxt, WasmEdge_String **NamesOut, const uint32_t NLen,
+    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t FTLen)
+{
+  // TODO: assert(NLen == FTLen);
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(FTLen * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_VMGetFunctionList(Cxt, Names, FuncTypes, FTLen);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
 }
 void PluginGetPluginNameOut(WasmEdge_String* strOut,const WasmEdge_PluginContext *Cxt){ *strOut = WasmEdge_PluginGetPluginName(Cxt); }
 void VMRegisterModuleFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const char *Path){ *resOut = WasmEdge_VMRegisterModuleFromFile(Cxt,ModuleName,Path); }
@@ -1330,7 +1356,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 -- * Function
 {#fun unsafe FunctionTypeCreate as ^ {fromStoreVecOr0Ptr*`Vector ValType'&, fromStoreVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
 {#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
-{#fun unsafe FunctionTypeGetParameters as functionTypeGetParameters_ {`FunctionTypeContext', fromMutIOVecOr0Ptr*`IOVector ValType'&} -> `Word32'#}
+{#fun unsafe FunctionTypeGetParameters as functionTypeGetParameters_ {`FunctionTypeContext', fromMutIOVecOfCEnumOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
 
 {-|
@@ -1368,7 +1394,7 @@ fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
-fromVecOr0Ptr :: (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromVecOr0Ptr :: (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), CUInt) -> IO b) -> IO b
 fromVecOr0Ptr getPtr v f
   | V.null v = f (nullPtr, 0)
   | otherwise = do
@@ -1377,13 +1403,22 @@ fromVecOr0Ptr getPtr v f
       VSM.mapM_ free ptrs
       pure r
 
-fromVecStringOr0Ptr :: V.Vector String -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromVecStringOr0Ptr :: V.Vector String -> ((Ptr (Ptr CChar), CUInt) -> IO b) -> IO b
 fromVecStringOr0Ptr = fromVecOr0Ptr newCString
 
-fromMutIOVecOr0Ptr :: (Storable a) => IOVector a -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromMutIOVecOr0Ptr :: (Storable a) => IOVector a -> ((Ptr a, CUInt) -> IO b) -> IO b
 fromMutIOVecOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
+  | otherwise = VSM.unsafeWith v $ \p -> f (p, fromIntegral $ VSM.length v)
+
+fromMutIOVecOfCEnumOr0Ptr :: (Storable a, Enum a) => IOVector a -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromMutIOVecOfCEnumOr0Ptr v f
+  | VSM.null v = f (nullPtr, 0)
   | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
+
+fromByteStringIn :: Coercible Word8 w8 => BS.ByteString -> ((Ptr w8, CUInt) -> IO b) -> IO b
+fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coercePtr (castPtr p :: Ptr Word8), fromIntegral l)
+--
 
 newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
 
@@ -1394,7 +1429,7 @@ instance Enum t => Storable (ViaFromEnum t) where
   poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
 -- * Function Type
 {#fun unsafe FunctionTypeGetReturnsLength as ^ {`FunctionTypeContext'} -> `Word32'#}
-{#fun unsafe FunctionTypeGetReturns as functionTypeGetReturns_ {`FunctionTypeContext', fromMutIOVecOr0Ptr*`IOVector ValType'&} -> `Word32'#}
+{#fun unsafe FunctionTypeGetReturns as functionTypeGetReturns_ {`FunctionTypeContext', fromMutIOVecOfCEnumOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
 functionTypeGetReturns :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
 functionTypeGetReturns fcxt buffLen = do
@@ -1535,7 +1570,6 @@ hostFuncCallbackPure ::
   -> IO HostFuncT -- ^ WasmEdge HostFunc callback reference
 hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf pars -> pure $ cb ref cf pars
 
-{#pointer WrapFunc_t as ^ #}
 {#fun FunctionInstanceCreateBndr as functionInstanceCreate {`FunctionTypeContext',`HostFuncT',fromHsRefIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
 --{#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFuncT',fromHsRefAsVoidPtrIn*`HsRef',fromHsRefAsVoidPtrIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
 {#fun unsafe FunctionInstanceGetFunctionType as ^ {`FunctionInstanceContext'} -> `FunctionTypeContext'#}
@@ -1551,11 +1585,23 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 -- Memory Instance
 {#fun unsafe MemoryInstanceCreate as ^ {`MemoryTypeContext'} -> `MemoryInstanceContext'#} 
 {#fun unsafe MemoryInstanceGetMemoryType as ^ {`MemoryInstanceContext'} -> `MemoryTypeContext'#} 
-{#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData {+,`MemoryInstanceContext',`Word8',`Word32',`Word32'} -> `WasmResult'#} 
+{#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData_ {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
+
+memoryInstanceGetData ::
+  MemoryInstanceContext
+  -> Word32 -- ^ Length of the Buffer
+  -> Word32 -- ^ the data start offset in the memory instance.
+  -> IO (WasmResult, ByteString) -- ^ (the status, the result data buffer of copying destination)
+memoryInstanceGetData micxt len off = do
+  bs <- IntBS.create (fromIntegral len) (const $ pure ())
+  wr <- memoryInstanceGetData_ micxt bs off
+  pure (wr, bs)
+  
 -- TODO:
--- {#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',`Word32',fromStoreVecOr0Ptr*`Vector Word8'&} -> `WasmResult'#} -- use wrapper with offset before data
--- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Vector Word8'#} -- Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
+{#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
+-- {#fun unsafe MemoryInstanceGetPointer as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Vector Word8'#}
 -- {#fun unsafe MemoryInstanceGetPointerConst as ^ {`MemoryInstanceContext',`Word32',`Word32'} -> `Word8'#} --Haskell type: Ptr Word8 C type      : (IO (C2HSImp.Ptr C2HSImp.CUChar))
+
 {#fun unsafe MemoryInstanceGetPageSize as ^ {`MemoryInstanceContext'} -> `Word32'#} 
 {#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage {+,`MemoryInstanceContext',`Word32'} -> `WasmResult'#} 
 
@@ -1602,7 +1648,21 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 {#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
 {#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
 {#fun unsafe VMGetFunctionListLength as ^ {`VMContext'} -> `Word32'#} 
-{#fun unsafe VMGetFunctionList as ^ {`VMContext',`WasmString',alloca-`FunctionTypeContext'peekOutPtr*,`Word32'} -> `Word32'#} --Double pointer, Expected FunctionTypeContext Actual Ptr FunctionTypeContext
+{#fun unsafe VMGetFunctionListOut as vmGetFunctionList_ {`VMContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&, fromMutIOVecOr0Ptr*`IOVector (Ptr FunctionTypeContext)'&} -> `Word32'#}
+
+vMGetFunctionList ::
+  VMContext
+  -> Word32
+  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext)
+vMGetFunctionList vmcxt sz = do
+  namesVSM <- VSM.new (fromIntegral sz)
+  ftypesVSM <- VSM.new (fromIntegral sz)
+  listSz <- vmGetFunctionList_ vmcxt namesVSM ftypesVSM
+  names <- V.generateM (fromIntegral listSz) ((noFinalizer =<<) . (VSM.read namesVSM))
+  ftypes <- V.generateM (fromIntegral listSz) ((noFinalizer =<<) . (VSM.read ftypesVSM))
+  pure (names, ftypes)
+  
+  
 {#fun unsafe VMGetImportModuleContext as ^ {`VMContext',`HostRegistration'} -> `ModuleInstanceContext'#} 
 {#fun unsafe VMGetActiveModule as ^ {`VMContext'} -> `ModuleInstanceContext'#} 
 {#fun unsafe VMGetRegisteredModule as ^ {`VMContext',%`WasmString'} -> `ModuleInstanceContext'#}
