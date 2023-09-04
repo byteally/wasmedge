@@ -151,6 +151,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,executorRegisterImport
   ,executorInvoke
   ,executorAsyncInvoke
+  ,functionInstanceCreate
   ,functionInstanceGetFunctionType 
   ,tableInstanceCreate
   ,tableInstanceGetTableType
@@ -651,11 +652,25 @@ void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeConte
 void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
 *resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
 void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,
-  const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+  const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
-    WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-    WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-    *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,&Params,ParamLen,&Returns,ReturnLen); //Is this correct??
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_ExecutorInvoke (Cxt,FuncCxt,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
 WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v,const uint32_t ParamLen)
 {
@@ -2627,7 +2642,25 @@ noFinalizer = coerce . newForeignPtr_
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe ExecutorInvokeOut as executorInvoke {+,`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+executorInvoke ::
+  ExecutorContext -- ^ the WasmEdge_ExecutorContext.
+  -> FunctionInstanceContext -- ^ the function instance context to invoke.
+  -> V.Vector WasmVal -- ^ the WasmEdge_Value buffer with the parameter values.
+  -> IO (WasmResult, V.Vector WasmVal) -- ^ the WasmEdge_Value buffer to fill the return values.
+executorInvoke ecxt ficxt pars = do
+  funcType <- functionInstanceGetFunctionType ficxt
+  parLen <- fromIntegral <$> functionTypeGetParametersLength funcType
+  retLen <- fromIntegral <$> functionTypeGetReturnsLength funcType
+  if parLen /= V.length pars
+    then pure (WRFail, V.empty)
+    else do
+    paramsVSM <- VSM.generateM (parLen) ((flip withWasmVal pure) . (pars V.!))
+    retsVSM <- VSM.new (retLen)
+    wres <- executorInvoke_ ecxt ficxt paramsVSM retsVSM
+    rets <- V.generateM (retLen) ((noFinalizer =<<) . (VSM.read retsVSM))
+    pure (wres, rets)
+
+{#fun unsafe ExecutorInvokeOut as executorInvoke_ {+,`ExecutorContext',`FunctionInstanceContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 {-|
   Asynchronous invoke a WASM function by the function instance.
  
