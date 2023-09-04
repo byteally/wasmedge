@@ -638,9 +638,9 @@ void ExecutorInstantiateOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *C
   *resOut = WasmEdge_ExecutorInstantiate(Cxt, ModuleCxt, StoreCxt, ASTCxt);
 }
 
-void ExecutorRegisterOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt, WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt,WasmEdge_String* ModuleName)
+void ExecutorRegisterOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt, WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt,WasmEdge_String ModuleName)
 {
-  *resOut = WasmEdge_ExecutorRegister(Cxt, ModuleCxt, StoreCxt, ASTCxt, *ModuleName);
+  *resOut = WasmEdge_ExecutorRegister(Cxt, ModuleCxt, StoreCxt, ASTCxt, ModuleName);
 }
 
 void TableTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_TableTypeContext *Cxt){ *limOut = WasmEdge_TableTypeGetLimit(Cxt); }
@@ -807,6 +807,92 @@ WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmE
    return WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen);
 }
 
+uint32_t PluginListPluginsOut(WasmEdge_String **NamesOut, const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_PluginListPlugins(Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+uint32_t  PluginListModuleOut(const WasmEdge_PluginContext *Cxt,WasmEdge_String **NamesOut, const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_PluginListModule(Cxt, Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+uint32_t VMListRegisteredModuleOut(const WasmEdge_VMContext *Cxt,WasmEdge_String **NamesOut, const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_VMListRegisteredModule(Cxt, Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+uint32_t ModuleInstanceListGlobalOut(const WasmEdge_ModuleInstanceContext *Cxt,WasmEdge_String **NamesOut,const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_ModuleInstanceListGlobal(Cxt, Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+uint32_t ModuleInstanceListFunctionOut(const WasmEdge_ModuleInstanceContext *Cxt,WasmEdge_String **NamesOut,const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_ModuleInstanceListFunction(Cxt, Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+uint32_t ModuleInstanceListTableOut( const WasmEdge_ModuleInstanceContext *Cxt,WasmEdge_String **NamesOut,const uint32_t Len  ){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_ModuleInstanceListTable(Cxt, Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+// {#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+uint32_t ModuleInstanceListMemoryOut( const WasmEdge_ModuleInstanceContext *Cxt,WasmEdge_String **NamesOut,const uint32_t Len  ){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_ModuleInstanceListMemory(Cxt, Names, Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
+}
+
+
 uint32_t VMGetFunctionListOut(
     const WasmEdge_VMContext *Cxt, WasmEdge_String **NamesOut, const uint32_t NLen,
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t FTLen)
@@ -822,6 +908,7 @@ uint32_t VMGetFunctionListOut(
   free(Names);
   return retLen;
 }
+
 void PluginGetPluginNameOut(WasmEdge_String* strOut,const WasmEdge_PluginContext *Cxt){ *strOut = WasmEdge_PluginGetPluginName(Cxt); }
 void VMRegisterModuleFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const char *Path){ *resOut = WasmEdge_VMRegisterModuleFromFile(Cxt,ModuleName,Path); }
 void VMInstantiateOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt){ *resOut = WasmEdge_VMInstantiate(Cxt); }
@@ -847,6 +934,18 @@ void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, con
   WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
   *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+}
+
+uint32_t StoreListModuleOut(const WasmEdge_StoreContext *Cxt,WasmEdge_String **NamesOut, const uint32_t Len){
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
+  uint32_t retLen = WasmEdge_StoreListModule(Cxt,Names,Len);
+  for(int i=0; i < retLen; i++)
+  {
+    WasmEdge_String *nameOut = NamesOut[i];
+    *nameOut = Names[i];
+  }
+  free(Names);
+  return retLen;
 }
 
 int Driver_Compiler(const char *Argv[], int Argc)
@@ -2489,7 +2588,7 @@ noFinalizer = coerce . newForeignPtr_
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe ExecutorRegisterOut as executorRegister {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',`WasmString'} -> `WasmResult'#}
+{#fun unsafe ExecutorRegisterOut as executorRegister {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',%`WasmString'} -> `WasmResult'#}
 {-|
   Register a module instance into a store with exporting its module name.
  
@@ -2609,7 +2708,7 @@ peekCoerce = fmap coerce peek
  
   \returns actual registered named module list size.
 -}
-{#fun unsafe StoreListModule as ^ {`StoreContext',`WasmString',`Word32'} -> `Word32'#}
+{#fun unsafe StoreListModuleOut as storeListModule {`StoreContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
 
 -- Module Instance
 {-|
@@ -2839,7 +2938,7 @@ peekCoerce = fmap coerce peek
  
   \returns actual exported function list size.
 -}
-{#fun unsafe ModuleInstanceListFunction as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#}
+{#fun unsafe ModuleInstanceListFunctionOut as moduleInstanceListFunction {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
 {-|
   Get the length of exported table list of a module instance.
  
@@ -2867,7 +2966,7 @@ peekCoerce = fmap coerce peek
  
   \returns actual exported table list size.
 -}
-{#fun unsafe ModuleInstanceListTable as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#}
+{#fun unsafe ModuleInstanceListTableOut as moduleInstanceListTable {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
 {-|
   Get the length of exported memory list of a module instance.
  
@@ -2895,7 +2994,7 @@ peekCoerce = fmap coerce peek
  
   \returns actual exported memory list size.
 -}
-{#fun unsafe ModuleInstanceListMemory as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 {-|
   Get the length of exported global list of a module instance.
  
@@ -2923,7 +3022,7 @@ peekCoerce = fmap coerce peek
  
   \returns actual exported global list size.
 -}
-{#fun unsafe ModuleInstanceListGlobal as ^ {`ModuleInstanceContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListGlobalOut as moduleInstanceListGlobal {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 {-|
   Add a function instance context into a WasmEdge_ModuleInstanceContext.
  
@@ -3940,7 +4039,7 @@ vMGetFunctionList vmcxt sz = do
   \param Len the buffer length.
   \returns actual registered module list size.
 -}
-{#fun unsafe VMListRegisteredModule as ^ {`VMContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe VMListRegisteredModuleOut as vMListRegisteredModule {`VMContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 {-|
   Get the store context used in the WasmEdge_VMContext.
   The returned store context links to the store in the VM context and owned by
@@ -4062,7 +4161,7 @@ vMGetFunctionList vmcxt sz = do
  
   \returns actual loaded plug-in list size.
 -}
-{#fun unsafe PluginListPlugins as ^ {`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe PluginListPluginsOut as pluginListPlugins {fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 {-|
   Find the loaded plug-in context by name.
  
@@ -4111,7 +4210,7 @@ vMGetFunctionList vmcxt sz = do
  
   \returns actual module list size of the plug-in.
 -}
-{#fun unsafe PluginListModule as ^ {`PluginContext',`WasmString',`Word32'} -> `Word32'#} 
+{#fun unsafe PluginListModuleOut as pluginListModule {`PluginContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 {-|
 - Create the module instance in the plug-in by the module name.
 - By giving the module name, developers can retrieve the module in the plug-in
