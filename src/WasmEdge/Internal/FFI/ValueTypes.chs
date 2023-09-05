@@ -157,8 +157,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,functionInstanceGetFunctionType 
   ,tableInstanceCreate
   ,tableInstanceGetTableType
-  --,tableInstanceGetData
-  --,tableInstanceSetData
+  ,tableInstanceGetData
+  ,tableInstanceSetData
   ,tableInstanceGetSize
   ,tableInstanceGrow
   ,memoryInstanceCreate
@@ -299,7 +299,6 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,cToEnum
   ,cFromEnum
   ,fromStoreVecOr0Ptr
-  ,fromStoreVecOr0PtrCULong
   ,fromVecOr0Ptr
   ,fromVecStringOr0Ptr
   ,fromMutIOVecOr0Ptr
@@ -756,8 +755,10 @@ typedef WasmEdge_Result (*WrapFunc_t)(
 
 void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
 {
-   WasmEdge_Value Data = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  *resOut = WasmEdge_TableInstanceGetData(Cxt,&Data,Offset);
+   WasmEdge_Value* Data = (WasmEdge_Value*)malloc(sizeof(WasmEdge_Value));
+   *resOut = WasmEdge_TableInstanceGetData(Cxt,Data,Offset);
+   *v = (WasmVal){.Val = Data->Value, .Type = Data->Type};
+   free(Data);
 }
 void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
 {
@@ -787,8 +788,10 @@ void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal
 }
 void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,const uint32_t ReturnLen)
 {
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  *resOut = WasmEdge_AsyncGet(Cxt,&Returns,ReturnLen);
+   WasmEdge_Value* Data = (WasmEdge_Value*)malloc(sizeof(WasmEdge_Value));
+   *resOut = WasmEdge_AsyncGet(Cxt,Data,ReturnLen);
+   *v = (WasmVal){.Val = Data->Value, .Type = Data->Type};
+   free(Data);
 }
 void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName, const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen) 
 {
@@ -2293,11 +2296,6 @@ fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
-fromStoreVecOr0PtrCULong :: (Storable a, Num n) => Vector a -> ((Ptr n, CULong) -> IO b) -> IO b
-fromStoreVecOr0PtrCULong v f
-  | VS.null v = f (nullPtr, 0)
-  | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
-
 fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
 fromVecOr0Ptr getPtr v f
   | V.null v = f (nullPtr, 0)
@@ -2320,7 +2318,7 @@ fromMutIOVecOfCEnumOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
   | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
 
-fromByteStringIn :: Coercible Word8 w8 => BS.ByteString -> ((Ptr w8, CUInt) -> IO b) -> IO b
+fromByteStringIn :: (Coercible Word8 w8, Num sz) => BS.ByteString -> ((Ptr w8, sz) -> IO b) -> IO b
 fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coercePtr (castPtr p :: Ptr Word8), fromIntegral l)
 --
 
@@ -2653,7 +2651,7 @@ Get the value type from a global type.
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext', fromStoreVecOr0PtrCULong*`Vector Word8'&,`String'} -> `WasmResult'#} 
+{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext', fromByteStringIn*`ByteString'& ,`String'} -> `WasmResult'#} 
 
 -- Loader
 {-|
@@ -3380,8 +3378,11 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
--- TODO: Simialar to MemoryInstanceSetData but Length is not given
--- {#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
+allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
+allocWasmVal = allocaBytes {#sizeof WasmVal #}
+
+{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData {+,`TableInstanceContext',allocWasmVal-`WasmVal'noFinalizer*,`Word32'} -> `WasmResult'#}
+
 {-|
   Set the reference value into a table instance.
  
@@ -3393,7 +3394,8 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
--- {#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
+{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
+
 {-|
   Get the size of a table instance.
  
@@ -3457,15 +3459,6 @@ memoryInstanceGetData micxt len off = do
   Copy the data into a memory instance from the input buffer.
  
   \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_MemoryInstanceContext.
-  \param Data the data buffer to copy.
-  \param Offset the data start offset in the memory instance.
-  \param Length the data buffer length. If the `Offset + Length` is larger
-  than the data size in the memory instance, this function will failed.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
-W
   \param Cxt the WasmEdge_MemoryInstanceContext.
   \param Data the data buffer to copy.
   \param Offset the data start offset in the memory instance.
@@ -3662,7 +3655,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe AsyncGetOut as asyncGet {+,`Async',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe AsyncGetOut as asyncGet {+,`Async',allocWasmVal-`WasmVal'noFinalizer*,`Word32'} -> `WasmResult'#}
 
 -- VM
 {-|
@@ -3743,7 +3736,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& ,%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#} 
+{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromByteStringIn*`ByteString'&,%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#} 
 {-|
   Instantiate the WASM module from a WasmEdge AST Module and invoke a function
   by name.
@@ -3856,7 +3849,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromStoreVecOr0Ptr*`Vector Word8'&, %`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromByteStringIn*`ByteString'&, %`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 {-|
   Creation of the WasmEdge_VMContext.
  
@@ -3908,7 +3901,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \param Buf the buffer of WASM binary.
   \param BufLen the length of the buffer.
 -}
-{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer {+,`VMContext',%`WasmString',fromStoreVecOr0Ptr*`Vector Word8'& } -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer {+,`VMContext',%`WasmString', fromByteStringIn*`ByteString'&} -> `WasmResult'#}
 {-|
   Instantiate and register an AST Module into a named module instance in VM.
  
@@ -3959,7 +3952,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \param Buf the buffer of WASM binary.
   \param BufLen the length of the buffer.
 -}
-{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& } -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer {+,`VMContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
 
 {-|
   Load the WASM module from loaded WasmEdge AST Module.
