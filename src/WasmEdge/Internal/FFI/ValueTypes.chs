@@ -3380,7 +3380,8 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&,`Word32} -> `WasmResult'#}
+-- TODO: Simialar to MemoryInstanceSetData but Length is not given
+-- {#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
 {-|
   Set the reference value into a table instance.
  
@@ -3392,7 +3393,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&,`Word32} -> `WasmResult'#}
+-- {#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
 {-|
   Get the size of a table instance.
  
