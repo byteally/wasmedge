@@ -71,6 +71,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,mkResultSuccess
   ,mkResultTerminate 
   ,mkResultFail
+  ,resultOK
   ,resultGen 
   ,getResultCode
   ,getResultCategory
@@ -126,6 +127,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,memoryTypeCreate
   ,memoryTypeGetLimit
   ,globalTypeCreate
+  ,globalTypeGetValType
   ,globalTypeGetMutability
   ,importTypeGetModuleName
   ,importTypeGetExternalName
@@ -279,6 +281,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,fromI128
   ,fromI128Alloc
   ,toI128
+  ,stringCreateByCString
   ,mkStringFromBytes
   ,wrapCFinalizer
   ,finalize
@@ -296,6 +299,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,cToEnum
   ,cFromEnum
   ,fromStoreVecOr0Ptr
+  ,fromStoreVecOr0PtrCULong
   ,fromVecOr0Ptr
   ,fromVecStringOr0Ptr
   ,fromMutIOVecOr0Ptr
@@ -612,8 +616,7 @@ const HsRef * ValueGetExternRef (WasmVal* v)
   return (HsRef *) WasmEdge_ValueGetExternRef(val);
 }
 
-
-
+void StringCreateByCStringOut(WasmEdge_String *strOut,const char* Str){ *strOut = WasmEdge_StringCreateByCString(Str); }
 void ImportTypeGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetModuleName(Ctx); }
 void ImportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ImportTypeContext* Ctx){ *strOut = WasmEdge_ImportTypeGetExternalName(Ctx); }
 void ExportTypeGetExternalNameOut(WasmEdge_String* strOut,WasmEdge_ExportTypeContext* Ctx){ *strOut = WasmEdge_ExportTypeGetExternalName(Ctx); }
@@ -651,6 +654,7 @@ void MemoryTypeGetLimitOut(WasmEdge_Limit* limOut,const WasmEdge_MemoryTypeConte
 }
 void ExecutorRegisterImportOut(WasmEdge_Result* resOut, WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ 
 *resOut = WasmEdge_ExecutorRegisterImport(Cxt,StoreCxt,ImportCxt); }
+
 void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,
   const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
@@ -672,11 +676,20 @@ void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,co
   free(Params);
   free(Returns);
 }
-WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal *v,const uint32_t ParamLen)
+
+WasmEdge_Async *ExecutorAsyncInvokeOut(WasmEdge_ExecutorContext *Cxt,const WasmEdge_FunctionInstanceContext *FuncCxt,const WasmVal **WValParams,const uint32_t ParamLen)
 {
-    WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-    return WasmEdge_ExecutorAsyncInvoke(Cxt,FuncCxt,&Params,ParamLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_ExecutorAsyncInvoke(Cxt,FuncCxt,Params,ParamLen);
+  free(Params);
+  return res;
 }
+
 void ModuleInstanceGetModuleNameOut(WasmEdge_String* strOut,WasmEdge_ModuleInstanceContext* Ctx){ *strOut = WasmEdge_ModuleInstanceGetModuleName(Ctx); }
 
 typedef WasmEdge_Result* (*HostFunc_t)(
@@ -777,49 +790,139 @@ void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,c
   WasmEdge_Value Returns = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   *resOut = WasmEdge_AsyncGet(Cxt,&Returns,ReturnLen);
 }
-void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName, const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen) 
 {
-  WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-  *resOut = WasmEdge_VMRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_VMRunWasmFromFile(Cxt,Path,FuncName,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
-void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName, const WasmVal **WValParams,const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
-  WasmEdge_Value Params= {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-  *resOut = WasmEdge_VMRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_VMRunWasmFromASTModule(Cxt,ASTCxt,FuncName,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
-WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen)
+
+WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal **WValParams, const uint32_t ParamLen)
 {
-  WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  return WasmEdge_VMAsyncRunWasmFromFile(Cxt,Path,FuncName,&Params,ParamLen);
+ WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_VMAsyncRunWasmFromFile(Cxt,Path,FuncName,Params,ParamLen);
+  free(Params);
+  return res;
 }
-WasmEdge_Async *VMAsyncRunWasmFromASTModuleOut(WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName,const WasmVal *v,const uint32_t ParamLen)
+
+WasmEdge_Async *VMAsyncRunWasmFromASTModuleOut(WasmEdge_VMContext *Cxt,const WasmEdge_ASTModuleContext *ASTCxt,const WasmEdge_String FuncName,const WasmVal **WValParams,const uint32_t ParamLen)
 {
-  WasmEdge_Value Params= {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  return WasmEdge_VMAsyncRunWasmFromASTModule(Cxt,ASTCxt,FuncName,&Params,ParamLen);
+ WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_VMAsyncRunWasmFromASTModule(Cxt,ASTCxt,FuncName,Params,ParamLen);
+  free(Params);
+  return res;
 }
-void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v1, const uint32_t ParamLen,WasmVal *v2, const uint32_t ReturnLen)
+
+void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
-  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-  *resOut = WasmEdge_VMExecute(Cxt,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_VMExecute(Cxt,FuncName,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
-void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v1,const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+
+void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal **WValParams,const uint32_t ParamLen, WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
-  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-  *resOut = WasmEdge_VMExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen,&Returns,ReturnLen); 
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_VMExecuteRegistered(Cxt,ModuleName,FuncName,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
-WasmEdge_Async *VMAsyncExecuteOut(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal *v, const uint32_t ParamLen)
+
+WasmEdge_Async *VMAsyncExecuteOut(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,const WasmVal **WValParams, const uint32_t ParamLen)
 {
-   WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-   return WasmEdge_VMAsyncExecute(Cxt,FuncName,&Params,ParamLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_VMAsyncExecute(Cxt,FuncName,Params,ParamLen);
+  free(Params);
+  return res; 
 }
-WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal *v,const uint32_t ParamLen)
+
+WasmEdge_Async* VMAsyncExecuteRegisteredOut(WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,const WasmEdge_String FuncName, const WasmVal **WValParams,const uint32_t ParamLen)
 {
-   WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-   return WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,&Params,ParamLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_VMAsyncExecuteRegistered(Cxt,ModuleName,FuncName,Params,ParamLen);
+  free(Params);
+  return res; 
 }
 
 uint32_t PluginListPluginsOut(WasmEdge_String **NamesOut, const uint32_t Len){
@@ -894,7 +997,6 @@ uint32_t ModuleInstanceListTableOut( const WasmEdge_ModuleInstanceContext *Cxt,W
   return retLen;
 }
 
-// {#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
 uint32_t ModuleInstanceListMemoryOut( const WasmEdge_ModuleInstanceContext *Cxt,WasmEdge_String **NamesOut,const uint32_t Len  ){
   WasmEdge_String *Names = (WasmEdge_String *)malloc(Len * sizeof(WasmEdge_String));
   uint32_t retLen = WasmEdge_ModuleInstanceListMemory(Cxt, Names, Len);
@@ -933,22 +1035,46 @@ void VMLoadWasmFromFileOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt, cons
 void VMRegisterModuleFromImportOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_ModuleInstanceContext *ImportCxt){ *resOut = WasmEdge_VMRegisterModuleFromImport(Cxt,ImportCxt); }
 void VMRegisterModuleFromASTModuleOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName, const WasmEdge_ASTModuleContext *ASTCxt){ 
 *resOut = WasmEdge_VMRegisterModuleFromASTModule(Cxt,ModuleName,ASTCxt); }
-WasmEdge_Async* VMAsyncRunWasmFromBufferOut(WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName,WasmVal* v,const uint32_t ParamLen )
+
+WasmEdge_Async* VMAsyncRunWasmFromBufferOut(WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName,const WasmVal **WValParams,const uint32_t ParamLen )
 {
-  WasmEdge_Value Params = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  return WasmEdge_VMAsyncRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+  WasmEdge_Async *res = WasmEdge_VMAsyncRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,Params,ParamLen);
+  free(Params);
+  return res; 
 }
+
 void VMLoadWasmFromBufferOut(WasmEdge_Result* resOut,WasmEdge_VMContext *Cxt,const uint8_t *Buf, const uint32_t BufLen){ *resOut = WasmEdge_VMLoadWasmFromBuffer(Cxt,Buf,BufLen); }
 void VMRegisterModuleFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt,const WasmEdge_String ModuleName,const uint8_t *Buf, const uint32_t BufLen )
 {
   *resOut = WasmEdge_VMRegisterModuleFromBuffer(Cxt,ModuleName,Buf,BufLen); 
 }
-void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName, const WasmVal *v1,
-  const uint32_t ParamLen, WasmVal *v2, const uint32_t ReturnLen)
+
+void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,const WasmEdge_String FuncName, const WasmVal **WValParams,
+  const uint32_t ParamLen, WasmVal **ReturnsOut, const uint32_t ReturnLen)
 {
-  WasmEdge_Value Params = {.Value = pack_uint128_t(v1->Val), .Type = v1->Type};
-  WasmEdge_Value Returns = {.Value = pack_uint128_t(v2->Val), .Type = v2->Type};
-  *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,&Params,ParamLen,&Returns,ReturnLen);
+  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
+  WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+  for (int i = 0; i < ParamLen; i++)
+  {
+    const WasmVal* pVal = WValParams[i];
+    Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
+  }
+
+  *resOut = WasmEdge_VMRunWasmFromBuffer(Cxt,Buf,BufLen,FuncName,Params,ParamLen,Returns,ReturnLen);
+
+  for (int i = 0; i < ReturnLen; i++)
+  {
+    WasmVal* pRes = ReturnsOut[i];
+    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+  }
+  free(Params);
+  free(Returns);
 }
 
 uint32_t StoreListModuleOut(const WasmEdge_StoreContext *Cxt,WasmEdge_String **NamesOut, const uint32_t Len){
@@ -1235,6 +1361,22 @@ WASMEDGE_CAPI_EXPORT extern int64_t
 -}
 {#fun pure unsafe ValueIsNullRef as ^ {`WasmVal'} -> `Bool' #}
 
+{-|
+Creation of the WasmEdge_String with the C string.
+
+The caller owns the object and should call `WasmEdge_StringDelete` to
+destroy it. This function only supports the C string with NULL termination.
+If the input string may have `\0` character, please use the
+`WasmEdge_StringCreateByBuffer` instead.
+
+\params strOut reference to WasmEdge_String in which the result would be stored.
+\param Str the NULL-terminated C string to copy into the WasmEdge_String
+object.
+
+\returns string object. Length will be 0 and Buf will be NULL if failed or
+the input string is a NULL.
+-}
+{#fun unsafe StringCreateByCStringOut as stringCreateByCString {+,`String'} -> `WasmString' #}
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
 
@@ -1406,6 +1548,16 @@ cToEnum = toEnum . fromIntegral
 
 cFromEnum :: Enum a => a -> CInt
 cFromEnum = fromIntegral . fromEnum
+
+{-|
+Check the result is a success or not.
+
+\param Res the WasmEdge_Result struct.
+
+\returns true if the error code is WasmEdge_Result_Success or
+WasmEdge_Result_Terminate, false for others.
+-}
+{#fun pure unsafe ResultOK as resultOK {%`WasmResult'} -> `Bool' #}
 
 {-|
   Generate the result with code.
@@ -2141,6 +2293,11 @@ fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
+fromStoreVecOr0PtrCULong :: (Storable a, Num n) => Vector a -> ((Ptr n, CULong) -> IO b) -> IO b
+fromStoreVecOr0PtrCULong v f
+  | VS.null v = f (nullPtr, 0)
+  | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
+
 fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
 fromVecOr0Ptr getPtr v f
   | V.null v = f (nullPtr, 0)
@@ -2258,9 +2415,16 @@ noFinalizer = coerce . newForeignPtr_
   \returns pointer to context, NULL if failed.
 -}
 {#fun unsafe GlobalTypeCreate as ^ {`ValType',`Mutability'} -> `GlobalTypeContext'#} 
--- TODO:
--- {#fun unsafe GlobalTypeGetValType as ^ {`GlobalTypeContext'} -> `ValType'#} 
 {-|
+Get the value type from a global type.
+
+\param Cxt the WasmEdge_GlobalTypeContext.
+
+\returns the value type of the global type.
+-}
+{#fun unsafe GlobalTypeGetValType as ^ {`GlobalTypeContext'} -> `ValType'#} 
+{-
+|
   Get the mutability from a global type.
  
   \param Cxt the WasmEdge_GlobalTypeContext.
@@ -2311,6 +2475,7 @@ noFinalizer = coerce . newForeignPtr_
   \returns the function type. NULL if failed or the external type of the
   import type is not `WasmEdge_ExternalType_Function`.
 -}
+-- Question: Why have you written noFinalizer here
 {#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'noFinalizer*#} 
 {-|
   Get the external value (which is table type) from an import type.
@@ -2488,7 +2653,7 @@ noFinalizer = coerce . newForeignPtr_
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext',`Word8',`Word64',`String'} -> `WasmResult'#} 
+{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext', fromStoreVecOr0PtrCULong*`Vector Word8'&,`String'} -> `WasmResult'#} 
 
 -- Loader
 {-|
@@ -2676,7 +2841,7 @@ executorInvoke ecxt ficxt pars = do
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 
 peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
 peekOutPtr pout = do
@@ -3215,7 +3380,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&,`Word32} -> `WasmResult'#}
 {-|
   Set the reference value into a table instance.
  
@@ -3227,7 +3392,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',fromByteStringIn*`ByteString'&,`Word32} -> `WasmResult'#}
 {-|
   Get the size of a table instance.
  
@@ -3549,7 +3714,8 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+
+{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 {-|
   Instantiate the WASM module from a buffer and invoke a function by name.
  
@@ -3576,7 +3742,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& ,%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#} 
+{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromStoreVecOr0Ptr*`Vector Word8'& ,%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#} 
 {-|
   Instantiate the WASM module from a WasmEdge AST Module and invoke a function
   by name.
@@ -3604,7 +3770,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 
 {-|
   Instantiate the WASM module from a WASM file and asynchronous invoke a
@@ -3632,7 +3798,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 
 {-|
   Instantiate the WASM module from a WasmEdge AST Module and asynchronous
@@ -3661,7 +3827,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule {`VMContext',`ASTModuleContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule {`VMContext',`ASTModuleContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 {-|
   Instantiate the WASM module from a buffer and asynchronous invoke a function
   by name.
@@ -3689,7 +3855,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromStoreVecOr0Ptr*`Vector Word8'&, %`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromStoreVecOr0Ptr*`Vector Word8'&, %`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 {-|
   Creation of the WasmEdge_VMContext.
  
@@ -3872,7 +4038,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
  
   message.
 -}
-{#fun unsafe VMExecuteOut as vMExecute {+,`VMContext',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMExecuteOut as vMExecute {+,`VMContext',%`WasmString', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 {-|
   Invoke a WASM function by its module name and function name.
  
@@ -3893,7 +4059,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \param [out] Returns the WasmEdge_Value buffer to fill the return values.
   \param ReturnLen the return buffer length.
 -}
-{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 {-|
   Asynchronous invoke a WASM function by name.
  
@@ -3915,7 +4081,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',`WasmVal',`Word32'} -> `Async'#}
+{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
 {-|
   Asynchronous invoke a WASM function by its module name and function name.
  
@@ -3934,7 +4100,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
   `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',`WasmVal',`Word32'} -> `Async'#} 
+{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#} 
 {-|
   Get the function type by function name.
  
@@ -4262,4 +4428,5 @@ vMGetFunctionList vmcxt sz = do
   Implement by plugins for returning the plugin descriptor.
   \returns the plugin descriptor.
 -}
+-- TODO:
 -- {#fun unsafe Plugin_GetDescriptor as ^ {} -> `PluginDescriptor'#} 
