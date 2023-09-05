@@ -157,8 +157,8 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,functionInstanceGetFunctionType 
   ,tableInstanceCreate
   ,tableInstanceGetTableType
-  ,tableInstanceGetData
-  ,tableInstanceSetData
+  --,tableInstanceGetData
+  --,tableInstanceSetData
   ,tableInstanceGetSize
   ,tableInstanceGrow
   ,memoryInstanceCreate
