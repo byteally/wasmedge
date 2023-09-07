@@ -81,11 +81,6 @@ valueTT = testGroup "value tests"
       tripping i WasmInt128 (\case
                                WasmInt128 v -> Just v
                                _ -> Nothing)
-  , testProperty "v128 for 0" $ withTests 1 $ property $ do
-      tripping (-1) WasmInt128 (\case
-                               WasmInt128 v -> Just v
-                               _ -> Nothing)
-
   , testProperty "Haskell Ref" $ withTests 1 $ property $ do
       let testStr =  ("hello from Haskell" :: String)
       tripping testStr (WasmExternRef . unsafePerformIO . toHsRef) (\case

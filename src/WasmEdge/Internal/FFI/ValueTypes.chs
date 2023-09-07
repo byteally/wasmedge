@@ -278,9 +278,6 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,fromHsRefIn
   ,fromHsRef
   ,toHsRef
-  ,fromI128
-  ,fromI128Alloc
-  ,toI128
   ,stringCreateByCString
   ,mkStringFromBytes
   ,wrapCFinalizer
@@ -358,6 +355,7 @@ import GHC.Stack
 #include "wasmedge/wasmedge.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>  
 
 {#context prefix = "WasmEdge"#}
 
@@ -424,108 +422,113 @@ void C_Result_Success(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Succes
 void C_Result_Terminate(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Terminate.Code;}
 void C_Result_Fail(WasmEdge_Result* res) { res->Code = WasmEdge_Result_Fail.Code;}
 
+/*
 typedef struct U128 {
   uint64_t High;
   uint64_t Low;
 } U128;
+*/
+
+#if WORDS_BIGENDIAN
+#define W128IX0 1
+#define W128IX1 0
+#else
+#define W128IX0 0
+#define W128IX1 1
+#endif  
 
 typedef struct WasmVal {
-  U128 Val;
+  uint64_t Val[2];
   enum WasmEdge_ValType Type;
 } WasmVal;
 
 typedef struct HsRef {
-  U128 Fingerprint;
+  uint64_t Fingerprint[2];
   void* Ref;
 } HsRef;
 
-
-uint128_t pack_uint128_t(U128 u128)
+WasmEdge_Value fromWasmVal(const WasmVal* valPtr)
 {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-  if (0 == u128.High) {return (unsigned __int128)(u128.Low);}
-  else { return (((unsigned __int128)(u128.High) << 64) + u128.Low); }
+  uint128_t v;
+  memcpy(&v, valPtr->Val, 16);
+  return (WasmEdge_Value){.Value = v, .Type = valPtr->Type};
 #else
-  uint128_t r = {.Low = u128.Low, .High = u128.High};
-  return r;
+  const uint64_t* u128t = valPtr->Val;
+  uint128_t v = (uint128_t) {.High = u128t[W128IX1], .Low = u128t[W128IX0]};
+  return (WasmEdge_Value){.Value = v, .Type = valPtr->Type};
 #endif
 }
 
-int128_t pack_int128_t(U128 u128)
+void toWasmVal(WasmVal* valPtr, const WasmEdge_Value val)
 {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-  if (0 == u128.High) {return (__int128)(u128.Low);}
-  else { return (((__int128)(u128.High) << 64) + u128.Low); }
+  memcpy(valPtr->Val, &val.Value, 16);
+  valPtr->Type = val.Type;
 #else
-  int128_t r = {.Low = u128.Low, .High = u128.High};
-  return r;
+  uint64_t u128[2];
+  u128[W128IX0] = val.Value.Low;
+  u128[W128IX1] = val.Value.High;
+  memcpy(valPtr->Val, u128, 16);
+  valPtr->Type = val.Type;
 #endif
 }
 
-U128 unpack_int128_t(const int128_t i128)
+
+uint128_t pack_uint128_t(const uint64_t* u128)
 {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-  if ((__int128)0xFFFFFFFFFFFFFFFF < i128) {
-    // TODO: Handle val greater than (maxBound :: Word64)
-    U128 r = {.High = (uint64_t)((i128)>>64), .Low = (uint64_t)i128};
-    return r;
-  }
-  else {
-    U128 r = {.High = 0, .Low = (uint64_t)i128};
-    return r;
-  }    
+  uint128_t v;
+  memcpy(&v, u128, 16);
+  return v;
 #else
-  U128 r = {.High = i128.High, .Low = i128.Low};
-  return r;
+  return (uint128_t) {.High = u128[W128IX1], .Low = u128[W128IX0]};
 #endif
 }
 
-U128 unpack_uint128_t(const uint128_t i128)
+int128_t pack_int128_t(const uint64_t* u128)
 {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-  if ((unsigned __int128)0xFFFFFFFFFFFFFFFF < i128) {
-    // TODO: Handle val greater than (maxBound :: Word64)
-    U128 r = {.High = (uint64_t)(i128>>64), .Low = (uint64_t)i128};
-    return r;
-  }
-  else {
-    U128 r = {.High = 0, .Low = (uint64_t)i128};
-    return r;
-  }    
+  int128_t v;
+  memcpy(&v, u128, 16);
+  return v;    
 #else
-  U128 r = {.High = i128.High, .Low = i128.Low};
-  return r;
+  return (int128_t) {.High = u128[W128IX1], .Low = u128[W128IX0]};
 #endif
 }
 
-U128 WasmEdge_ValueToU128(WasmEdge_Value v)
+void unpack_int128_t(uint64_t* u128, const int128_t i128)
 {
-  #if defined(__x86_64__) || defined(__aarch64__) ||                             \
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-  switch (v.Type){
-    case WasmEdge_ValType_I32: case WasmEdge_ValType_I64: case WasmEdge_ValType_F32:
-    case WasmEdge_ValType_F64:
-         {U128 r = {.High = 0, .Low = (uint64_t)v.Value}; return r;}
-    default:
-      unpack_uint128_t(v.Value);
-  }
+  memcpy(u128, &i128, 16);    
 #else
-  U128 r = {.High = v.Value.High, .Low = v.Value.Low};
-  return r; 
+  u128[W128IX0] = i128.Low;
+  u128[W128IX1] = i128.High;
+#endif
+}
+
+void unpack_uint128_t(uint64_t* u128, const uint128_t ui128)
+{
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  memcpy(u128, &ui128, 16);
+#else
+  u128[W128IX0] = u128.Low;
+  u128[W128IX1] = u128.High;
 #endif
 }
 
 void ValueGenI32(WasmVal* valOut, const int32_t Val)
 { WasmEdge_Value r = WasmEdge_ValueGenI32(Val);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-int32_t ValueGetI32 (WasmVal* v)
+int32_t ValueGetI32 (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetI32(val);
@@ -533,11 +536,10 @@ int32_t ValueGetI32 (WasmVal* v)
 
 void ValueGenI64(WasmVal* valOut, const int64_t Val)
 { WasmEdge_Value r = WasmEdge_ValueGenI64(Val);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-int64_t ValueGetI64 (WasmVal* v)
+int64_t ValueGetI64 (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetI64(val);
@@ -545,11 +547,10 @@ int64_t ValueGetI64 (WasmVal* v)
 
 void ValueGenF32(WasmVal* valOut, const float Val)
 { WasmEdge_Value r = WasmEdge_ValueGenF32(Val);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-float ValueGetF32 (WasmVal* v)
+float ValueGetF32 (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetF32(val);
@@ -557,32 +558,29 @@ float ValueGetF32 (WasmVal* v)
 
 void ValueGenF64(WasmVal* valOut, const double Val)
 { WasmEdge_Value r = WasmEdge_ValueGenF64(Val);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-double ValueGetF64 (WasmVal* v)
+double ValueGetF64 (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetF64(val);
 }
 
-void ValueGenV128(WasmVal* valOut, const U128* Val)
-{ WasmEdge_Value r = WasmEdge_ValueGenV128(pack_int128_t(*Val));
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+void ValueGenV128(WasmVal* valOut, const uint64_t* Val)
+{ WasmEdge_Value r = WasmEdge_ValueGenV128(pack_int128_t(Val));
+  toWasmVal(valOut, r);
 }
 
-void ValueGetV128 (WasmVal* v, U128* u128Out)
+void ValueGetV128 (const WasmVal* v, uint64_t* u128Out)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-  *u128Out = unpack_int128_t(WasmEdge_ValueGetV128(val));
+  unpack_int128_t(u128Out, WasmEdge_ValueGetV128(val));
 }
 
 void ValueGenNullRef(WasmVal* valOut, const enum WasmEdge_RefType T)
 { WasmEdge_Value r = WasmEdge_ValueGenNullRef(T);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
 bool ValueIsNullRef (WasmVal* v)
@@ -593,11 +591,10 @@ bool ValueIsNullRef (WasmVal* v)
 
 void ValueGenFuncRef(WasmVal* valOut, const WasmEdge_FunctionInstanceContext *Cxt)
 { WasmEdge_Value r = WasmEdge_ValueGenFuncRef(Cxt);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-const WasmEdge_FunctionInstanceContext * ValueGetFuncRef (WasmVal* v)
+const WasmEdge_FunctionInstanceContext * ValueGetFuncRef (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return WasmEdge_ValueGetFuncRef(val);
@@ -605,11 +602,10 @@ const WasmEdge_FunctionInstanceContext * ValueGetFuncRef (WasmVal* v)
 
 void ValueGenExternRef(WasmVal* valOut, HsRef *hsRef)
 { WasmEdge_Value r = WasmEdge_ValueGenExternRef(hsRef);
-  valOut->Type = r.Type;
-  valOut->Val = WasmEdge_ValueToU128(r);
+  toWasmVal(valOut, r);
 }
 
-const HsRef * ValueGetExternRef (WasmVal* v)
+const HsRef * ValueGetExternRef (const WasmVal* v)
 {
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   return (HsRef *) WasmEdge_ValueGetExternRef(val);
@@ -670,7 +666,7 @@ void ExecutorInvokeOut(WasmEdge_Result *resOut, WasmEdge_ExecutorContext *Cxt,co
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -715,8 +711,7 @@ WasmEdge_Result cbHostFunc_t (void *Data, const WasmEdge_CallingFrameContext *Ca
   {
     WasmEdge_Value r = Params[i];
     WasmVal *pOut = (WasmVal*)malloc(sizeof(WasmVal));
-    pOut->Type = r.Type;
-    pOut->Val = WasmEdge_ValueToU128(r);
+    toWasmVal(pOut, r);
     params[i] = pOut;
   }
   WasmEdge_Result* resPtr = HostFunc(clsr->Data, CallFrameCxt, params, returns);
@@ -808,7 +803,7 @@ void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -828,7 +823,7 @@ void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, 
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -875,7 +870,7 @@ void VMExecuteOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const WasmEdg
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -896,7 +891,7 @@ void VMExecuteRegisteredOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, con
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -1074,7 +1069,7 @@ void VMRunWasmFromBufferOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, con
   for (int i = 0; i < ReturnLen; i++)
   {
     WasmVal* pRes = ReturnsOut[i];
-    *pRes = (WasmVal) {.Val = WasmEdge_ValueToU128(Returns[i]), .Type = Returns[i].Type};
+    toWasmVal(pRes, Returns[i]);
   }
   free(Params);
   free(Returns);
@@ -1139,20 +1134,20 @@ fromHsRefAsVoidPtrIn :: HsRef -> (Ptr () -> IO a) -> IO a
 fromHsRefAsVoidPtrIn = fromHsRefGenIn
 
 fromHsRefGenIn :: HsRef -> (Ptr p -> IO a) -> IO a
-fromHsRefGenIn (HsRef (Fingerprint hi lo) sp) f = do
-  fp <- mallocForeignPtrBytes {#sizeof HsRef#} --mallocForeignPtr @HsRefPtr
-  withForeignPtr fp $ \p -> do
-    {#set HsRef.Fingerprint.High#} p (fromIntegral hi)
-    {#set HsRef.Fingerprint.Low#} p (fromIntegral lo)
+fromHsRefGenIn (HsRef fprnt sp) f = do
+  fp <- mallocForeignPtrBytes {#sizeof HsRef#}
+  withForeignPtr fp $ \p -> alloca @Fingerprint $ \pFing -> do
+    poke pFing fprnt
+    {#set HsRef.Fingerprint#} p (castPtr pFing)
     {#set HsRef.Ref#} p (castStablePtrToPtr sp)
     f p
 
 toHsRefOut :: Ptr HsRefPtr -> IO HsRef
 toHsRefOut hsr = do
-  hi <- {#get HsRef.Fingerprint.High#} hsr
-  lo <- {#get HsRef.Fingerprint.Low#} hsr
+  pFing <- {#get HsRef.Fingerprint#} hsr
+  fprint <- peek @Fingerprint (castPtr pFing)
   r <- {#get HsRef.Ref#} hsr
-  pure $ HsRef (Fingerprint (fromIntegral hi) (fromIntegral lo)) (castPtrToStablePtr r)
+  pure $ HsRef fprint (castPtrToStablePtr r)
 
 toHsRefFromVoidPtrOut :: Ptr () -> IO HsRef
 toHsRefFromVoidPtrOut = toHsRefOut . castPtr
@@ -1332,7 +1327,15 @@ WASMEDGE_CAPI_EXPORT extern int64_t
  
   \returns WasmEdge_Value struct with the V128 value.
 -}
-{#fun pure unsafe ValueGenV128 as ^ {+, fromI128*`Int128'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenV128 as ^ {+, allocI128*`Int128'} -> `WasmVal' #}
+
+allocI128 :: Int128 -> (Ptr CULong -> IO a) -> IO a
+allocI128 i128 f = alloca $ \p -> poke p i128 *> f (castPtr p)
+
+peekI128 :: Ptr CULong -> IO Int128
+peekI128 p = peek @Int128 (castPtr p) 
+
+
 {-|
   Retrieve the V128 value from the WASM value.
  
@@ -1340,7 +1343,7 @@ WASMEDGE_CAPI_EXPORT extern int64_t
  
   \returns V128 value in the input struct.
 -}
-{#fun pure unsafe ValueGetV128 as ^ {`WasmVal', fromI128Alloc-`Int128'toI128*} -> `()' #}
+{#fun pure unsafe ValueGetV128 as ^ {`WasmVal', alloca-`Int128'peekI128*} -> `()' #}
 
 {-|
   Generate the NULL reference WASM value.
@@ -1411,25 +1414,6 @@ false if not.
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
-
-fromI128 :: Int128 -> (Ptr () -> IO a) -> IO a
-fromI128 i128 f = do
-  fp <- mallocForeignPtrBytes {#sizeof U128#}
-  withForeignPtr fp $ \p -> do
-    {#set U128.High#} p (fromIntegral $ int128Hi64 i128)
-    {#set U128.Low#} p (fromIntegral $ int128Lo64 i128)
-    f p
-
-fromI128Alloc :: (Ptr () -> IO Int128) -> IO Int128
-fromI128Alloc f = do
-  fp <- mallocForeignPtrBytes {#sizeof U128#}
-  withForeignPtr fp f
-
-toI128 :: Ptr () -> IO Int128
-toI128 p = do
-  hi <- {#get U128.High#} p
-  lo <- {#get U128.Low#} p
-  pure $ Int128 {int128Hi64 = fromIntegral hi, int128Lo64 = fromIntegral lo}
 
 
 {-|
