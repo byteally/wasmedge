@@ -35,6 +35,7 @@ jobs:
     - name: Test
       run: |
         cabal update
-        curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+        VERSION=0.13.3
+        curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v $VERSION
         source $HOME/.wasmedge/env 
         cabal test all --flags="TestOnly"
