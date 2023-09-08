@@ -17,6 +17,7 @@ module WasmEdge.Internal.FFI.ValueTypes
   ( 
   --pointer
   HsRefPtr 
+  ,fromHsRefAsVoidPtrIn
   ,WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
            , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
            )
@@ -1106,6 +1107,9 @@ int Driver_UniTool(const char *Argv[], int Argc)
   HsRef
 -}
 {#pointer *HsRef as HsRefPtr foreign newtype #}
+{-|
+ WasmVal
+-}
 {#pointer *WasmVal as WasmVal foreign newtype #}
 {-|
   WasmEdge string struct.
@@ -1114,18 +1118,38 @@ int Driver_UniTool(const char *Argv[], int Argc)
 instance HasFinalizer WasmString where
   getFinalizer = deleteString
 
+{-|
+  WasmEdge Result construct
+-}
 {#pointer *WasmEdge_Result as WasmResult foreign newtype #}
+
+{-|
+ Struct of WASM limit.
+-}
 {#pointer *WasmEdge_Limit as Limit foreign newtype #}
--- | Program option for plugins.
+
+{- | 
+Program option for plugins.
+-}
 {#pointer *WasmEdge_ProgramOption as ProgramOption foreign newtype #}
--- | Module descriptor for plugins.
+
+{- | Module descriptor for plugins.
+-}
 {#pointer *WasmEdge_ModuleDescriptor as ModuleDescriptor foreign newtype #}
--- | Version data for plugins.
+
+{- | Version data for plugins.
+-}
 {#pointer *WasmEdge_PluginVersionData as PluginVersionData foreign newtype #}
--- | Plugin descriptor for plugins.
+
+{-|
+ Plugin descriptor for plugins.
+-}
 {#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
 ---
+{-|
+  fromHsRefIn 
+-}
 fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
 fromHsRefIn = fromHsRefGenIn
 
