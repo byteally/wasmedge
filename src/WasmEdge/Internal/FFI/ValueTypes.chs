@@ -274,7 +274,6 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,driverCompiler
   ,driverTool
   ,driverUniTool
-  -- something
   ,fromHsRefIn
   ,fromHsRef
   ,toHsRef
