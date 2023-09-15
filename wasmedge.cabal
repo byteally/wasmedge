@@ -127,8 +127,7 @@ library
 
     -- Modules exported by the library.
     exposed-modules:  WasmEdge
-                      WasmEdge.Internal.FFI.Version
-                      WasmEdge.Internal.FFI.ValueTypes
+                      WasmEdge.Internal.FFI.Bindings
 
     -- Modules included in this library but not exported.
     -- other-modules:

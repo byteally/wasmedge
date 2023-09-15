@@ -11,8 +11,7 @@ import           Test.Tasty
 import           Test.Tasty.Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-import WasmEdge.Internal.FFI.Version
-import WasmEdge.Internal.FFI.ValueTypes
+import WasmEdge.Internal.FFI.Bindings
 import qualified Data.Text as T
 import Data.ByteString (ByteString)
 -- import qualified Data.ByteString as BS

@@ -13,7 +13,7 @@ Maintainer  : magesh85@gmail.com
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module WasmEdge.Internal.FFI.ValueTypes
+module WasmEdge.Internal.FFI.Bindings
   ( 
   --pointer
   HsRefPtr 
@@ -53,6 +53,10 @@ module WasmEdge.Internal.FFI.ValueTypes
   ,PluginContext
   ,HostFuncT
   --funs
+  ,versionGet
+  ,versionGetMajor
+  ,versionGetMinor
+  ,versionGetPatch
   ,valueGenI32
   ,valueGetI32
   ,valueGenI64
@@ -1103,6 +1107,19 @@ int Driver_UniTool(const char *Argv[], int Argc)
 }
 #endc
 
+{#fun pure unsafe VersionGet as ^ {} -> `Text' fromCStrToText*#}
+
+{#fun pure unsafe VersionGetMajor as ^ {} -> `Word' fromIntegral#}
+
+{#fun pure unsafe VersionGetMinor as ^ {} -> `Word' fromIntegral#}
+
+{#fun pure unsafe VersionGetPatch as ^ {} -> `Word' fromIntegral#}
+    
+
+fromCStrToText :: CString -> IO Text
+fromCStrToText cs = T.fromPtr0 $ castPtr cs
+
+
 {-|
   HsRef
 -}
@@ -1281,14 +1298,14 @@ Generate the I32 WASM value.
 \returns void
 -}
 {#fun pure unsafe ValueGenI32 as ^ {+, `Int32'} -> `WasmVal' #}
+
 {-|
-  Retrieve the I32 value from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns I32 value in the input struct.
+  Retrieve the I32 value from the WASM value. 
 -}
-{#fun pure unsafe ValueGetI32 as ^ {`WasmVal'} -> `Int32' #}
+{#fun pure unsafe ValueGetI32 as ^
+  { `WasmVal' -- ^the WASM value.
+  } -> `Int32' -- ^ I32 value in the input
+#}
 
 {-|
   Generate the I64 WASM value.
