@@ -81,9 +81,9 @@ module WasmEdge.Internal.FFI.Bindings
   ,mkResultFail
   ,resultOK
   ,resultGen 
-  ,getResultCode
-  ,getResultCategory
-  ,getResultMessage
+  ,resultGetCode
+  ,resultGetCategory
+  ,resultGetMessage
   ,valueGenFuncRef 
   ,valueGetFuncRef
   ,valueGenExternRef 
@@ -326,6 +326,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Foreign as T
 import Data.Word
+import Data.List (intercalate)
 -- import Foreign
 import Foreign.C
 -- import Foreign.C.Types
@@ -334,6 +335,7 @@ import Foreign.ForeignPtr
 import Foreign.Storable (Storable (..))
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
+import Foreign.ForeignPtr.Unsafe
 -- import GHC.Ptr
 import System.IO.Unsafe
 import Unsafe.Coerce
@@ -1567,6 +1569,13 @@ instance Eq WasmResult where
     r1 <- {#get WasmEdge_Result.Code #} wrp1
     r2 <- {#get WasmEdge_Result.Code #} wrp2
     pure $ r1 == r2
+
+instance Show WasmResult where
+  show = \case
+    WRSuccess -> "Success"
+    WRTerminate -> "Terminate"
+    WRFail -> "Fail"
+    wr@(WRError cat code) -> intercalate " " ["Error", show cat, show code, Char8.unpack $ resultGetMessage wr]
     
 pattern WRSuccess :: WasmResult
 pattern WRSuccess <- ((mkResultSuccess ==) -> True) where
@@ -1580,7 +1589,11 @@ pattern WRFail :: WasmResult
 pattern WRFail <- ((mkResultFail ==) -> True) where
   WRFail = mkResultFail
 
-{-# COMPLETE WRSuccess, WRTerminate, WRFail #-}  
+pattern WRError :: ErrCategory -> ErrCode -> WasmResult
+pattern WRError errCat code <- ((resultOK &&& resultGetCategory &&& (toEnum . fromIntegral . resultGetCode)) -> (False, (errCat, code))) where
+  WRError errCat code = resultGen errCat (fromIntegral $ fromEnum code)
+
+{-# COMPLETE WRSuccess, WRTerminate, WRFail, WRError #-}  
 
 {- |
   Returning Length of WasmEdge_String 
@@ -1633,7 +1646,7 @@ WasmEdge_Result_Terminate, false for others.
  
   \returns result code (24-bit size data) in the WasmEdge_Result struct.
 -}
-{#fun pure unsafe WasmEdge_ResultGetCode as getResultCode {%`WasmResult'} -> `Word32' #}
+{#fun pure unsafe ResultGetCode as ^ {%`WasmResult'} -> `Word32' #}
 {-|
   Get the error category.
  
@@ -1641,7 +1654,7 @@ WasmEdge_Result_Terminate, false for others.
  
   \returns error category in the WasmEdge_Result struct.
 -}
-{#fun pure unsafe WasmEdge_ResultGetCategory as getResultCategory {%`WasmResult'} -> `ErrCategory'cToEnum #}
+{#fun pure unsafe ResultGetCategory as ^ {%`WasmResult'} -> `ErrCategory'cToEnum #}
 {-|
   Get the result message.
  
@@ -1653,7 +1666,7 @@ WasmEdge_Result_Terminate, false for others.
  
   \returns NULL-terminated C string of the corresponding error message.
 -}
-{#fun pure unsafe WasmEdge_ResultGetMessage as getResultMessage {%`WasmResult'} -> `ByteString'packCStringBS* #}
+{#fun pure unsafe ResultGetMessage as ^ {%`WasmResult'} -> `ByteString'packCStringBS* #}
 {#fun pure unsafe WasmEdge_LimitIsEqual as limitEq_ {%`Limit',%`Limit'} -> `Bool'#}
 
 instance Eq Limit where
@@ -2418,6 +2431,17 @@ fromVecOr0Ptr getPtr v f
 fromVecStringOr0Ptr :: (Num sz) => V.Vector String -> ((Ptr (Ptr CChar), sz) -> IO b) -> IO b
 fromVecStringOr0Ptr = fromVecOr0Ptr newCString
 
+fromVecOfFPtr :: forall t sz b.(Coercible t (ForeignPtr t), Num sz) => V.Vector t -> ((Ptr (Ptr t), sz) -> IO b) -> IO b
+fromVecOfFPtr v f
+  | V.null v = f (nullPtr, 0)
+  | otherwise = do
+      ptrs <- VSM.generate (fromIntegral $ V.length v) (unsafeForeignPtrToPtr . coerce . V.unsafeIndex v)
+      r <- fromMutIOVecOr0Ptr ptrs f
+      -- Keep the ref of ptrs taken from vec alive transitively by keeping the vec alive
+      maybe (pure ()) (touchForeignPtr . (coerce @t @(ForeignPtr t))) (v V.!? 0)
+      pure r
+      
+
 fromMutIOVecOr0Ptr :: (Storable a, Num sz) => IOVector a -> ((Ptr a, sz) -> IO b) -> IO b
 fromMutIOVecOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
@@ -2456,6 +2480,9 @@ functionTypeGetReturns fcxt buffLen = do
 
 noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
 noFinalizer = coerce . newForeignPtr_
+
+useFinalizerFree :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
+useFinalizerFree = coerce . newForeignPtr finalizerFree
 
 -- Table Type
 {-|
@@ -3489,9 +3516,9 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   message.
 -}
 allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
-allocWasmVal = allocaBytes {#sizeof WasmVal #}
+allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
 
-{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData {+,`TableInstanceContext',allocWasmVal-`WasmVal'noFinalizer*,`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceGetDataOut as tableInstanceGetData {+,`TableInstanceContext',allocWasmVal-`WasmVal'useFinalizerFree*,`Word32'} -> `WasmResult'#}
 
 {-|
   Set the reference value into a table instance.
@@ -3765,7 +3792,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe AsyncGetOut as asyncGet {+,`Async',allocWasmVal-`WasmVal'noFinalizer*,`Word32'} -> `WasmResult'#}
+{#fun unsafe AsyncGetOut as asyncGet {+,`Async',allocWasmVal-`WasmVal'useFinalizerFree*,`Word32'} -> `WasmResult'#}
 
 -- VM
 {-|
@@ -3819,7 +3846,25 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   message.
 -}
 
-{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile {+,`VMContext',`String',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile_ {+,`VMContext',`String',%`WasmString',fromVecOfFPtr*`V.Vector WasmVal'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+
+
+vMRunWasmFromFile ::
+  VMContext
+  -> String
+  -> WasmString
+  -> V.Vector WasmVal
+  -> Word32
+  -> IO (WasmResult, V.Vector WasmVal)
+vMRunWasmFromFile cxt fp fname args retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+  res <- vMRunWasmFromFile_ cxt fp fname args retOut
+  rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure (res, rets)
+  
+  
+
+
 {-|
   Instantiate the WASM module from a buffer and invoke a function by name.
  

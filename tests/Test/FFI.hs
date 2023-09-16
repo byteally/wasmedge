@@ -21,6 +21,7 @@ import Data.Kind
 import GHC.Generics
 import Control.Monad.IO.Class
 import System.IO.Unsafe (unsafePerformIO)
+import qualified Data.Vector as V
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -131,6 +132,8 @@ test1 :: IO ()
 test1 = do
   withWasmRes configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    withWasmResF (vMCreate cfgCxt Nothing) $ \_vm -> do
-      -- vMRunWasmFromFile cfgCxt ".tests/sample/wasm/addTwo.wasm" "fib"
+    _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
+      addTwoRes <- vMRunWasmFromFile vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
+      print addTwoRes
       pure ()
+    pure ()
