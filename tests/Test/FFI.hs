@@ -48,9 +48,13 @@ stringTT :: TestTree
 stringTT = testGroup "string tests"
   [ testProperty "null-terminated string" $ withTests 1 $ property $ (tripping "wasm\0edge" (mkStringFromBytes . Char8.pack) (Just . T.unpack . toText))
   , testProperty "null-terminated fromString" $ withTests 1 $ property $ (tripping "wasm\0edge" (fromString @WasmString) (Just . T.unpack . toText))
+  , testProperty "C String" $ withTests 1 $ property $ (tripping "Testing string" (unsafePerformIO.stringCreateByCString) (Just. T.unpack. toText))
   , testProperty "finalizeString" $ withTests 1 $ property $ do
       let ws = "foo" :: WasmString
       toText ws === "foo"
+  , testProperty "Check length of wasmString" $ withTests 1 $ property $ do
+      let ws = "foo" :: WasmString
+      (wasmStringLength ws) === 3
   ]
 
 valueTT :: TestTree
