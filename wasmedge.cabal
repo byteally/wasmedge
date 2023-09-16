@@ -127,6 +127,16 @@ library
 
     -- Modules exported by the library.
     exposed-modules:  WasmEdge
+                      WasmEdge.Log
+                      WasmEdge.VM
+                      WasmEdge.Store
+                      WasmEdge.Plugin
+                      WasmEdge.Statistic
+                      WasmEdge.Module
+                      WasmEdge.Utils
+                      WasmEdge.Executor
+                      WasmEdge.Driver
+                      WasmEdge.Instance
                       WasmEdge.Internal.FFI.Bindings
 
     -- Modules included in this library but not exported.

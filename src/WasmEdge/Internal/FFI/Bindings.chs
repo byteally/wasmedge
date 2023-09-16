@@ -12,6 +12,9 @@ Maintainer  : magesh85@gmail.com
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.Bindings
   ( 
@@ -87,6 +90,7 @@ module WasmEdge.Internal.FFI.Bindings
   ,valueGetExternRef 
   ,logSetErrorLevel 
   ,logSetDebugLevel
+  ,logOff
   ,configureCreate 
   ,configureAddProposal
   ,configureRemoveProposal
@@ -244,6 +248,9 @@ module WasmEdge.Internal.FFI.Bindings
   ,Mutability (..)
   ,ExternalType (..)
   --Haskell funcs
+  ,withWasmRes
+  ,withWasmResF
+  ,withWasmResT
   ,storeCreate 
   ,storeFindModule
   ,storeListModuleLength
@@ -307,7 +314,7 @@ module WasmEdge.Internal.FFI.Bindings
   ,peekOutPtr
   -- * Re-exports
   , Int128
-  #if TESTONLY
+  #if TESTONLY && !(__HADDOCK_VERSION__)
   ,testonly_accquire
   , testonly_isAlive
   , testonly_release
@@ -347,6 +354,7 @@ import Control.Arrow ((&&&))
 import Data.WideWord.Int128
 import GHC.Stable
 import GHC.Fingerprint
+import GHC.TypeLits
 import Data.Typeable
 #if TESTONLY
 import Data.Unique
@@ -363,7 +371,7 @@ import GHC.Stack
 
 {#context prefix = "WasmEdge"#}
 
-#if TESTONLY
+#if TESTONLY && !(__HADDOCK_VERSION__)
 testonly_ref_barrier :: MVar Unique
 testonly_ref_barrier = unsafePerformIO newEmptyMVar
 {-# NOINLINE testonly_ref_barrier #-}
@@ -1107,6 +1115,23 @@ int Driver_UniTool(const char *Argv[], int Argc)
 }
 #endc
 
+withWasmRes :: HasFinalizer res => IO res -> (res -> IO r) -> IO r
+withWasmRes act f = do
+  res <- act
+  r <- f res
+  finalize res
+  pure r
+
+withWasmResF :: (Traversable f, HasFinalizer res) => IO (f res) -> (f res -> IO r) -> IO r
+withWasmResF act f = do
+  res <- act
+  r <- f res
+  sequence_ (finalize <$> res)
+  pure r
+
+withWasmResT :: (Traversable f, HasFinalizer res) => IO (f res) -> (res -> IO r) -> IO (f r)
+withWasmResT act f = withWasmResF act $ \fres -> sequenceA (f <$> fres)
+
 {#fun pure unsafe VersionGet as ^ {} -> `Text' fromCStrToText*#}
 
 {#fun pure unsafe VersionGetMajor as ^ {} -> `Word' fromIntegral#}
@@ -1477,11 +1502,16 @@ wrapCFinalizer final tAct = tAct >>= \t -> do
   pure t
 {-#INLINE wrapCFinalizer #-}
 
-class Coercible t (ForeignPtr t) => HasFinalizer t where
+class HasFinalizer t where
   runFinalizer :: t -> IO ()
+  default runFinalizer :: Coercible t (ForeignPtr t) => t -> IO ()
   runFinalizer t = finalizeForeignPtr @t (coerce t)
 
   getFinalizer :: FinalizerPtr t
+
+instance (TypeError ('Text "Use `withWasmResF` or `withWasmResT` instead of `withWasmRes`")) => HasFinalizer (Maybe t) where
+  runFinalizer = error "Unreachable code"
+  getFinalizer = error "Unreachable code"
  
 {-|
   Finalize
@@ -1634,35 +1664,56 @@ instance Eq Limit where
 -}
 {#pointer *ConfigureContext as ^ foreign finalizer ConfigureDelete as ^ newtype #}
 
+instance HasFinalizer ConfigureContext where
+  getFinalizer = configureDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *StatisticsContext as ^ foreign finalizer StatisticsDelete as ^ newtype #}
+
+instance HasFinalizer StatisticsContext where
+  getFinalizer = statisticsDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *ASTModuleContext as ^ foreign finalizer ASTModuleDelete as ^ newtype #}
 
+instance HasFinalizer ASTModuleContext where
+  getFinalizer = aSTModuleDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *FunctionTypeContext as ^ foreign finalizer FunctionTypeDelete as ^ newtype #}
+
+instance HasFinalizer FunctionTypeContext where
+  getFinalizer = functionTypeDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *MemoryTypeContext as ^ foreign finalizer MemoryTypeDelete as ^ newtype #}
 
+instance HasFinalizer MemoryTypeContext where
+  getFinalizer = memoryTypeDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *TableTypeContext as ^ foreign finalizer TableTypeDelete as ^ newtype #}
 
+instance HasFinalizer TableTypeContext where
+  getFinalizer = tableTypeDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *GlobalTypeContext as ^ foreign finalizer GlobalTypeDelete as ^ newtype #}
+
+instance HasFinalizer GlobalTypeContext where
+  getFinalizer = globalTypeDelete
 
 {-|
 Opaque struct of WasmEdge function type.
@@ -1679,50 +1730,80 @@ Opaque struct of WasmEdge function type.
 -}
 {#pointer *CompilerContext as ^ foreign finalizer CompilerDelete as ^ newtype #}
 
+instance HasFinalizer CompilerContext where
+  getFinalizer = compilerDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *LoaderContext as ^ foreign finalizer LoaderDelete as ^ newtype #}
+
+instance HasFinalizer LoaderContext where
+  getFinalizer = loaderDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *ValidatorContext as ^ foreign finalizer ValidatorDelete as ^ newtype #}
 
+instance HasFinalizer ValidatorContext where
+  getFinalizer = validatorDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *ExecutorContext as ^ foreign finalizer ExecutorDelete as ^ newtype #}
+
+instance HasFinalizer ExecutorContext where
+  getFinalizer = executorDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *StoreContext as ^ foreign finalizer StoreDelete as ^ newtype #}
 
+instance HasFinalizer StoreContext where
+  getFinalizer = storeDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *ModuleInstanceContext as ^ foreign finalizer ModuleInstanceDelete as ^ newtype #}
+
+instance HasFinalizer ModuleInstanceContext where
+  getFinalizer = moduleInstanceDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *FunctionInstanceContext as ^ foreign finalizer FunctionInstanceDelete as ^ newtype #}
 
+instance HasFinalizer FunctionInstanceContext where
+  getFinalizer = functionInstanceDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *TableInstanceContext as ^ foreign finalizer TableInstanceDelete as ^ newtype #}
+
+instance HasFinalizer TableInstanceContext where
+  getFinalizer = tableInstanceDelete
 
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *MemoryInstanceContext as ^ foreign finalizer MemoryInstanceDelete as ^ newtype #}
 
+instance HasFinalizer MemoryInstanceContext where
+  getFinalizer = memoryInstanceDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *GlobalInstanceContext as ^ foreign finalizer GlobalInstanceDelete as ^ newtype #}
+
+instance HasFinalizer GlobalInstanceContext where
+  getFinalizer = globalInstanceDelete
 
 {-|
 Opaque struct of WasmEdge function type.
@@ -1734,10 +1815,16 @@ Opaque struct of WasmEdge function type.
 -}
 {#pointer *Async as ^ foreign finalizer AsyncDelete as ^ newtype #}
 
+instance HasFinalizer Async where
+  getFinalizer = asyncDelete
+
 {-|
 Opaque struct of WasmEdge function type.
 -}
 {#pointer *VMContext as ^ foreign finalizer VMDelete as ^ newtype #}
+
+instance HasFinalizer VMContext where
+  getFinalizer = vMDelete
 
 {-|
 Opaque struct of WasmEdge function type.
@@ -1787,12 +1874,6 @@ Opaque struct of WasmEdge function type.
 deriving newtype instance Storable ImportTypeContext
 deriving newtype instance Storable ExportTypeContext
 
-instance HasFinalizer ModuleInstanceContext where
-  getFinalizer = moduleInstanceDelete
-
-instance HasFinalizer FunctionTypeContext where
-  getFinalizer = functionTypeDelete 
-
 {-|
 Type of option value.
 -}
@@ -1810,6 +1891,11 @@ Type of option value.
   Set the logging system to filter to debug level.
 -}
 {#fun unsafe LogSetDebugLevel as ^ {} -> `()'#}
+
+{-|
+  Set the logging system off.
+-}
+{#fun unsafe LogOff as ^ {} -> `()'#}
 
 -- | WASM Proposal C enumeration.
 {#enum Proposal as ^ {}
@@ -3889,7 +3975,18 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
  
   \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe VMCreate as ^ {`ConfigureContext',`StoreContext'} -> `VMContext'#}
+{#fun unsafe VMCreate as ^ {`ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
+
+nullablePtrIn :: (Coercible t (ForeignPtr t)) => Maybe t -> (Ptr t -> IO r) -> IO r
+nullablePtrIn Nothing f = f nullPtr
+nullablePtrIn (Just t) f = withForeignPtr (coerce t) f
+
+nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
+nullableFinalizablePtrOut p
+  | p == nullPtr = pure Nothing
+  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p
+  
+
 {-|
   Register and instantiate WASM into the store in VM from a WASM file.
  

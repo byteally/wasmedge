@@ -123,5 +123,14 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
     initialState = State
       { 
       }
+  liftIO $ test1
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
+
+test1 :: IO ()
+test1 = do
+  withWasmRes configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    withWasmResF (vMCreate cfgCxt Nothing) $ \_vm -> do
+      -- vMRunWasmFromFile cfgCxt ".tests/sample/wasm/addTwo.wasm" "fib"
+      pure ()

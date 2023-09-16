@@ -1,0 +1,30 @@
+module WasmEdge.Instance
+  ( ModuleInstanceContext
+  , FunctionInstanceContext
+  , TableInstanceContext
+  , MemoryInstanceContext
+  , GlobalInstanceContext
+  , HostFuncT
+  , functionInstanceCreate
+  , functionInstanceGetFunctionType 
+  , tableInstanceCreate
+  , tableInstanceGetTableType
+  , tableInstanceGetData
+  , tableInstanceSetData
+  , tableInstanceGetSize
+  , tableInstanceGrow
+  , memoryInstanceCreate
+  , memoryInstanceGetMemoryType
+  , memoryInstanceGetData
+  , memoryInstanceSetData
+  , memoryInstanceGetPointer
+  , memoryInstanceGetPointerConst
+  , memoryInstanceGetPageSize
+  , memoryInstanceGrowPage
+  , globalInstanceCreate
+  , globalInstanceGetGlobalType
+  , globalInstanceGetValue
+  ) where
+
+import WasmEdge.Internal.FFI.Bindings
+-- import Data.Vector (Vector)
