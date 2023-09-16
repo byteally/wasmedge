@@ -2115,7 +2115,7 @@ Opaque struct of WasmEdge function type.
 -}
 {#fun pure unsafe ValueGetFuncRef as ^ 
   {`WasmVal'                        -- ^ the WasmEdge_Value struct.
-  } -> `FunctionInstanceContext'    00 ^ pointer to function instance context in the input struct.
+  } -> `FunctionInstanceContext'    -- ^ pointer to function instance context in the input struct.
 #}
 
 {-|
@@ -3381,7 +3381,7 @@ peekCoerce = fmap coerce peek
   {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext to add the global instance.
   ,%`WasmString'                  -- ^ the export global name WasmEdge_String.
   ,`GlobalInstanceContext'        -- ^ the WasmEdge_GlobalInstanceContext to add.
-  } -> `()
+  } -> `()'
 #}
 
 -- Function Instance
@@ -3462,9 +3462,6 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   {`TableInstanceContext'                 -- ^ the WasmEdge_TableInstanceContext.
   } -> `TableTypeContext'                 -- ^ pointer to context, NULL if failed.
 #}
-
-allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
-allocWasmVal = allocaBytes {#sizeof WasmVal #}
 
 {-|
   Get the reference value in a table instance.
