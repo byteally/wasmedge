@@ -312,6 +312,278 @@ module WasmEdge.Internal.FFI.Bindings
   ,fromMutIOVecOr0Ptr
   ,noFinalizer 
   ,peekOutPtr
+  {-
+  ,fromCStrToText 
+  ,fromHsRefIn 
+  ,fromHsRefAsVoidPtrIn 
+  ,fromHsRefGenIn 
+  ,toHsRefOut 
+  ,toHsRefFromVoidPtrOut 
+  ,fromHsRefWithFinalzrIn 
+  ,toHsRef 
+  ,fromHsRef 
+  ,freeHsRef 
+  ,getValType 
+  ,ValueGenI32 
+  ,ValueGetI32 
+  ,ValueGenI64 
+  ,ValueGetI64 
+  ,ValueGenF32 
+  ,ValueGetF32 
+  ,ValueGenF64 
+  ,ValueGetF64 
+  ,ValueGenV128 
+  ,allocI128 
+  ,peekI128   
+  ,ValueGetV128 
+  ,ValueGenNullRef 
+  ,ValueIsNullRef 
+  ,StringCreateByCString
+  ,stringWrap 
+  ,mkStringFromBytesIO 
+  ,WasmEdge_StringIsEqual 
+  ,WasmEdge_StringCopy 
+  ,mkResultSuccess
+  ,mkResultTerminate 
+  ,mkResultFail 
+  ,wrapCFinalizer 
+  ,mkStringFromBytes 
+  ,finalize 
+  ,coercePtr 
+  ,useAsPtrCUCharLenBS 
+  ,packCStringBS 
+  ,memBuffIn 
+  ,allocMemBuff 
+  ,stringCopy 
+  ,wasmStringLength 
+  ,toText 
+  ,ResultOK 
+  ,ResultGenOut 
+  ,WasmEdge_ResultGetCode 
+  ,WasmEdge_ResultGetCategory 
+  ,WasmEdge_ResultGetMessage 
+  ,ValueGenFuncRef 
+  ,ValueGetFuncRef 
+  ,ValueGenExternRef 
+  ,ValueGetExternRef 
+  -- WasmEdge logging functions
+  ,LogSetErrorLevel
+  ,LogSetDebugLevel 
+  -- Configure
+  ,ConfigureCreate 
+  ,ConfigureAddProposal 
+  ,ConfigureRemoveProposal 
+  ,ConfigureHasProposal 
+  ,ConfigureAddHostRegistration 
+  ,ConfigureRemoveHostRegistration 
+  ,ConfigureHasHostRegistration 
+  ,ConfigureSetMaxMemoryPage 
+  ,ConfigureGetMaxMemoryPage 
+  ,ConfigureSetForceInterpreter 
+  ,ConfigureIsForceInterpreter 
+  ,ConfigureCompilerSetOptimizationLevel 
+  ,ConfigureCompilerGetOptimizationLevel 
+  ,ConfigureCompilerSetOutputFormat 
+  ,ConfigureCompilerGetOutputFormat 
+  ,ConfigureCompilerSetDumpIR 
+  ,ConfigureCompilerIsDumpIR 
+  ,ConfigureCompilerSetGenericBinary 
+  ,ConfigureCompilerIsGenericBinary 
+  ,ConfigureCompilerSetInterruptible 
+  ,ConfigureCompilerIsInterruptible 
+  ,ConfigureStatisticsIsInstructionCounting 
+  ,ConfigureStatisticsSetCostMeasuring 
+  ,ConfigureStatisticsIsCostMeasuring 
+  ,ConfigureStatisticsSetTimeMeasuring 
+  ,ConfigureStatisticsIsTimeMeasuring 
+  -- Statistics
+  ,StatisticsCreate 
+  ,StatisticsGetInstrCount
+  ,StatisticsGetInstrPerSecond
+  ,StatisticsGetTotalCost 
+  ,StatisticsSetCostTable 
+  ,StatisticsSetCostLimit 
+  ,StatisticsClear
+  -- AST Module
+  ,ASTModuleListImportsLength
+  ,ASTModuleListExportsLength
+  -- Function
+  ,FunctionTypeCreate 
+  ,FunctionTypeGetParametersLength
+  ,functionTypeGetParameters
+  ,astModuleListImports 
+  ,astModuleListExports 
+  ,astModuleListExports 
+  ,fromStoreVecOr0Ptr 
+  ,fromVecOr0Ptr 
+  ,fromVecStringOr0Ptr 
+  ,fromMutIOVecOr0Ptr 
+  ,fromMutIOVecOfCEnumOr0Ptr 
+  ,fromByteStringIn 
+  -- Function Type
+  ,FunctionTypeGetReturnsLength 
+  ,functionTypeGetReturns 
+  ,noFinalizer
+  -- Table Type
+  ,TableTypeCreate
+  ,TableTypeGetRefType
+  ,TableTypeGetLimit
+  -- Memory Type
+  ,MemoryTypeCreate 
+  ,MemoryTypeGetLimit
+  -- Global Type
+  ,GlobalTypeCreate 
+  ,GlobalTypeGetValType 
+  ,GlobalTypeGetMutability 
+  -- Import Type
+  ,ImportTypeGetModuleName
+  ,ImportTypeGetExternalName
+  ,ImportTypeGetFunctionType
+  ,ImportTypeGetTableType
+  ,ImportTypeGetMemoryType
+  ,ImportTypeGetGlobalType 
+  -- Export Type
+  ,ExportTypeGetExternalType
+  ,ExportTypeGetExternalName
+  ,ExportTypeGetFunctionType 
+  ,ExportTypeGetTableType 
+  ,ExportTypeGetMemoryType 
+  ,ExportTypeGetGlobalType 
+  -- AOT Compiler
+  ,CompilerCreate 
+  ,CompilerCompile
+  ,CompilerCompileFromBuffer 
+  -- Loader
+  ,LoaderCreate 
+  -- Validator
+  ,ValidatorCreate 
+  ,ValidatorValidate
+  -- Executor
+  ,ExecutorCreate 
+  ,ExecutorInstantiate
+  ,ExecutorRegister
+  ,ExecutorRegisterImport
+  ,executorInvoke 
+  ,ExecutorAsyncInvoke
+  ,peekOutPtr 
+  ,peekCoerce 
+  -- Store
+  ,StoreCreate 
+  ,StoreFindModule 
+  ,StoreListModuleLength
+  ,StoreListModule
+  -- Module Instance
+  ,ModuleInstanceCreate 
+  ,ModuleInstanceCreateWithData 
+  ,ModuleInstanceCreateWASI 
+  ,ModuleInstanceInitWASI 
+  ,ModuleInstanceWASIGetExitCode
+  ,ModuleInstanceWASIGetNativeHandler 
+  ,ModuleInstanceInitWasmEdgeProcess
+  ,ModuleInstanceGetModuleName
+  ,ModuleInstanceGetHostData 
+  ,ModuleInstanceFindFunction 
+  ,ModuleInstanceFindTable
+  ,ModuleInstanceFindMemory 
+  ,ModuleInstanceFindGlobal 
+  ,ModuleInstanceListFunctionLength 
+  ,ModuleInstanceListFunction
+  ,ModuleInstanceListTableLength
+  ,ModuleInstanceListTable
+  ,ModuleInstanceListMemoryLength
+  ,ModuleInstanceListMemory
+  ,ModuleInstanceListGlobalLength 
+  ,ModuleInstanceListGlobal
+  ,ModuleInstanceAddFunction
+  ,ModuleInstanceAddTable 
+  ,ModuleInstanceAddMemory 
+  ,ModuleInstanceAddGlobal 
+  ,hostFuncCallback 
+  ,hostFuncCallbackPure
+  -- Function Instance
+  ,functionInstanceCreate 
+  ,FunctionInstanceGetFunctionType 
+  -- Table Instance
+  ,TableInstanceCreate 
+  ,TableInstanceGetTableType
+  ,TableInstanceGetData
+  ,TableInstanceSetData
+  ,TableInstanceGetSize 
+  ,TableInstanceGrowOut 
+  -- Memory Instance
+  ,MemoryInstanceCreate
+  ,MemoryInstanceGetMemoryType
+  ,memoryInstanceGetData
+  ,MemoryInstanceSetData
+  ,MemoryInstanceGetPointer
+  ,memoryInstanceGetPointerConst
+  ,MemoryInstanceGetPageSize
+  ,MemoryInstanceGrowPage
+  ,GlobalInstanceCreate
+  ,GlobalInstanceGetGlobalType 
+  ,GlobalInstanceGetValueOut 
+  ,GlobalInstanceSetValueOut 
+  -- Calling Frame
+  ,CallingFrameGetExecutor 
+  ,CallingFrameGetModuleInstance 
+  ,CallingFrameGetMemoryInstance 
+  -- Async
+  ,AsyncWait 
+  ,AsyncWaitFor
+  ,asyncCancel
+  ,AsyncGetReturnsLength
+  ,AsyncGet 
+  -- VM
+  ,VMRegisterModuleFromImport
+  ,VMRunWasmFromFile
+  ,VMRunWasmFromBuffer
+  ,VMRunWasmFromASTModule
+  ,VMAsyncRunWasmFromFile
+  ,VMAsyncRunWasmFromASTModule
+  ,VMAsyncRunWasmFromBuffer
+  ,VMCreate 
+  ,VMRegisterModuleFromFile
+  ,VMRegisterModuleFromBuffer
+  ,VMRegisterModuleFromASTModule
+  ,VMLoadWasmFromFile
+  ,VMLoadWasmFromBuffer
+  ,VMLoadWasmFromASTModule
+  ,VMValidate
+  ,VMInstantiate
+  ,VMExecute
+  ,VMExecuteRegistered
+  ,vMAsyncExecute 
+  ,VMAsyncExecuteRegistered
+  ,VMGetFunctionType 
+  ,VMGetFunctionTypeRegistered 
+  ,VMCleanup 
+  ,VMGetFunctionListLength 
+  ,vMGetFunctionList 
+  ,VMGetImportModuleContext 
+  ,VMGetActiveModule 
+  ,VMGetRegisteredModule 
+  ,VMListRegisteredModuleLength 
+  ,vMListRegisteredModule 
+  ,VMGetStoreContext 
+  ,VMGetLoaderContext 
+  ,VMGetValidatorContext 
+  ,VMGetExecutorContext 
+  ,VMGetStatisticsContext 
+  -- Driver
+  ,Driver_Compiler 
+  ,Driver_Tool 
+  ,Driver_UniTool 
+  -- Plugin Function
+  ,PluginLoadWithDefaultPaths 
+  ,PluginLoadFromPath 
+  ,PluginListPluginsLength 
+  ,pluginListPlugins 
+  ,PluginFind 
+  ,pluginGetPluginName 
+  ,PluginListModuleLength 
+  ,PluginListModule
+  ,PluginCreateModule 
+-}
   -- * Re-exports
   , Int128
   #if TESTONLY && !(__HADDOCK_VERSION__)
@@ -1134,12 +1406,24 @@ withWasmResF act f = do
 withWasmResT :: (Traversable f, HasFinalizer res) => IO (f res) -> (res -> IO r) -> IO (f r)
 withWasmResT act f = withWasmResF act $ \fres -> sequenceA (f <$> fres)
 
+{-|
+Get the version string of the WasmEdge C API.
+-}
 {#fun pure unsafe VersionGet as ^ {} -> `Text' fromCStrToText*#}
 
+{-|
+Get the major version value of the WasmEdge C API.
+-}
 {#fun pure unsafe VersionGetMajor as ^ {} -> `Word' fromIntegral#}
 
+{-|
+Get the minor version value of the WasmEdge C API.
+-}
 {#fun pure unsafe VersionGetMinor as ^ {} -> `Word' fromIntegral#}
 
+{-|
+Get the patch version value of the WasmEdge C API.
+-}
 {#fun pure unsafe VersionGetPatch as ^ {} -> `Word' fromIntegral#}
     
 
@@ -1318,13 +1602,12 @@ getValType v = unsafePerformIO $ withWasmVal v (fmap cToEnum . {#get WasmVal.Typ
 
 {-|
 Generate the I32 WASM value.
-
-\param Val the reference of WasmEdge_Value struct where the I32 value would be returned
-\param Val the I32 value.
-
-\returns void
 -}
-{#fun pure unsafe ValueGenI32 as ^ {+, `Int32'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenI32 as ^ 
+  {+
+  , `Int32'         -- ^ the reference of WasmEdge_Value struct where the I32 value would be returned
+  } -> `WasmVal'    -- ^ the I32 value. 
+#}
 
 {-|
   Retrieve the I32 value from the WASM value. 
@@ -1336,65 +1619,63 @@ Generate the I32 WASM value.
 
 {-|
   Generate the I64 WASM value.
- 
-  \params WasmEdge_Value 
-  \param Val the I64 value.
- 
-  \returns WasmEdge_Value struct with the I64 value.
 -}
-{#fun pure unsafe ValueGenI64 as ^ {+, `Int64'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenI64 as ^ 
+  {+
+  , `Int64'           -- ^ the I64 value.
+  } -> `WasmVal'      -- ^ WasmEdge_Value struct with the I64 value. 
+#}
+
 {-|
   Retrieve the I64 value from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns I64 value in the input struct.
-WASMEDGE_CAPI_EXPORT extern int64_t
 -}
-{#fun pure unsafe ValueGetI64 as ^ {`WasmVal'} -> `Int64' #}
+{#fun pure unsafe ValueGetI64 as ^ 
+  {`WasmVal'          -- ^ the WasmEdge_Value struct.
+  } -> `Int64'        -- ^ I64 value in the input struct. WASMEDGE_CAPI_EXPORT extern int64_t
+#}
 
 {-|
   Generate the F32 WASM value.
- 
-  \param Val the F32 value.
- 
-  \returns WasmEdge_Value struct with the F32 value.
 -}
-{#fun pure unsafe ValueGenF32 as ^ {+, `Float'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenF32 as ^ 
+  {+
+  , `Float'         -- ^ the F32 value.
+  } -> `WasmVal'    -- ^ WasmEdge_Value struct with the F32 value. 
+#}
+
 {-|
   Retrieve the F32 value from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns F32 value in the input struct.
 -}
-{#fun pure unsafe ValueGetF32 as ^ {`WasmVal'} -> `Float' #}
+{#fun pure unsafe ValueGetF32 as ^ 
+  {`WasmVal'      -- ^ the WasmEdge_Value struct.
+  } -> `Float'    -- ^ F32 value in the input struct. 
+#}
 
 {-|
   Generate the F64 WASM value.
-  \param refere                                   
-  \param Val the F64 value.
- 
-  \returns WasmEdge_Value struct with the F64 value.
 -}
-{#fun pure unsafe ValueGenF64 as ^ {+, `Double'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenF64 as ^ 
+  {+
+  , `Double'        -- ^ the F64 value.
+  } -> `WasmVal'    -- ^ WasmEdge_Value struct with the F64 value. 
+#}
+
 {-|
   Retrieve the F64 value from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns F64 value in the input struct.
 -}
-{#fun pure unsafe ValueGetF64 as ^ {`WasmVal'} -> `Double' #}
+{#fun pure unsafe ValueGetF64 as ^ 
+  {`WasmVal'          -- ^ the WasmEdge_Value struct.
+  } -> `Double'       -- ^ F64 value in the input struct. 
+#}
 
 {-|
   Generate the V128 WASM value.
- 
-  \param Val the V128 value.
- 
-  \returns WasmEdge_Value struct with the V128 value.
 -}
-{#fun pure unsafe ValueGenV128 as ^ {+, allocI128*`Int128'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenV128 as ^ 
+  {+, 
+  allocI128*`Int128'        -- ^ the V128 value.
+  } -> `WasmVal'            -- ^ WasmEdge_Value struct with the V128 value.
+#}
 
 allocI128 :: Int128 -> (Ptr CULong -> IO a) -> IO a
 allocI128 i128 f = alloca $ \p -> poke p i128 *> f (castPtr p)
@@ -1405,79 +1686,60 @@ peekI128 p = peek @Int128 (castPtr p)
 
 {-|
   Retrieve the V128 value from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns V128 value in the input struct.
 -}
-{#fun pure unsafe ValueGetV128 as ^ {`WasmVal', alloca-`Int128'peekI128*} -> `()' #}
+{#fun pure unsafe ValueGetV128 as ^ 
+  {`WasmVal'                    -- ^ the WasmEdge_Value struct.
+  , alloca-`Int128'peekI128*    -- ^ V128 value in the input struct.
+  } -> `()' 
+#}
 
 {-|
   Generate the NULL reference WASM value.
- 
-  The values generated by this function are only meaningful when the
-  `WasmEdge_Proposal_BulkMemoryOperations` or the
-  `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
-  
-  \param v The refernece to WasmEdge_Value, in which the result would be stored.
-  \param T the reference type.
- 
-  \returns WasmEdge_Value struct with the NULL reference.
 -}
-{#fun pure unsafe ValueGenNullRef as ^ {+, cFromEnum`RefType'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenNullRef as ^ 
+  {+
+  , cFromEnum`RefType'      -- ^ The reference type
+  } -> `WasmVal'            -- ^ WasmEdge_Value struct with the NULL reference. 
+#}
+
 {-|
   Specify the WASM value is a null reference or not.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns true if the value is a null reference, false if not.
 -}
-{#fun pure unsafe ValueIsNullRef as ^ {`WasmVal'} -> `Bool' #}
+{#fun pure unsafe ValueIsNullRef as ^ 
+  {`WasmVal'    -- ^ the WasmEdge_Value struct.
+  } -> `Bool'   -- ^ true if the value is a null reference, false if not. 
+#}
 
 {-|
 Creation of the WasmEdge_String with the C string.
-
-The caller owns the object and should call `WasmEdge_StringDelete` to
-destroy it. This function only supports the C string with NULL termination.
-If the input string may have `\0` character, please use the
-`WasmEdge_StringCreateByBuffer` instead.
-
-\params strOut reference to WasmEdge_String in which the result would be stored.
-\param Str the NULL-terminated C string to copy into the WasmEdge_String
-object.
-
-\returns string object. Length will be 0 and Buf will be NULL if failed or
-the input string is a NULL.
 -}
-{#fun unsafe StringCreateByCStringOut as stringCreateByCString {+,`String'} -> `WasmString' #}
+{#fun unsafe StringCreateByCStringOut as stringCreateByCString 
+  {+
+  ,`String'           -- ^ the NULL-terminated C string to copy into the WasmEdge_String object.
+  } -> `WasmString'   -- ^ string object. Length will be 0 and Buf will be NULL if failed or the input string is a NULL. 
+#}
+
 {#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
 {#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
 
 {-|
 Compare the two WasmEdge_String objects.
-
-\param Str1 the first WasmEdge_String object to compare.
-\param Str2 the second WasmEdge_String object to compare.
-
-\returns true if the content of two WasmEdge_String objects are the same,
-false if not.
 -}
-{#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq {%`WasmString', %`WasmString'} -> `Bool' #}
+{#fun pure unsafe WasmEdge_StringIsEqual as wasmStringEq 
+  {%`WasmString'        -- ^ the first WasmEdge_String object to compare.
+  , %`WasmString'       -- ^ the second WasmEdge_String object to compare.
+  } -> `Bool'           -- ^ true if the content of two WasmEdge_String objects are the same, false if not. 
+#}
+
 {-|
   Copy the content of WasmEdge_String object to the buffer.
- 
-  This function copy at most `Len` characters from the `WasmEdge_String`
-  object to the destination buffer. If the string length is less than `Len`
-  characters long, the remainder of the buffer is filled with `\0' characters.
-  Otherwise, the destination is not terminated.
- 
-  \param Str the source WasmEdge_String object to copy.
-  \param Buf the buffer to fill the string content.
-  \param Len the buffer length.
- 
-  \returns the copied length of string.
+  This function copy at most `Len` characters from the `WasmEdge_String` object to the destination buffer. If the string length is less than `Len` characters long, the remainder of the buffer is filled with `\0' characters. Otherwise, the destination is not terminated.
 -}
-{#fun pure unsafe WasmEdge_StringCopy as _stringCopy {%`WasmString', memBuffIn*`MemBuff'&} -> `Word32' #}
+{#fun pure unsafe WasmEdge_StringCopy as _stringCopy 
+  {%`WasmString'                  -- ^ the source WasmEdge_String object to copy.
+  , memBuffIn*`MemBuff'&          -- ^ the buffer to fill the string content. and the length of the buffer
+} -> `Word32' #}                  -- ^ the copied length of string.
+
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
@@ -1598,8 +1860,8 @@ pattern WRError errCat code <- ((resultOK &&& resultGetCategory &&& (toEnum . fr
 {- |
   Returning Length of WasmEdge_String 
 -}
-wasmStringLength :: WasmString -> IO Word32
-wasmStringLength wstr = withWasmString wstr (fmap fromIntegral . {#get WasmEdge_String.Length #})
+wasmStringLength :: WasmString -> Word32
+wasmStringLength wstr = unsafePerformIO $ withWasmString wstr (fmap fromIntegral . {#get WasmEdge_String.Length #})
 
 {-|
   Converting WasmEdge_String to Text
@@ -1621,24 +1883,22 @@ cFromEnum = fromIntegral . fromEnum
 
 {-|
 Check the result is a success or not.
-
-\param Res the WasmEdge_Result struct.
-
-\returns true if the error code is WasmEdge_Result_Success or
-WasmEdge_Result_Terminate, false for others.
 -}
-{#fun pure unsafe ResultOK as resultOK {%`WasmResult'} -> `Bool' #}
+{#fun pure unsafe ResultOK as resultOK 
+  {%`WasmResult'              -- ^ the WasmEdge_Result struct.
+  } -> `Bool'                 -- ^ true if the error code is WasmEdge_Result_Success or WasmEdge_Result_Terminate, false for others.
+#}
 
 {-|
   Generate the result with code.
- 
-  \param Category the WasmEdge_ErrCategory to specify the error category.
-  \param Code the 24-bit length error code. The data exceeds 24 bits will be
-  stripped.
- 
-  \returns WasmEdge_Result struct with the given data.
 -}
-{#fun pure unsafe ResultGenOut as resultGen {+, cFromEnum`ErrCategory', `CUInt'} -> `WasmResult' #}
+{#fun pure unsafe ResultGenOut as resultGen 
+  {+
+  , cFromEnum`ErrCategory'      -- ^ the WasmEdge_ErrCategory to specify the error category.
+  , `CUInt'                     -- ^ the 24-bit length error code. The data exceeds 24 bits will be stripped.
+  } -> `WasmResult'             -- ^ WasmEdge_Result struct with the given data. 
+#}
+
 {-|
   Get the result code.
  
@@ -1649,24 +1909,20 @@ WasmEdge_Result_Terminate, false for others.
 {#fun pure unsafe ResultGetCode as ^ {%`WasmResult'} -> `Word32' #}
 {-|
   Get the error category.
- 
-  \param Res the WasmEdge_Result struct.
- 
-  \returns error category in the WasmEdge_Result struct.
 -}
-{#fun pure unsafe ResultGetCategory as ^ {%`WasmResult'} -> `ErrCategory'cToEnum #}
+{#fun pure unsafe ResultGetCategory as ^ 
+  {%`WasmResult'                  -- ^ the WasmEdge_Result struct.
+  } -> `ErrCategory'cToEnum       -- ^ error category in the WasmEdge_Result struct. 
+#}
+
 {-|
   Get the result message.
- 
-  The returned string must __NOT__ be destroyed.
-  If the error category of the result is __NOT__ `WasmEdge_ErrCategory_WASM`,
-  the message will always be "user defined error code".
- 
-  \param Res the WasmEdge_Result struct.
- 
-  \returns NULL-terminated C string of the corresponding error message.
+  The returned string must __NOT__ be destroyed. If the error category of the result is __NOT__ `WasmEdge_ErrCategory_WASM`, the message will always be "user defined error code".
 -}
-{#fun pure unsafe ResultGetMessage as ^ {%`WasmResult'} -> `ByteString'packCStringBS* #}
+{#fun pure unsafe ResultGetMessage as ^ 
+  {%`WasmResult'                      -- ^ the WasmEdge_Result struct.
+  } -> `ByteString'packCStringBS*     -- ^ NULL-terminated C string of the corresponding error message. 
+#}
 {#fun pure unsafe WasmEdge_LimitIsEqual as limitEq_ {%`Limit',%`Limit'} -> `Bool'#}
 
 instance Eq Limit where
@@ -1846,43 +2102,39 @@ Opaque struct of WasmEdge function type.
 
 {-|
   Generate the function reference WASM value.
- 
-  The values generated by this function are only meaningful when the
-  `WasmEdge_Proposal_BulkMemoryOperations` or the
-  `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
- 
-  \param Cxt the function instance context to convert to the reference.
- 
-  \returns WasmEdge_Value struct with the function reference.
+  The values generated by this function are only meaningful when the `WasmEdge_Proposal_BulkMemoryOperations` or the `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
 -}
-{#fun pure unsafe ValueGenFuncRef as ^ {+, `FunctionInstanceContext'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenFuncRef as ^ 
+  {+
+  , `FunctionInstanceContext'         -- ^ the function instance context to convert to the reference.
+  } -> `WasmVal'                      -- ^ WasmEdge_Value struct with the function reference. 
+#}
+
 {-|
   Retrieve the function instance context from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns pointer to function instance context in the input struct.
 -}
-{#fun pure unsafe ValueGetFuncRef as ^ {`WasmVal'} -> `FunctionInstanceContext' #}
+{#fun pure unsafe ValueGetFuncRef as ^ 
+  {`WasmVal'                        -- ^ the WasmEdge_Value struct.
+  } -> `FunctionInstanceContext'    00 ^ pointer to function instance context in the input struct.
+#}
+
 {-|
   Generate the function reference WASM value.
- 
-  The values generated by this function are only meaningful when the
-  `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
- 
-  \param Ref the reference to the external object.
- 
-  \returns WasmEdge_Value struct with the external reference.
+  The values generated by this function are only meaningful when the `WasmEdge_Proposal_ReferenceTypes` turns on in configuration.
 -}
-{#fun pure unsafe ValueGenExternRef as ^ {+, fromHsRefIn*`HsRef'} -> `WasmVal' #}
+{#fun pure unsafe ValueGenExternRef as ^ 
+  {+
+  , fromHsRefIn*`HsRef'       -- ^ the reference to the external object.
+  } -> `WasmVal'              -- ^ WasmEdge_Value struct with the external reference. 
+#}
+
 {-|
   Retrieve the external reference from the WASM value.
- 
-  \param Val the WasmEdge_Value struct.
- 
-  \returns external reference in the input struct.
 -}
-{#fun pure unsafe ValueGetExternRef as ^ {`WasmVal'} -> `HsRef'toHsRefOut* #}
+{#fun pure unsafe ValueGetExternRef as ^ 
+  {`WasmVal'                    -- ^ the WasmEdge_Value struct.
+  } -> `HsRef'toHsRefOut*       -- ^ external reference in the input struct. 
+#}
 
 deriving newtype instance Storable ImportTypeContext
 deriving newtype instance Storable ExportTypeContext
@@ -1979,423 +2231,376 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 -- Configure
 {-|
   Creation of the WasmEdge_ConfigureContext.
- 
-  The caller owns the object and should call `WasmEdge_ConfigureDelete` to
-  destroy it.
- 
-  \returns pointer to the context, NULL if failed.
 -}
-{#fun unsafe ConfigureCreate as ^ {} -> `ConfigureContext'#}
+{#fun unsafe ConfigureCreate as ^ 
+  {} -> `ConfigureContext'    -- pointer to the context, NULL if failed.
+#}
+
 {-|
   Add a proposal setting into the WasmEdge_ConfigureContext.
- 
-  For turning on a specific WASM proposal in VM, loader, or compiler contexts,
-  etc., you can set the proposal value into the WasmEdge_ConfigureContext and
-  create the VM, loader, or compiler contexts, etc. with this context.
- 
-  ```c
-  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_BulkMemoryOperations);
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_SIMD);
-  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
-  ```
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to add the proposal value.
-  \param Prop the proposal value.
 -}
-{#fun unsafe ConfigureAddProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
+{#fun unsafe ConfigureAddProposal as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to add the proposal value.
+  ,`Proposal'             -- ^ the proposal value.
+  } -> `()'
+#}
+
 {-|
   Remove a proposal setting in the WasmEdge_ConfigureContext.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to remove the proposal.
-  \param Prop the proposal value.
 -}
-{#fun unsafe ConfigureRemoveProposal as ^ {`ConfigureContext',`Proposal'} -> `()'#}
+{#fun unsafe ConfigureRemoveProposal as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to remove the proposal.
+  ,`Proposal'             -- ^ the proposal value.
+  } -> `()'
+#}
 
 {-|
   Check if a proposal setting exists in the WasmEdge_ConfigureContext or not.
   This function is thread-safe.
-  \param Cxt the WasmEdge_ConfigureContext to check the proposal value.
-  \param Prop the proposal value.
-  \returns true if the proposal setting exists, false if not.
 -}
-{#fun unsafe ConfigureHasProposal as ^ {`ConfigureContext',`Proposal'} -> `Bool'#}
+{#fun unsafe ConfigureHasProposal as ^ 
+  {`ConfigureContext'    -- ^ the WasmEdge_ConfigureContext to check the proposal value.
+  ,`Proposal'            -- ^ the proposal value.
+  } -> `Bool'            -- ^ true if the proposal setting exists, false if not.
+#}
 
 {- |
   Add a built-in host registration setting into WasmEdge_ConfigureContext.
- 
-  For turning on the Wasi support in `WasmEdge_VMContext`, you can set the
-  built-in host registration value into the `WasmEdge_ConfigureContext` and
-  create VM with this context.
- 
+  For turning on the Wasi support in `WasmEdge_VMContext`, you can set the built-in host registration value into the `WasmEdge_ConfigureContext` and create VM with this context.
   ```c
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, NULL);
   ```
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to add built-in host registration.
-  \param Host the built-in host registration value.
 -}
-{#fun unsafe ConfigureAddHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
+{#fun unsafe ConfigureAddHostRegistration as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to add built-in host registration.
+  ,`HostRegistration'     -- ^ the built-in host registration value.
+  } -> `()'
+#}
 
 {- |
-  Remove a built-in host registration setting in the
-  WasmEdge_ConfigureContext.
- 
+  Remove a built-in host registration setting in the WasmEdge_ConfigureContext.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to remove the host
-  pre-registration.
-  \param Host the built-in host registration value.
 -}
-{#fun unsafe ConfigureRemoveHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `()'#}
+{#fun unsafe ConfigureRemoveHostRegistration as ^ 
+  {`ConfigureContext'   -- ^ the WasmEdge_ConfigureContext to remove the host pre-registration.
+  ,`HostRegistration'   -- ^ the built-in host registration value.
+  } -> `()'
+#}
+
 {-|
-  Check if a built-in host registration setting exists in the
-  WasmEdge_ConfigureContext or not.
- 
+  Check if a built-in host registration setting exists in the WasmEdge_ConfigureContext or not.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to check the host pre-registration.
-  \param Host the built-in host registration value.
- 
-  \returns true if the built-in host registration setting exists, false if
-  not.
 -}
-{#fun unsafe ConfigureHasHostRegistration as ^ {`ConfigureContext',`HostRegistration'} -> `Bool'#}
+{#fun unsafe ConfigureHasHostRegistration as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to check the host pre-registration.
+  ,`HostRegistration'     -- ^ the built-in host registration value.
+  } -> `Bool'             -- ^ true if the built-in host registration setting exists, false if not.
+#}
+
 {-|
   Set the page limit of memory instances.
- 
   Limit the page count (64KiB per page) in memory instances.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the maximum page count.
-  \param Page the maximum page count.
 -}
-{#fun unsafe ConfigureSetMaxMemoryPage as ^ {`ConfigureContext', `Word32'} -> `()'#}
+{#fun unsafe ConfigureSetMaxMemoryPage as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to set the maximum page count.
+  , `Word32'              -- ^ the maximum page count.
+  } -> `()'
+#}
+
 {-|
   Get the setting of the page limit of memory instances.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the maximum page count
-  setting.
- 
-  \returns the page count limitation value.
 -}
-{#fun unsafe ConfigureGetMaxMemoryPage as ^ {`ConfigureContext'} -> `Word32'#}
+{#fun unsafe ConfigureGetMaxMemoryPage as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to get the maximum page count setting.
+  } -> `Word32'           -- ^ the page count limitation value.
+#}
+
 {-|
   Set the force interpreter mode execution option.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param isForceInterpreter the boolean value to determine to forcibly run
-  WASM in interpreter mode or not.
 -}
-{#fun unsafe ConfigureSetForceInterpreter as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureSetForceInterpreter as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                -- ^ the boolean value to determine to forcibly run WASM in interpreter mode or not.
+  } -> `()'
+#}
+
 {-|
   Get the force interpreter mode execution option.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to forcibly run WASM in interpreter
-  mode or not.
 -}
-{#fun unsafe ConfigureIsForceInterpreter as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureIsForceInterpreter as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  } -> `Bool'             -- ^ the boolean value to determine to forcibly run WASM in interpreter mode or not.
+#}
+
 {-|
   Set the optimization level of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the optimization level.
-  \param Level the AOT compiler optimization level.
 -}
-{#fun unsafe ConfigureCompilerSetOptimizationLevel as ^ {`ConfigureContext', `CompilerOptimizationLevel'} -> `()'#}
+{#fun unsafe ConfigureCompilerSetOptimizationLevel as ^ 
+  {`ConfigureContext'               -- ^ the WasmEdge_ConfigureContext to set the optimization level.
+  , `CompilerOptimizationLevel'     -- ^ the AOT compiler optimization level.
+  } -> `()'
+#}
+
 {-|
   Get the optimization level of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the optimization level.
- 
-  \returns the AOT compiler optimization level.
 -}
-{#fun unsafe ConfigureCompilerGetOptimizationLevel as ^ {`ConfigureContext'} -> `CompilerOptimizationLevel'#}
+{#fun unsafe ConfigureCompilerGetOptimizationLevel as ^ 
+  {`ConfigureContext'               -- ^ the WasmEdge_ConfigureContext to get the optimization level.
+  }-> `CompilerOptimizationLevel'   -- ^ the AOT compiler optimization level.
+#}
+
 {-|
   Set the output binary format of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the output binary format.
-  \param Format the AOT compiler output binary format.
 -}
-{#fun unsafe ConfigureCompilerSetOutputFormat as ^ {`ConfigureContext', `CompilerOutputFormat'} -> `()'#}
+{#fun unsafe ConfigureCompilerSetOutputFormat as ^ 
+  {`ConfigureContext'         -- ^ the WasmEdge_ConfigureContext to set the output binary format.
+  , `CompilerOutputFormat'    -- ^ the AOT compiler output binary format.
+  } -> `()'
+#}
+
 {-|
   Get the output binary format of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the output binary format.
- 
-  \returns the AOT compiler output binary format.
 -}
-{#fun unsafe ConfigureCompilerGetOutputFormat as ^ {`ConfigureContext'} -> `CompilerOutputFormat'#}
+{#fun unsafe ConfigureCompilerGetOutputFormat as ^ 
+  {`ConfigureContext'             -- ^ the WasmEdge_ConfigureContext to get the output binary format.
+  } -> `CompilerOutputFormat'     -- ^ the AOT compiler output binary format.
+#}
+
 {-|
   Set the dump IR option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsDump the boolean value to determine to dump IR or not when
-  compilation in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerSetDumpIR as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerSetDumpIR as ^ 
+  {`ConfigureContext'           -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                      -- ^ the boolean value to determine to dump IR or not when compilation in AOT compiler.
+  } -> `()'
+#}
+
 {-|
   Get the dump IR option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to dump IR or not when compilation
-  in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerIsDumpIR as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerIsDumpIR as ^ 
+  {`ConfigureContext'           -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  } -> `Bool'                   -- ^ the boolean value to determine to dump IR or not when compilation in AOT compiler.
+#}
+
 {-|
   Set the generic binary option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsGeneric the boolean value to determine to generate the generic
-  binary or not when compilation in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerSetGenericBinary as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerSetGenericBinary as ^ 
+  {`ConfigureContext'           -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                      -- ^ the boolean value to determine to generate the generic binary or not when compilation in AOT compiler.
+  } -> `()'
+#}
+
 {-|
   Get the generic binary option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to generate the generic binary or
-  not when compilation in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerIsGenericBinary as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerIsGenericBinary as ^ 
+  {`ConfigureContext'            -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  } -> `Bool'                    -- ^ the boolean value to determine to generate the generic binary or not when compilation in AOT compiler.
+#}
+
 {-|
   Set the interruptible option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsInterruptible the boolean value to determine to generate
-  interruptible binary or not when compilation in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerSetInterruptible as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureCompilerSetInterruptible as ^ 
+  {`ConfigureContext'           -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                      -- ^ the boolean value to determine to generate interruptible binary or not when compilation in AOT compiler.
+  } -> `()'
+#}
+
 {-|
   Get the interruptible option of the AOT compiler.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to generate interruptible binary or
-  not when compilation in AOT compiler.
 -}
-{#fun unsafe ConfigureCompilerIsInterruptible as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureCompilerIsInterruptible as ^ 
+  {`ConfigureContext'           -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  } -> `Bool'                   -- ^ the boolean value to determine to generate interruptible binary or not when compilation in AOT compiler.
+#}
+
 {-|
   Set the instruction counting option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsCount the boolean value to determine to support instruction
-  counting when execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsSetInstructionCounting as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsSetInstructionCounting as ^ 
+  {`ConfigureContext'      -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                 -- ^ the boolean value to determine to support instruction counting when execution or not after compilation by the AOT compiler.
+  } -> `()'
+  #}
+
 {-|
   Get the instruction counting option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to support instruction counting when
-  execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsIsInstructionCounting as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsIsInstructionCounting as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  } -> `Bool'             -- ^ the boolean value to determine to support instruction counting when execution or not after compilation by the AOT compiler.
+#}
+
 {-|
   Set the cost measuring option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsMeasure the boolean value to determine to support cost measuring
-  when execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsSetCostMeasuring as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsSetCostMeasuring as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  , `Bool'                -- ^ the boolean value to determine to support cost measuring when execution or not after compilation by the AOT compiler.
+  } -> `()'
+#}
+
 {-|
   Set the cost measuring option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsMeasure the boolean value to determine to support cost measuring
-  when execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsIsCostMeasuring as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsIsCostMeasuring as ^ 
+  {`ConfigureContext'   -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  } -> `Bool'           -- ^ the boolean value to determine to support cost measuring when execution or not after compilation by the AOT compiler.
+#}
+
 {-|
   Get the cost measuring option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
- 
-  \returns the boolean value to determine to support cost measuring when
-  execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsSetTimeMeasuring as ^ {`ConfigureContext', `Bool'} -> `()'#}
+{#fun unsafe ConfigureStatisticsSetTimeMeasuring as ^ 
+  {`ConfigureContext'     -- ^ the WasmEdge_ConfigureContext to get the boolean value.
+  , `Bool'                -- ^ the boolean value to determine to support cost measuring when execution or not after compilation by the AOT compiler.
+  } -> `()'
+#}
+
 {-|
   Set the time measuring option for the statistics.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-  \param IsMeasure the boolean value to determine to support time when
-  execution or not after compilation by the AOT compiler.
 -}
-{#fun unsafe ConfigureStatisticsIsTimeMeasuring as ^ {`ConfigureContext'} -> `Bool'#}
+{#fun unsafe ConfigureStatisticsIsTimeMeasuring as ^ 
+  {`ConfigureContext'         -- ^ the WasmEdge_ConfigureContext to set the boolean value.
+  } -> `Bool'                 -- ^ the boolean value to determine to support time when execution or not after compilation by the AOT compiler.
+#}
 
 -- Statistics
 {-|
   Creation of the WasmEdge_StatisticsContext.
- 
-  The caller owns the object and should call `WasmEdge_StatisticsDelete` to
-  destroy it.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_StatisticsDelete` to destroy it.
 -}
-{#fun unsafe StatisticsCreate as ^ {} -> `StatisticsContext'#}
+{#fun unsafe StatisticsCreate as ^ 
+{} -> `StatisticsContext'   -- ^ pointer to context, NULL if failed. 
+#}
+
 {-|
   Get the instruction count in execution.
- 
-  \param Cxt the WasmEdge_StatisticsContext to get data.
- 
-  \returns the instruction count in total execution.
 -}
-{#fun unsafe StatisticsGetInstrCount as ^ {`StatisticsContext'} -> `Word64'#}
+{#fun unsafe StatisticsGetInstrCount as ^ 
+  {`StatisticsContext'     -- ^ the WasmEdge_StatisticsContext to get data.
+  } -> `Word64'            -- ^ the instruction count in total execution.
+#}
+
 {-|
   Get the instruction count per second in execution.
- 
-  \param Cxt the WasmEdge_StatisticsContext to get data.
- 
-  \returns the instruction count per second.
 -}
-{#fun unsafe StatisticsGetInstrPerSecond as ^ {`StatisticsContext'} -> `Double'#}
+{#fun unsafe StatisticsGetInstrPerSecond as ^ 
+  {`StatisticsContext'    -- ^ the WasmEdge_StatisticsContext to get data.
+  } -> `Double'           -- ^ the instruction count per second.
+#}
+
 {-|
   Get the total cost in execution.
- 
-  \param Cxt the WasmEdge_StatisticsContext to get data.
- 
-  \returns the total cost.
 -}
-{#fun unsafe StatisticsGetTotalCost as ^ {`StatisticsContext'} -> `Word64'#}
+{#fun unsafe StatisticsGetTotalCost as ^ 
+  {`StatisticsContext'    -- ^ the WasmEdge_StatisticsContext to get data.
+  } -> `Word64'           -- ^ the total cost.
+#}
+
 {-|
   Set the costs of instructions.
- 
-  \param Cxt the WasmEdge_StatisticsContext to set the cost table.
-  \param CostArr the cost table array.
-  \param Len the length of the cost table array.
 -}
-{#fun unsafe StatisticsSetCostTable as ^ {`StatisticsContext', fromStoreVecOr0Ptr*`Vector Word64'&} -> `()'#}
+{#fun unsafe StatisticsSetCostTable as ^ 
+  {`StatisticsContext'                    -- ^ the WasmEdge_StatisticsContext to set the cost table.
+  , fromStoreVecOr0Ptr*`Vector Word64'&   -- ^ the cost table array and the length of the cost table array.
+  } -> `()'
+#}
+
 {-|
   Set the cost limit in execution.
- 
-  The WASM execution will be aborted if the instruction costs exceeded the
-  limit and the ErrCode::Value::CostLimitExceeded will be returned.
- 
-  \param Cxt the WasmEdge_StatisticsContext to set the cost table.
-  \param Limit the cost limit.
+  The WASM execution will be aborted if the instruction costs exceeded the limit and the ErrCode::Value::CostLimitExceeded will be returned.
 -}
-{#fun unsafe StatisticsSetCostLimit as ^ {`StatisticsContext', `Word64'} -> `()'#}
+{#fun unsafe StatisticsSetCostLimit as ^ 
+  {`StatisticsContext'      -- ^ the WasmEdge_StatisticsContext to set the cost table.
+  , `Word64'                -- ^ the cost limit.
+  } -> `()'
+#}
 
 {-|
   Clear all data in the WasmEdge_StatisticsContext.
- 
-  \param Cxt the WasmEdge_StatisticsContext to clear.
 -}
-{#fun unsafe StatisticsClear as ^ {`StatisticsContext'} -> `()'#}
+{#fun unsafe StatisticsClear as ^ 
+  {`StatisticsContext'    -- ^ the WasmEdge_StatisticsContext to clear.
+  } -> `()'
+#}
 
 -- AST Module
 {-|
   Get the length of imports list of the AST module.
- 
-  \param Cxt the WasmEdge_ASTModuleContext.
- 
-  \returns length of the imports list.
 -}
-{#fun unsafe ASTModuleListImportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
+{#fun unsafe ASTModuleListImportsLength as ^ 
+  {`ASTModuleContext'          -- ^ the WasmEdge_ASTModuleContext.
+  } -> `Word32'                -- ^ length of the imports list.
+#}
 {#fun unsafe ASTModuleListImports as astModuleListImports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ImportTypeContext'&} -> `Word32'#}
+
 {-|
   Get the length of exports list of the AST module.
- 
-  \param Cxt the WasmEdge_ASTModuleContext.
- 
-  \returns length of the exports list.
 -}
-{#fun unsafe ASTModuleListExportsLength as ^ {`ASTModuleContext'} -> `Word32'#}
+{#fun unsafe ASTModuleListExportsLength as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  } -> `Word32'               -- ^ length of the exports list.
+#}
+-- TODO:
+-- why is there the _ ?
 {#fun unsafe ASTModuleListExports as astModuleListExports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ExportTypeContext'&} -> `Word32'#}
 
--- * Function
+-- Function
 {-|
   Creation of the WasmEdge_FunctionTypeContext.
- 
-  The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
-  destroy it.
- 
-  \param ParamList the value types list of parameters. NULL if the length is
-  0.
-  \param ParamLen the ParamList buffer length.
-  \param ReturnList the value types list of returns. NULL if the length is 0.
-  \param ReturnLen the ReturnList buffer length.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe FunctionTypeCreate as ^ {fromStoreVecOr0Ptr*`Vector ValType'&, fromStoreVecOr0Ptr*`Vector ValType'&} -> `FunctionTypeContext'#}
+{#fun unsafe FunctionTypeCreate as ^ 
+  {fromStoreVecOr0Ptr*`Vector ValType'&,    -- ^ the value types list of parameters. NULL if the length is 0 and the buffer length 
+  fromStoreVecOr0Ptr*`Vector ValType'&      -- ^ the value types list of returns. NULL if the length is 0 and the buffer length
+  } -> `FunctionTypeContext'                -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Get the parameter types list length from the WasmEdge_FunctionTypeContext.
- 
-  \param Cxt the WasmEdge_FunctionTypeContext.
- 
-  \returns the parameter types list length.
 -}
-{#fun unsafe FunctionTypeGetParametersLength as ^ {`FunctionTypeContext'} -> `Word32'#}
+{#fun unsafe FunctionTypeGetParametersLength as ^ 
+  {`FunctionTypeContext'        -- ^ the WasmEdge_FunctionTypeContext.
+  } -> `Word32'                 -- ^ the parameter types list length.
+#}
 {#fun unsafe FunctionTypeGetParameters as functionTypeGetParameters_ {`FunctionTypeContext', fromMutIOVecOfCEnumOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
 
 {-|
 Get the parameter types list from the WasmEdge_FunctionTypeContext.
-
-If the `List` buffer length is smaller than the length of the parameter type
-list, the overflowed values will be discarded.
-\param Cxt the WasmEdge_FunctionTypeContext.
-\param [out] List the WasmEdge_ValType buffer to fill the parameter value
-types.
-\param Len the value type buffer length.
-\returns the actual parameter types list length.
 -}
-functionTypeGetParameters :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
+functionTypeGetParameters :: 
+  FunctionTypeContext           -- ^ the WasmEdge_FunctionTypeContext. 
+  -> Word32                     -- ^ [out] List the WasmEdge_ValType buffer to fill the parameter value types.
+  -> IO (Vector ValType)
 functionTypeGetParameters fcxt buffLen = do
   v <- VSM.new (fromIntegral buffLen)
   len <- functionTypeGetParameters_ fcxt v
@@ -2463,16 +2668,24 @@ instance Enum t => Storable (ViaFromEnum t) where
   alignment = alignment . fromEnum . getHsEnumTy
   peek = fmap (ViaFromEnum . toEnum) . peek @Int . castPtr 
   poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
--- * Function Type
+
+-- Function Type
 {-|
 Get the return types list length from the WasmEdge_FunctionTypeContext.
-\param Cxt the WasmEdge_FunctionTypeContext.
-\returns the return types list length.
 -}
-{#fun unsafe FunctionTypeGetReturnsLength as ^ {`FunctionTypeContext'} -> `Word32'#}
+{#fun unsafe FunctionTypeGetReturnsLength as ^ 
+  {`FunctionTypeContext'    -- ^ the WasmEdge_FunctionTypeContext.
+  } -> `Word32'             -- ^ the return types list length.
+#}
 {#fun unsafe FunctionTypeGetReturns as functionTypeGetReturns_ {`FunctionTypeContext', fromMutIOVecOfCEnumOr0Ptr*`IOVector ValType'&} -> `Word32'#}
 
-functionTypeGetReturns :: FunctionTypeContext -> Word32 -> IO (Vector ValType)
+{-|
+Get the return types list from the WasmEdge_FunctionTypeContext.
+-}
+functionTypeGetReturns :: 
+  FunctionTypeContext         -- ^ the WasmEdge_FunctionTypeContext. 
+  -> Word32                  -- ^ [out] List the WasmEdge_ValType buffer to fill the return value and the length
+  -> IO (Vector ValType)     -- ^ the actual return types list length.  
 functionTypeGetReturns fcxt buffLen = do
   v <- VSM.new (fromIntegral buffLen)
   len <- functionTypeGetReturns_ fcxt v
@@ -2487,460 +2700,307 @@ useFinalizerFree = coerce . newForeignPtr finalizerFree
 -- Table Type
 {-|
   Creation of the WasmEdge_TableTypeContext.
- 
-  The caller owns the object and should call `WasmEdge_TableTypeDelete` to
-  destroy it.
- 
-  \param RefType the reference type of the table type.
-  \param Limit the limit struct of the table type.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_TableTypeDelete` to destroy it.
 -}
-{#fun unsafe TableTypeCreate as ^ {`RefType',%`Limit'} -> `TableTypeContext' #}
+{#fun unsafe TableTypeCreate as ^ 
+  {`RefType'                  -- ^ the reference type of the table type.
+  ,%`Limit'                   -- ^ the limit struct of the table type.
+  } -> `TableTypeContext'     -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Get the reference type from a table type.
-  
-  \param Cxt the WasmEdge_TableTypeContext.
-  
-  \returns the reference type of the table type.
 -}
-{#fun unsafe TableTypeGetRefType as ^ {`TableTypeContext'} -> `RefType'#}      
+{#fun unsafe TableTypeGetRefType as ^ 
+  {`TableTypeContext'         -- ^ the WasmEdge_TableTypeContext.
+  } -> `RefType'              -- ^ the reference type of the table type.
+#}      
+
 {-|
   Get the limit from a table type.
- 
-  \param Cxt the WasmEdge_TableTypeContext.
- 
-  \returns the limit struct of the table type.
 -}
-{#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit {+,`TableTypeContext'} -> `Limit'#}
--- Memory Type
+{#fun unsafe TableTypeGetLimitOut as tableTypeGetLimit 
+  {+
+  ,`TableTypeContext'         -- ^ the WasmEdge_TableTypeContext.
+  } -> `Limit'                -- ^ the limit struct of the table type.
+#}
 
+-- Memory Type
 {- |
   Creation of the WasmEdge_MemoryTypeContext.
- 
-  The caller owns the object and should call `WasmEdge_MemoryTypeDelete` to
-  destroy it.
- 
-  \param Limit the limit struct of the memory type.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_MemoryTypeDelete` to destroy it.
 -}
-{#fun unsafe MemoryTypeCreate as ^ {%`Limit'} -> `MemoryTypeContext'#}  
+{#fun unsafe MemoryTypeCreate as ^ 
+  {%`Limit'                   -- ^ the limit struct of the memory type.
+  } -> `MemoryTypeContext'    -- ^ pointer to context, NULL if failed.
+#}  
 
 {-|
   Get the limit from a memory type.
- 
-  \param limOut the reference to WasmEdge_Limit in which the returning result would be stored.
-  \param Cxt the WasmEdge_MemoryTypeContext.
- 
-  \returns the limit struct of the memory type.
 -}
-{#fun unsafe MemoryTypeGetLimitOut as memoryTypeGetLimit {+,`MemoryTypeContext'} -> `Limit'#} 
+{#fun unsafe MemoryTypeGetLimitOut as memoryTypeGetLimit 
+  {+
+  ,`MemoryTypeContext'      -- ^ the WasmEdge_MemoryTypeContext.
+  } -> `Limit'              -- ^ the limit struct of the memory type.
+#} 
 
 -- Global Type
 {-|
   Creation of the WasmEdge_GlobalTypeContext.
- 
-  The caller owns the object and should call `WasmEdge_GlobalTypeDelete` to
-  destroy it.
- 
-  \param ValType the value type of the global type.
-  \param Mut the mutation of the global type.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_GlobalTypeDelete` to destroy it.
 -}
-{#fun unsafe GlobalTypeCreate as ^ {`ValType',`Mutability'} -> `GlobalTypeContext'#} 
+{#fun unsafe GlobalTypeCreate as ^ 
+  {`ValType'                  -- ^ the value type of the global type.
+  ,`Mutability'               -- ^ the mutation of the global type.
+  } -> `GlobalTypeContext'    -- ^ pointer to context, NULL if failed.
+#} 
+
 {-|
 Get the value type from a global type.
-
-\param Cxt the WasmEdge_GlobalTypeContext.
-
-\returns the value type of the global type.
 -}
-{#fun unsafe GlobalTypeGetValType as ^ {`GlobalTypeContext'} -> `ValType'#} 
-{-
-|
+{#fun unsafe GlobalTypeGetValType as ^ 
+  {`GlobalTypeContext'      -- ^ the WasmEdge_GlobalTypeContext.
+  } -> `ValType'            -- ^ the value type of the global type.
+#} 
+
+{-|
   Get the mutability from a global type.
- 
-  \param Cxt the WasmEdge_GlobalTypeContext.
- 
-  \returns the mutability of the global type.
 -}
-{#fun unsafe GlobalTypeGetMutability as ^ {`GlobalTypeContext'} -> `Mutability'#}
+{#fun unsafe GlobalTypeGetMutability as ^ 
+  {`GlobalTypeContext'      -- ^ the WasmEdge_GlobalTypeContext.
+  } -> `Mutability'         -- ^ the mutability of the global type.
+#}
 
 -- Import Type
 {-|
   Get the module name from an import type.
- 
-  The returned string object is linked to the module name of the import type,
-  and the caller should __NOT__ call the `WasmEdge_StringDelete`.
- 
-  \param strOut the reference to WasmEdge_String in which the result would be stored
-  \param Cxt the WasmEdge_ImportTypeContext.
- 
-  \returns string object. Length will be 0 and Buf will be NULL if failed.
 -}
-{#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName {+,`ImportTypeContext'} -> `WasmString'#}
+{#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName 
+  {+
+  ,`ImportTypeContext'            -- ^ the WasmEdge_ImportTypeContext.
+  } -> `WasmString'               -- ^ string object. Length will be 0 and Buf will be NULL if failed.
+#}
 
 {- |
   Get the external name from an import type.
- 
-  The returned string object is linked to the external name of the import
-  type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
- 
-  \param strOut the reference to WasmEdge_String in which the result would be stored
-  \param Cxt the WasmEdge_ImportTypeContext.
- 
-  \returns string object. Length will be 0 and Buf will be NULL if failed.
 -}
-{#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName {+,`ImportTypeContext'} -> `WasmString'#}
+{#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName 
+  {+
+  ,`ImportTypeContext'            -- ^ the WasmEdge_ImportTypeContext.
+  } -> `WasmString'               -- ^ string object. Length will be 0 and Buf will be NULL if failed.
+#}
 
 {-|
   Get the external value (which is function type) from an import type.
- 
-  The import type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The function type context links to the function type in the import type
-  context and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_FunctionTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the function type. NULL if failed or the external type of the
-  import type is not `WasmEdge_ExternalType_Function`.
 -}
 -- Question: Why have you written noFinalizer here
-{#fun unsafe ImportTypeGetFunctionType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `FunctionTypeContext'noFinalizer*#} 
+{#fun unsafe ImportTypeGetFunctionType as ^ 
+  {`ASTModuleContext'                     -- ^ the WasmEdge_ASTModuleContext.
+  ,`ImportTypeContext'                    -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+  } -> `FunctionTypeContext'noFinalizer*  -- ^ the function type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Function`.
+#} 
+
 {-|
   Get the external value (which is table type) from an import type.
- 
-  The import type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The table type context links to the table type in the import type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_TableTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the table type. NULL if failed or the external type of the import
-  type is not `WasmEdge_ExternalType_Table`.
 -}
-{#fun unsafe ImportTypeGetTableType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `TableTypeContext'#} 
+{#fun unsafe ImportTypeGetTableType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ImportTypeContext'        -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+  } -> `TableTypeContext'     -- ^ the table type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Table`.
+#} 
+
 {-|
   Get the external value (which is memory type) from an import type.
- 
-  The import type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The memory type context links to the memory type in the import type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_MemoryTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the memory type. NULL if failed or the external type of the import
-  type is not `WasmEdge_ExternalType_Memory`.
 -}
-{#fun unsafe ImportTypeGetMemoryType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `MemoryTypeContext'#} 
+{#fun unsafe ImportTypeGetMemoryType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ImportTypeContext'        -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+  } -> `MemoryTypeContext'    -- ^ the memory type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Memory`.
+#} 
+
 {-|
   Get the external value (which is global type) from an import type.
- 
-  The import type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The global type context links to the global type in the import type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_GlobalTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the global type. NULL if failed or the external type of the import
-  type is not `WasmEdge_ExternalType_Global`.
 -}
-{#fun unsafe ImportTypeGetGlobalType as ^ {`ASTModuleContext',`ImportTypeContext'} -> `GlobalTypeContext'#} 
+{#fun unsafe ImportTypeGetGlobalType as ^ 
+  {`ASTModuleContext'     -- ^ the WasmEdge_ASTModuleContext.
+  ,`ImportTypeContext'    -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+  } -> `GlobalTypeContext' -- ^ the global type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Global`.
+#} 
 
 -- Export Type
 {-|
   Get the external type from an export type.
- 
-  \param Cxt the WasmEdge_ExportTypeContext.
- 
-  \returns the external type of the export type.
 -}
-{#fun unsafe ExportTypeGetExternalType as ^ {`ExportTypeContext'} -> `ExternalType'#} 
+{#fun unsafe ExportTypeGetExternalType as ^ 
+  {`ExportTypeContext'    -- ^ the WasmEdge_ExportTypeContext.
+  } -> `ExternalType'     -- ^ the external type of the export type.
+#} 
+
 {-|
   Get the external name from an export type.
- 
-  The returned string object is linked to the external name of the export
-  type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
- 
-  \param strOut Reference to WasmEdge_String in which the result would be stored.
-  \param Cxt the WasmEdge_ExportTypeContext.
- 
-  \returns string object. Length will be 0 and Buf will be NULL if failed.
+  The returned string object is linked to the external name of the export type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
 -}
-{#fun unsafe ExportTypeGetExternalNameOut as exportTypeGetExternalName {+,`ExportTypeContext'} -> `WasmString'#} 
+{#fun unsafe ExportTypeGetExternalNameOut as exportTypeGetExternalName 
+  {+
+  ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext.
+  } -> `WasmString'           -- ^ string object. Length will be 0 and Buf will be NULL if failed.
+#} 
+
 {-|
   Get the external value (which is function type) from an export type.
- 
-  The export type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The function type context links to the function type in the export type
-  context and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_FunctionTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the function type. NULL if failed or the external type of the
-  export type is not `WasmEdge_ExternalType_Function`.
+  The export type context should be the one queried from the AST module context, or this function will cause unexpected error.
 -}
-{#fun unsafe ExportTypeGetFunctionType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `FunctionTypeContext'#} 
+{#fun unsafe ExportTypeGetFunctionType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+  } -> `FunctionTypeContext'  -- ^ the function type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Function`.
+#} 
+
 {-|
   Get the external value (which is table type) from an export type.
- 
-  The export type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The table type context links to the table type in the export type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_TableTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the table type. NULL if failed or the external type of the export
-  type is not `WasmEdge_ExternalType_Table`.
 -}
-{#fun unsafe ExportTypeGetTableType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `TableTypeContext'#}
+{#fun unsafe ExportTypeGetTableType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+  } -> `TableTypeContext'     -- ^ the table type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Table`.
+#}
+
 {-|
   Get the external value (which is memory type) from an export type.
- 
-  The export type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The memory type context links to the memory type in the export type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_MemoryTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the memory type. NULL if failed or the external type of the export
-  type is not `WasmEdge_ExternalType_Memory`.
 -}
-{#fun unsafe ExportTypeGetMemoryType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `MemoryTypeContext'#}
+{#fun unsafe ExportTypeGetMemoryType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+  } -> `MemoryTypeContext'    -- ^ the memory type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Memory`.
+#}
+
 {-|
   Get the external value (which is global type) from an export type.
- 
-  The export type context should be the one queried from the AST module
-  context, or this function will cause unexpected error.
-  The global type context links to the global type in the export type context
-  and the AST module context. The caller should __NOT__ call the
-  `WasmEdge_GlobalTypeDelete`.
- 
-  \param ASTCxt the WasmEdge_ASTModuleContext.
-  \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
- 
-  \returns the global type. NULL if failed or the external type of the export
-  type is not `WasmEdge_ExternalType_Global`.
 -}
-{#fun unsafe ExportTypeGetGlobalType as ^ {`ASTModuleContext',`ExportTypeContext'} -> `GlobalTypeContext'#}
+{#fun unsafe ExportTypeGetGlobalType as ^ 
+  {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
+  ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+  } -> `GlobalTypeContext'    -- ^ the global type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Global`.
+#}
 
 -- AOT Compiler
 {-|
   Creation of the WasmEdge_CompilerContext.
- 
-  The caller owns the object and should call `WasmEdge_CompilerDelete` to
-  delete it.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe CompilerCreate as ^ {`ConfigureContext'} -> `CompilerContext'#}
+{#fun unsafe CompilerCreate as ^ 
+  {`ConfigureContext'       -- ^ the WasmEdge_CompilerContext.
+  } -> `CompilerContext'    -- ^ pointer to context, NULL if failed.
+#}
 
 {- |
   Compile the input WASM from the file path.
- 
-  The compiler compiles the WASM from file path for the ahead-of-time mode and
-  store the result to the output file path.
- 
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_CompilerContext.
-  \param InPath the input WASM file path.
-  \param OutPath the output WASM file path.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
+  The compiler compiles the WASM from file path for the ahead-of-time mode and store the result to the output file path.
 -}
-{#fun unsafe CompilerCompileOut as compilerCompile {+,`CompilerContext',`String',`String'} -> `WasmResult'#} 
+{#fun unsafe CompilerCompileOut as compilerCompile 
+  {+
+  ,`CompilerContext'      -- ^ the WasmEdge_CompilerContext.
+  ,`String'               -- ^ the input WASM file path.
+  ,`String'               -- ^ the output WASM file path.
+  } -> `WasmResult'       -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.         
+#} 
 
 {-|
   Compile the input WASM from the given buffer.
- 
-  The compiler compiles the WASM from the given buffer for the
-  ahead-of-time mode and store the result to the output file path.
- 
-  \param Cxt the WasmEdge_CompilerContext.
-  \param InBuffer the input WASM binary buffer.
-  \param InBufferLen the length of the input WASM binary buffer.
-  \param OutPath the output WASM file path.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
+  The compiler compiles the WASM from the given buffer for the ahead-of-time mode and store the result to the output file path.
 -}
-{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer {+,`CompilerContext', fromByteStringIn*`ByteString'& ,`String'} -> `WasmResult'#} 
+{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer 
+  {+
+  ,`CompilerContext'                 -- ^ the WasmEdge_CompilerContext.
+  , fromByteStringIn*`ByteString'&   -- ^ the input WASM binary buffer and the length of the binary buffer
+  ,`String'                          -- ^ the output WASM file path.
+  } -> `WasmResult'                  -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#} 
 
 -- Loader
 {-|
   Creation of the WasmEdge_LoaderContext.
- 
-  The caller owns the object and should call `WasmEdge_LoaderDelete` to
-  destroy it.
- 
-  \param ConfCxt the WasmEdge_ConfigureContext as the configuration of Loader.
-  NULL for the default configuration.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_LoaderDelete` to destroy it.
 -}
-{#fun unsafe LoaderCreate as ^ {`ConfigureContext'} -> `LoaderContext'#}
+{#fun unsafe LoaderCreate as ^ 
+  {`ConfigureContext'             -- ^ the WasmEdge_ConfigureContext as the configuration of Loader. NULL for the default configuration.
+  } -> `LoaderContext'            -- ^ pointer to context, NULL if failed.
+#}
+-- TODO:
+-- Are we supposed to write haskell functions for these? I am not exporting them since they _ at end
 {#fun unsafe LoaderParseFromFileOut as loaderParseFromFile_ {+,`LoaderContext',id`Ptr (Ptr ASTModuleContext)',`String'} -> `WasmResult'#}
 {#fun unsafe LoaderParseFromBufferOut as loaderParseFromBuffer_ {+, `LoaderContext',id`Ptr (Ptr ASTModuleContext)',useAsPtrCUCharLenBS*`ByteString'&} -> `WasmResult'#}
 
 -- Validator
 {-|
   Creation of the WasmEdge_ValidatorContext.
- 
-  The caller owns the object and should call `WasmEdge_ValidatorDelete` to
-  destroy it.
- 
-  \param ConfCxt the WasmEdge_ConfigureContext as the configuration of
-  Validator. NULL for the default configuration.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_ValidatorDelete` to destroy it.
 -}
-{#fun unsafe ValidatorCreate as ^ {`ConfigureContext'} -> `ValidatorContext'#}
+{#fun unsafe ValidatorCreate as ^ 
+  {`ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Validator. NULL for the default configuration.
+  } -> `ValidatorContext'   -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Validate the WasmEdge AST Module.
- 
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_ValidatorContext.
-  \param ASTCxt the WasmEdge_ASTModuleContext to validate.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe ValidatorValidateOut as validatorValidate {+,`ValidatorContext',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe ValidatorValidateOut as validatorValidate 
+  {+
+  ,`ValidatorContext'       -- ^ the WasmEdge_ValidatorContext.
+  ,`ASTModuleContext'       -- ^ the WasmEdge_ASTModuleContext to validate.
+  } -> `WasmResult'         -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 
 -- Executor
 {-|
   Creation of the WasmEdge_ExecutorContext.
- 
-  The caller owns the object and should call `WasmEdge_ExecutorDelete` to
-  delete it.
- 
-  \param ConfCxt the WasmEdge_ConfigureContext as the configuration of
-  Executor. NULL for the default configuration.
-  \param StatCxt the WasmEdge_StatisticsContext as the statistics object set
-  into Executor. The statistics will refer to this context, and the life cycle
-  should be guaranteed until the executor context is deleted. NULL for not
-  doing the statistics.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_ExecutorDelete` to delete it.
 -}
-{#fun unsafe ExecutorCreate as ^ {`ConfigureContext',`StatisticsContext'} -> `ExecutorContext'#}
+{#fun unsafe ExecutorCreate as ^ 
+  {`ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Executor. NULL for the default configuration.
+  ,`StatisticsContext'      -- ^ the WasmEdge_StatisticsContext as the statistics object set into Executor. The statistics will refer to this context, and the life cycle should be guaranteed until the executor context is deleted. NULL for not doing the statistics.
+  } -> `ExecutorContext'    -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Instantiate an AST Module into a module instance.
- 
-  Instantiate an AST Module, and return an instantiated module instance
-  context as the result. The caller owns the object and should call
-  `WasmEdge_ModuleInstanceDelete` to destroy it. Developers can use the
-  `WasmEdge_ModuleInstanceListFunction`,
-  `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported
-  instances from the result module instance.
- 
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
-  \param [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if
-  succeeded.
-  \param StoreCxt the WasmEdge_StoreContext to link the imports.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
+  Instantiate an AST Module, and return an instantiated module instance context as the result. The caller owns the object and should call `WasmEdge_ModuleInstanceDelete` to destroy it. 
+  Developers can use the `WasmEdge_ModuleInstanceListFunction`, `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported instances from the result module instance.
 -}
-{#fun unsafe ExecutorInstantiateOut as executorInstantiate {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe ExecutorInstantiateOut as executorInstantiate 
+  {+
+  ,`ExecutorContext'                            -- ^ the WasmEdge_ExecutorContext to instantiate the module.
+  ,alloca-`ModuleInstanceContext'peekOutPtr*    -- ^ [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if succeeded
+  ,`StoreContext'                               -- ^ the WasmEdge_StoreContext to link the imports.
+  ,`ASTModuleContext'                           -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  } -> `WasmResult'                             -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Instantiate an AST Module into a named module instance and link into store.
- 
-  Instantiate an AST Module with the module name, return the instantiated
-  module instance context as the result, and also register the module instance
-  to the store. The caller owns the object and should call
-  `WasmEdge_ModuleInstanceDelete` to destroy it.
-  Developers can use the `WasmEdge_ModuleInstanceListFunction`,
-  `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported
-  instances from the result module instance.
-  After calling this function, the output module instance will also be
-  registered into the store, and the other modules can import the exported
-  instances for linking when instantiation. Developers SHOULD guarantee the
-  life cycle of this output module instance, or the error will occur when in
-  execution after the module instance being destroyed if it has been imported
-  by other modules. That is, developers have the responsibility to delete the
-  output module instance even though the store being destroyed. When the
-  module instance is deleted, it will be unregistered to the store
-  automatically.
- 
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
-  \param [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if
-  succeeded.
-  \param StoreCxt the WasmEdge_StoreContext to link the imports.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
-  \param ModuleName the module name WasmEdge_String for all exported
-  instances.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe ExecutorRegisterOut as executorRegister {+,`ExecutorContext',alloca-`ModuleInstanceContext'peekOutPtr*,`StoreContext',`ASTModuleContext',%`WasmString'} -> `WasmResult'#}
+{#fun unsafe ExecutorRegisterOut as executorRegister 
+  {+
+  ,`ExecutorContext'                          -- ^ the WasmEdge_ExecutorContext to instantiate the module.
+  ,alloca-`ModuleInstanceContext'peekOutPtr*  -- ^ [out] ModuleCxt the output WasmEdge_ModuleInstanceContext if succeeded.
+  ,`StoreContext'                             -- ^ the WasmEdge_StoreContext to link the imports.
+  ,`ASTModuleContext'                         -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  ,%`WasmString'                              -- ^ the module name WasmEdge_String for all exported instances.
+  } -> `WasmResult'                           -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Register a module instance into a store with exporting its module name.
- 
-  Register an existing module into the store with its module name.
-  After calling this function, the existing module instance will be registered
-  into the store, and the other modules can import the exported instances for
-  linking when instantiation. Developers SHOULD guarantee the life cycle of
-  this existing module instance, or the error will occur when in execution
-  after the module instance being destroyed if it has been imported by other
-  modules. When the module instance is deleted, it will be unregistered to the
-  store automatically.
- 
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
-  \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
-  \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe ExecutorRegisterImportOut as executorRegisterImport {+,`ExecutorContext',`StoreContext',`ModuleInstanceContext'} -> `WasmResult'#}
+{#fun unsafe ExecutorRegisterImportOut as executorRegisterImport 
+  {+
+  ,`ExecutorContext'        -- ^ the WasmEdge_ExecutorContext to instantiate the module.
+  ,`StoreContext'           -- ^ the WasmEdge_StoreContext to store the instantiated module.
+  ,`ModuleInstanceContext'  -- ^ the WasmEdge_ModulenstanceContext to register.
+  } -> `WasmResult'         -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Invoke a WASM function by the function instance.
- 
-  After instantiating a WASM module, developers can get the function instance
-  context from the module instance. Then developers can invoke the function
-  through this API.
-  \param resOut the reference to WasmEdge_Result in which the result would be stored
-  \param Cxt the WasmEdge_ExecutorContext.
-  \param FuncCxt the function instance context to invoke.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
-  \param [out] Returns the WasmEdge_Value buffer to fill the return values.
-  \param ReturnLen the return buffer length.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
 executorInvoke ::
   ExecutorContext -- ^ the WasmEdge_ExecutorContext.
@@ -2960,23 +3020,24 @@ executorInvoke ecxt ficxt pars = do
     rets <- V.generateM (retLen) ((noFinalizer =<<) . (VSM.read retsVSM))
     pure (wres, rets)
 
-{#fun unsafe ExecutorInvokeOut as executorInvoke_ {+,`ExecutorContext',`FunctionInstanceContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe ExecutorInvokeOut as executorInvoke_ 
+  {+,`ExecutorContext'
+  ,`FunctionInstanceContext'
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&
+  } -> `WasmResult'
+#}
+
 {-|
   Asynchronous invoke a WASM function by the function instance.
- 
-  After instantiating a WASM module, developers can get the function instance
-  context from the module instance. Then developers can invoke the function
-  asynchronously through this API.
- 
-  \param Cxt the WasmEdge_ExecutorContext.
-  \param FuncCxt the function instance context to invoke.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
+  After instantiating a WASM module, developers can get the function instance context from the module instance. Then developers can invoke the function asynchronously through this API.
 -}
-{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke {`ExecutorContext',`FunctionInstanceContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke 
+  {`ExecutorContext'                              -- ^ the WasmEdge_ExecutorContext.
+  ,`FunctionInstanceContext'                      -- ^ the function instance context to invoke.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length
+  } -> `Async'                                    -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#}
 
 peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
 peekOutPtr pout = do
@@ -2989,201 +3050,131 @@ peekCoerce = fmap coerce peek
 -- Store
 {-|
   Creation of the WasmEdge_StoreContext.
- 
-  The caller owns the object and should call `WasmEdge_StoreDelete` to destroy
-  it.
-  The store is the linker for multiple WASM module instances. The store will
-  not own any module instance registered into it, and the module instances
-  will automatically be unregistered if they are destroyed.
- 
-  \returns pointer to context, NULL if failed.
+  The caller owns the object and should call `WasmEdge_StoreDelete` to destroy it.
 -}
-{#fun unsafe StoreCreate as ^ {} -> `StoreContext'#} 
+{#fun unsafe StoreCreate as ^ 
+  {} -> `StoreContext'          -- ^ pointer to context, NULL if failed.
+#} 
+
 {-|
   Get the module instance context by the module name.
- 
-  After registering a WASM module, developers can call this function to find
-  and get the registered module instance context by the module name.
- 
+  After registering a WASM module, developers can call this function to find and get the registered module instance context by the module name.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_StoreContext.
-  \param Name the module name WasmEdge_String.
- 
-  \returns pointer to the module instance context. NULL if not found.
 -}
-{#fun unsafe StoreFindModule as ^ {`StoreContext',%`WasmString'} -> `ModuleInstanceContext'#}
+{#fun unsafe StoreFindModule as ^ 
+  {`StoreContext'                 -- ^ the WasmEdge_StoreContext.
+  ,%`WasmString'                  -- ^ the module name WasmEdge_String.
+  } -> `ModuleInstanceContext'    -- ^ pointer to the module instance context. NULL if not found.
+#}
+
 {-|
   Get the length of registered module list in store.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_StoreContext.
- 
-  \returns length of registered named module list.
 -}
-{#fun unsafe StoreListModuleLength as ^ {`StoreContext'} -> `Word32'#}
+{#fun unsafe StoreListModuleLength as ^ 
+  {`StoreContext'         -- ^ the WasmEdge_StoreContext.
+  } -> `Word32'           -- ^ length of registered named module list.
+#}
+
 {-|
   List the registered module names.
- 
-  This function will list all registered module names.
-  The returned module names filled into the `Names` array are linked to the
-  registered module names in the store context, and the caller should __NOT__
-  call the `WasmEdge_StringDelete`.
   If the `Names` buffer length is smaller than the result of the registered
   named module list size, the overflowed return values will be discarded.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_StoreContext.
-  \param [out] Names the output names WasmEdge_String buffer of named modules.
-  \param Len the buffer length.
- 
-  \returns actual registered named module list size.
 -}
-{#fun unsafe StoreListModuleOut as storeListModule {`StoreContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
+{#fun unsafe StoreListModuleOut as storeListModule 
+  {`StoreContext'                                   -- ^ the WasmEdge_StoreContext.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&  -- ^ [out] Names the output names WasmEdge_String buffer of named modules and length of the buffer
+  } -> `Word32'                                     -- ^ actual registered named module list size.
+#}
 
 -- Module Instance
 {-|
   Creation of the WasmEdge_ModuleInstanceContext.
- 
-  Create a module instance context with exported module name for host
-  instances. Developer can use this API to create a module instance for
-  collecting host functions, tables, memories, and globals.
-  The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
-  to destroy it.
- 
-  \param ModuleName the module name WasmEdge_String of this host module to
-  import.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe ModuleInstanceCreate as ^ {%`WasmString'} -> `ModuleInstanceContext'#} 
+{#fun unsafe ModuleInstanceCreate as ^ 
+  {%`WasmString'                -- ^ the module name WasmEdge_String of this host module to import.
+  } -> `ModuleInstanceContext'  -- ^ pointer to context, NULL if failed.
+#} 
+
 {-|
   Creation of the WasmEdge_ModuleInstanceContext with host data.
- 
-  Create a module instance context with exported module name, host data, and
-  host data finalizer for host instances. Developer can use this API to create
-  a module instance for collecting host functions, tables, memories, and
-  globals. When this created module instance being destroyed, the host data
-  finalizer will be invoked. The caller owns the object and should call
-  `WasmEdge_ModuleInstanceDelete` to destroy it.
- 
-  \param ModuleName the module name WasmEdge_String of this host module to
-  import.
-  \param HostData the host data to set into the module instance. When calling
-  the finalizer, this pointer will become the argument of the finalizer
-  function.
-  \param Finalizer the function to finalize the host data.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun ModuleInstanceCreateWithData as ^ {%`WasmString',fromHsRefWithFinalzrIn*`HsRef'&} -> `ModuleInstanceContext'#}
+{#fun ModuleInstanceCreateWithData as ^ 
+  {%`WasmString'                      -- ^ the module name WasmEdge_String of this host module to import.
+  ,fromHsRefWithFinalzrIn*`HsRef'&    -- ^ the host data to set into the module instance. When calling the finalizer, this pointer will become the argument of the finalizer function and Finalizer the function to finalize the host data.
+  } -> `ModuleInstanceContext'        -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Creation of the WasmEdge_ModuleInstanceContext for the WASI specification.
- 
-  This function will create a WASI host module that contains the WASI host
-  functions and initialize it. The caller owns the object and should call
-  `WasmEdge_ModuleInstanceDelete` to destroy it.
- 
-  \param Args the command line arguments. The first argument suggests being
-  the program name. NULL if the length is 0.
-  \param ArgLen the length of the command line arguments.
-  \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
-  length is 0.
-  \param EnvLen the length of the environment variables.
-  \param Preopens the directory paths to preopen. String format in
-  `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
-  if the length is 0.
-  \param PreopenLen the length of the directory paths to preopen.
- 
-  \returns pointer to context, NULL if failed.
+  This function will create a WASI host module that contains the WASI host functions and initialize it. The caller owns the object and should call `WasmEdge_ModuleInstanceDelete` to destroy it.
 -}
-{#fun unsafe ModuleInstanceCreateWASI as ^ {fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `ModuleInstanceContext'#}
+{#fun unsafe ModuleInstanceCreateWASI as ^ 
+  {fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the command line arguments. The first argument suggests being the program name. NULL if the length is 0. and the length
+  ,fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the environment variables in the format `ENV=VALUE`. NULL if the length is 0. and the length
+  ,fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the directory paths to preopen. String format in `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL if the length is 0. and the length of the paths
+  } -> `ModuleInstanceContext'             -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Initialize the WasmEdge_ModuleInstanceContext for the WASI specification.
- 
   This function will initialize the WASI host module with the parameters.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext of WASI import object.
-  \param Args the command line arguments. The first argument suggests being
-  the program name. NULL if the length is 0.
-  \param ArgLen the length of the command line arguments.
-  \param Envs the environment variables in the format `ENV=VALUE`. NULL if the
-  length is 0.
-  \param EnvLen the length of the environment variables.
-  \param Preopens the directory paths to preopen. String format in
-  `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL
-  if the length is 0.
-  \param PreopenLen the length of the directory paths to preopen.
 -}
-{#fun unsafe ModuleInstanceInitWASI as ^ {`ModuleInstanceContext',fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&,fromVecStringOr0Ptr*`V.Vector String'&} -> `()'#}
+{#fun unsafe ModuleInstanceInitWASI as ^ 
+  {`ModuleInstanceContext'                  -- ^ the WasmEdge_ModuleInstanceContext of WASI import object.
+  ,fromVecStringOr0Ptr*`V.Vector String'&   -- ^ the command line arguments. The first argument suggests being the program name. NULL if the length is 0. and the length
+  ,fromVecStringOr0Ptr*`V.Vector String'&   -- ^ the environment variables in the format `ENV=VALUE`. NULL if the length is 0. and the length
+  ,fromVecStringOr0Ptr*`V.Vector String'&   -- ^ the directory paths to preopen. String format in `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL if the length is 0. and the length of the paths
+} -> `()'#}
+
 {-|
   Get the WASI exit code.
- 
-  This function will return the exit code after running the "_start" function
-  of a `wasm32-wasi` program.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext of WASI import object.
- 
-  \returns the exit code after executing the "_start" function. Return
-  `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
+  This function will return the exit code after running the "_start" function of a `wasm32-wasi` program.
 -}
-{#fun unsafe ModuleInstanceWASIGetExitCode as ^ {`ModuleInstanceContext'} -> `Word32'#}
+{#fun unsafe ModuleInstanceWASIGetExitCode as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext of WASI import object.
+  } -> `Word32'                   -- ^ the exit code after executing the "_start" function. Return `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
+#}
+
 {-|
   Get the native handler from the WASI mapped FD/Handler.
- 
-  This function will return the raw FD/Handler from a given mapped Fd
-  or Handler.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext of WASI import object.
-  \param Fd the WASI mapped Fd.
-  \param [out] NativeHandler the raw Fd/Handler.
- 
-  \returns the error code. Return `0` if the Native Handler is found.
-  Return `1` if the `Cxt` is `NULL`.
-  Return `2` if the given mapped Fd/handler is not found.
 -}
-{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ {`ModuleInstanceContext',`Word32',alloca-`Word64'peekCoerce*} -> `Word32'#}
+{#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ 
+  {`ModuleInstanceContext'                  -- ^ the WasmEdge_ModuleInstanceContext of WASI import object.
+  ,`Word32'                                 -- ^ the WASI mapped Fd.
+  ,alloca-`Word64'peekCoerce*               -- ^ [out] NativeHandler the raw Fd/Handler.
+  } -> `Word32'                             -- ^ the error code. Return `0` if the Native Handler is found. Return `1` if the `Cxt` is `NULL`. Return `2` if the given mapped Fd/handler is not found.
+#}
+
 {-|
-  Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process
-  specification.
- 
-  This function will initialize the wasmedge_process host module with the
-  parameters.
- 
-  \param AllowedCmds the allowed commands white list. NULL if the
-  length is 0.
-  \param CmdsLen the length of the allowed commands white list.
-  \param AllowAll the boolean value to allow all commands. `false` is
-  suggested. If this value is `true`, the allowed commands white list will not
-  be recorded and all commands can be executed by wasmedge_process.
+  Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process specification.
+  This function will initialize the wasmedge_process host module with the parameters.
 -}
-{#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ {fromVecStringOr0Ptr*`V.Vector String'&,`Bool'} -> `()'#}
+{#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ 
+  {fromVecStringOr0Ptr*`V.Vector String'&     -- ^ the allowed commands white list. NULL if the length is 0. and length of the list
+  ,`Bool'                                     -- ^ the boolean value to allow all commands. `false` is suggested. If this value is `true`, the allowed commands white list will not be recorded and all commands can be executed by wasmedge_process.
+  } -> `()'
+#}
+
 {-|
   Get the export module name of a module instance.
- 
-  The returned string object is linked to the module name of the module
-  instance, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
-
-  \param strOut the reference to WasmEdge_String in which the result would be stored
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns string object. Length will be 0 and Buf will be NULL if failed.
 -}
-{#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName {+,`ModuleInstanceContext'} -> `WasmString'#}
+{#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName 
+  {+
+  ,`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext.
+  } -> `WasmString'                 -- ^ string object. Length will be 0 and Buf will be NULL if failed.
+#}
+
 {-|
   Get the host data set into the module instance when creating.
- 
-  The returned data is owned by the module instance, and will be passed into
-  the finalizer when deleting this module instance.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns host data. NULL if the module instance context is NULL or no host
-  data set into the module instance.
+  The returned data is owned by the module instance, and will be passed into the finalizer when deleting this module instance.
 -}
-{#fun unsafe ModuleInstanceGetHostData as ^ {`ModuleInstanceContext'} -> `HsRef'toHsRefFromVoidPtrOut*#}
+{#fun unsafe ModuleInstanceGetHostData as ^ 
+  {`ModuleInstanceContext'              -- ^ the WasmEdge_ModuleInstanceContext.
+  } -> `HsRef'toHsRefFromVoidPtrOut*    -- ^ host data. NULL if the module instance context is NULL or no host data set into the module instance.
+#}
+
 {-|
   Get the exported function instance context of a module instance.
  
@@ -3192,13 +3183,13 @@ peekCoerce = fmap coerce peek
   caller should __NOT__ call the `WasmEdge_FunctionInstanceDelete`.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param Name the function name WasmEdge_String.
- 
-  \returns pointer to the function instance context. NULL if not found.
 -}
-{#fun unsafe ModuleInstanceFindFunction as ^ {`ModuleInstanceContext',%`WasmString'} -> `FunctionInstanceContext'#}
+{#fun unsafe ModuleInstanceFindFunction as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
+  ,%`WasmString'                  -- ^ the function name WasmEdge_String.  
+  } -> `FunctionInstanceContext'  -- ^ pointer to the function instance context. NULL if not found.
+#}
+
 {-|
   Get the exported table instance context of a module instance.
  
@@ -3207,13 +3198,13 @@ peekCoerce = fmap coerce peek
   should __NOT__ call the `WasmEdge_TableInstanceDelete`.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param Name the table name WasmEdge_String.
- 
-  \returns pointer to the table instance context. NULL if not found.
 -}
-{#fun unsafe ModuleInstanceFindTable as ^ {`ModuleInstanceContext',%`WasmString'} -> `TableInstanceContext'#}
+{#fun unsafe ModuleInstanceFindTable as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
+  ,%`WasmString'                  -- ^ the table name WasmEdge_String.
+  } -> `TableInstanceContext'     -- ^ pointer to the table instance context. NULL if not found.
+#}
+
 {-|
   Get the exported memory instance context of a module instance.
  
@@ -3222,13 +3213,13 @@ peekCoerce = fmap coerce peek
   caller should __NOT__ call the `WasmEdge_MemoryInstanceDelete`.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param Name the memory name WasmEdge_String.
- 
-  \returns pointer to the memory instance context. NULL if not found.
 -}
-{#fun unsafe ModuleInstanceFindMemory as ^ {`ModuleInstanceContext',%`WasmString'} -> `MemoryInstanceContext'#}
+{#fun unsafe ModuleInstanceFindMemory as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
+  ,%`WasmString'                  -- ^ the memory name WasmEdge_String.
+  } -> `MemoryInstanceContext'    -- ^ pointer to the memory instance context. NULL if not found.
+#}
+
 {-|
   Get the exported global instance context of a module instance.
  
@@ -3237,23 +3228,22 @@ peekCoerce = fmap coerce peek
   caller should __NOT__ call the `WasmEdge_GlobalInstanceDelete`.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param Name the global name WasmEdge_String.
- 
-  \returns pointer to the global instance context. NULL if not found.
 -}
-{#fun unsafe ModuleInstanceFindGlobal as ^ {`ModuleInstanceContext',%`WasmString'} -> `GlobalInstanceContext'#}
+{#fun unsafe ModuleInstanceFindGlobal as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
+  ,%`WasmString'                  -- ^ the global name WasmEdge_String.
+  } -> `GlobalInstanceContext'    -- ^ pointer to the global instance context. NULL if not found.
+#}
+
 {-|
   Get the length of exported function list of a module instance.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns length of the exported function list.
 -}
-{#fun unsafe ModuleInstanceListFunctionLength as ^ {`ModuleInstanceContext'} -> `Word32'#}
+{#fun unsafe ModuleInstanceListFunctionLength as ^ 
+  {`ModuleInstanceContext'       -- ^ the WasmEdge_ModuleInstanceContext.
+  } -> `Word32'                  -- ^ length of the exported function list.
+#}
+
 {-|
   List the exported function names of a module instance.
  
@@ -3264,24 +3254,22 @@ peekCoerce = fmap coerce peek
   function list size, the overflowed return values will be discarded.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param [out] Names the output WasmEdge_String buffer of the function names.
-  \param Len the buffer length.
- 
-  \returns actual exported function list size.
 -}
-{#fun unsafe ModuleInstanceListFunctionOut as moduleInstanceListFunction {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
+{#fun unsafe ModuleInstanceListFunctionOut as moduleInstanceListFunction 
+  {`ModuleInstanceContext'                              -- ^ the WasmEdge_ModuleInstanceContext.
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&     -- ^ [out] Names the output WasmEdge_String buffer of the function names and length of the buffer
+  } -> `Word32'                                         -- ^ actual exported function list size.
+#}
+
 {-|
   Get the length of exported table list of a module instance.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns length of the exported table list.
 -}
-{#fun unsafe ModuleInstanceListTableLength as ^ {`ModuleInstanceContext'} -> `Word32'#}
+{#fun unsafe ModuleInstanceListTableLength as ^ 
+  {`ModuleInstanceContext'                      -- ^ the WasmEdge_ModuleInstanceContext.
+  } -> `Word32'                                 -- ^ length of the exported table list.
+#}
+
 {-|
   List the exported table names of a module instance.
  
@@ -3292,24 +3280,23 @@ peekCoerce = fmap coerce peek
   table list size, the overflowed return values will be discarded.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param [out] Names the output WasmEdge_String buffer of the table names.
-  \param Len the buffer length.
- 
-  \returns actual exported table list size.
 -}
-{#fun unsafe ModuleInstanceListTableOut as moduleInstanceListTable {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#}
+{#fun unsafe ModuleInstanceListTableOut as moduleInstanceListTable 
+  {`ModuleInstanceContext'                            -- ^ the WasmEdge_ModuleInstanceContext.
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&   -- ^ [out] Names the output WasmEdge_String buffer of the table names and the length of the buffer
+  } -> `Word32'                                       -- ^ actual exported table list size.
+  #}
+
 {-|
   Get the length of exported memory list of a module instance.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns length of the exported memory list.
 -}
-{#fun unsafe ModuleInstanceListMemoryLength as ^ {`ModuleInstanceContext'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListMemoryLength as ^ 
+  {`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext.
+  } -> `Word32'                     -- ^ length of the exported memory list.
+#} 
+
 {-|
   List the exported memory names of a module instance.
  
@@ -3320,24 +3307,22 @@ peekCoerce = fmap coerce peek
   memory list size, the overflowed return values will be discarded.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param [out] Names the output WasmEdge_String buffer of the memory names.
-  \param Len the buffer length.
- 
-  \returns actual exported memory list size.
 -}
-{#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory 
+  {`ModuleInstanceContext'                              -- ^ the WasmEdge_ModuleInstanceContext. 
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&     -- ^ [out] Names the output WasmEdge_String buffer of the memory names and length of the buffer
+  } -> `Word32'                                         -- ^ actual exported memory list size.
+#} 
+
 {-|
   Get the length of exported global list of a module instance.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
- 
-  \returns length of the exported global list.
 -}
-{#fun unsafe ModuleInstanceListGlobalLength as ^ {`ModuleInstanceContext'} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListGlobalLength as ^ 
+  {`ModuleInstanceContext'      -- ^  the WasmEdge_ModuleInstanceContext.
+  } -> `Word32'                 -- ^ length of the exported global list.
+#} 
+
 {-|
   List the exported global names of a module instance.
  
@@ -3348,70 +3333,56 @@ peekCoerce = fmap coerce peek
   global list size, the overflowed return values will be discarded.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext.
-  \param [out] Names the output WasmEdge_String buffer of the global names.
-  \param Len the buffer length.
- 
-  \returns actual exported global list size.
 -}
-{#fun unsafe ModuleInstanceListGlobalOut as moduleInstanceListGlobal {`ModuleInstanceContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+{#fun unsafe ModuleInstanceListGlobalOut as moduleInstanceListGlobal 
+  {`ModuleInstanceContext'                            -- ^ the WasmEdge_ModuleInstanceContext.
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&   -- ^ [out] Names the output WasmEdge_String buffer of the global names and the length of the buffer
+  } -> `Word32'                                       -- ^ actual exported global list size.
+  #} 
+
 {-|
   Add a function instance context into a WasmEdge_ModuleInstanceContext.
- 
-  Export and move the ownership of the function instance into the module
-  instance. The caller should __NOT__ access or destroy the function instance
-  context after calling this function.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext to add the function instance.
-  \param Name the export function name WasmEdge_String.
-  \param FuncCxt the WasmEdge_FunctionInstanceContext to add.
 -}
-{#fun unsafe ModuleInstanceAddFunction as ^ {`ModuleInstanceContext',%`WasmString',`FunctionInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddFunction as ^ 
+  {`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext to add the function instance.
+  ,%`WasmString'                    -- ^ the export function name WasmEdge_String.
+  ,`FunctionInstanceContext'        -- ^ the WasmEdge_FunctionInstanceContext to add.
+  } -> `()'
+#}
+
 {-|
   Add a table instance context into a WasmEdge_ModuleInstanceContext.
- 
-  Export and move the ownership of the table instance into the module
-  instance. The caller should __NOT__ access or destroy the table instance
-  context after calling this function.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext to add the table instance.
-  \param Name the export table name WasmEdge_String.
-  \param TableCxt the WasmEdge_TableInstanceContext to add.
 -}
-{#fun unsafe ModuleInstanceAddTable as ^ {`ModuleInstanceContext',%`WasmString',`TableInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddTable as ^ 
+  {`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext to add the table instance.
+  ,%`WasmString'                    -- ^ the export table name WasmEdge_String.
+  ,`TableInstanceContext'           -- ^ the WasmEdge_TableInstanceContext to add.
+  } -> `()'
+#}
+
 {-|
   Add a memory instance context into a WasmEdge_ModuleInstanceContext.
- 
-  Export and move the ownership of the memory instance into the module
-  instance. The caller should __NOT__ access or destroy the memory instance
-  context after calling this function.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext to add the memory instance.
-  \param Name the export memory name WasmEdge_String.
-  \param MemoryCxt the WasmEdge_MemoryInstanceContext to add.
 -}
-{#fun unsafe ModuleInstanceAddMemory as ^ {`ModuleInstanceContext',%`WasmString',`MemoryInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddMemory as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext to add the memory instance.
+  ,%`WasmString'                  -- ^ the export memory name WasmEdge_String.
+  ,`MemoryInstanceContext'        -- ^ the WasmEdge_MemoryInstanceContext to add.
+  } -> `()'
+#}
+
 {-|
   Add a global instance context into a WasmEdge_ModuleInstanceContext.
- 
-  Export and move the ownership of the global instance into the module
-  instance. The caller should __NOT__ access or destroy the global instance
-  context after calling this function.
- 
-  This function is thread-safe.
- 
-  \param Cxt the WasmEdge_ModuleInstanceContext to add the global instance.
-  \param Name the export global name WasmEdge_String.
-  \param GlobalCxt the WasmEdge_GlobalInstanceContext to add.
+ This function is thread-safe.
 -}
-{#fun unsafe ModuleInstanceAddGlobal as ^ {`ModuleInstanceContext',%`WasmString',`GlobalInstanceContext'} -> `()'#}
+{#fun unsafe ModuleInstanceAddGlobal as ^ 
+  {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext to add the global instance.
+  ,%`WasmString'                  -- ^ the export global name WasmEdge_String.
+  ,`GlobalInstanceContext'        -- ^ the WasmEdge_GlobalInstanceContext to add.
+  } -> `()
+#}
 
 -- Function Instance
 {#pointer HostFunc_t as ^#}
@@ -3455,56 +3426,46 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 
 {-|
   Creation of the WasmEdge_FunctionInstanceContext for host functions.
- 
-  The caller owns the object and should call `WasmEdge_FunctionInstanceDelete`
-  to destroy it if the returned object is not added into a
-  `WasmEdge_ModuleInstanceContext`. The following is an example to create a
-  host function context.
-  ```c
 -}
-{#fun FunctionInstanceCreateBndr as functionInstanceCreate {`FunctionTypeContext',`HostFuncT',fromHsRefIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
+{#fun FunctionInstanceCreateBndr as functionInstanceCreate 
+  {`FunctionTypeContext'          -- ^ the function type context to describe the host function signature
+  ,`HostFuncT'                    -- ^ the host function pointer. 
+  ,fromHsRefIn*`HsRef'            -- ^ the additional object, such as the pointer to a data structure, to set to this host function context. The caller should guarantee the life cycle of the object. NULL if the additional data object is not needed.
+  ,`Word64'                       -- ^ the function cost in statistics. Pass 0 if the calculation is not needed
+  } -> `FunctionInstanceContext'  -- ^ pointer to context, NULL if failed.
+#}
+
 -- TODO:
 --{#fun unsafe FunctionInstanceCreateBinding as ^ {`FunctionTypeContext',`WrapFuncT',fromHsRefAsVoidPtrIn*`HsRef',fromHsRefAsVoidPtrIn*`HsRef',`Word64'} -> `FunctionInstanceContext'#}
 
 {-|
   Get the function type context of the function instance.
- 
-  The function type context links to the function type in the function
-  instance context and owned by the context. The caller should __NOT__ call
-  the `WasmEdge_FunctionTypeDelete`.
- 
-  \param Cxt the WasmEdge_FunctionInstanceContext.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe FunctionInstanceGetFunctionType as ^ {`FunctionInstanceContext'} -> `FunctionTypeContext'#}
+{#fun unsafe FunctionInstanceGetFunctionType as ^ 
+  {`FunctionInstanceContext'      -- ^ the WasmEdge_FunctionInstanceContext.
+  } -> `FunctionTypeContext'      -- ^ pointer to context, NULL if failed.
+#}
 
 -- Table Instance
 {-|
   Creation of the WasmEdge_TableInstanceContext.
- 
-  The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
-  destroy it if the returned object is not added into a
-  `WasmEdge_ModuleInstanceContext`.
- 
-  \param TabType the table type context to initialize the table instance
-  context.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe TableInstanceCreate as ^ {`TableTypeContext'} -> `TableInstanceContext'#}
+{#fun unsafe TableInstanceCreate as ^ 
+  {`TableTypeContext'           -- ^ the table type context to initialize the table instance context.
+  } -> `TableInstanceContext'   -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Get the table type context from a table instance.
- 
-  The table type context links to the table type in the table instance context
-  and owned by the context. The caller should __NOT__ call the
-  `WasmEdge_TableTypeDelete`.
- 
-  \param Cxt the WasmEdge_TableInstanceContext.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe TableInstanceGetTableType as ^ {`TableInstanceContext'} -> `TableTypeContext'#}
+{#fun unsafe TableInstanceGetTableType as ^ 
+  {`TableInstanceContext'                 -- ^ the WasmEdge_TableInstanceContext.
+  } -> `TableTypeContext'                 -- ^ pointer to context, NULL if failed.
+#}
+
+allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
+allocWasmVal = allocaBytes {#sizeof WasmVal #}
+
 {-|
   Get the reference value in a table instance.
  
@@ -3522,65 +3483,54 @@ allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
 
 {-|
   Set the reference value into a table instance.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_TableInstanceContext.
-  \param Data the reference value to set into the table instance.
-  \param Offset the reference value offset (index) in the table instance.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  {+,`TableInstanceContext',`WasmVal',`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceSetDataOut as tableInstanceSetData  
+  {+
+  ,`TableInstanceContext'         -- ^ the WasmEdge_TableInstanceContext.
+  ,`WasmVal'                      -- ^ the reference value to set into the table instance.
+  ,`Word32'                       -- ^ the reference value offset (index) in the table instance.
+  } -> `WasmResult'               -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 
 {-|
   Get the size of a table instance.
- 
-  \param Cxt the WasmEdge_TableInstanceContext.
- 
-  \returns the size of the table instance.
 -}
-{#fun unsafe TableInstanceGetSize as ^ {`TableInstanceContext'} -> `Word32'#} 
+{#fun unsafe TableInstanceGetSize as ^ 
+  {`TableInstanceContext'           -- ^ the WasmEdge_TableInstanceContext.
+  } -> `Word32'                     -- ^ the size of the table instance.
+#} 
+
 {-|
   Grow a table instance with a size.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_TableInstanceContext.
-  \param Size the count of reference values to grow in the table instance.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe TableInstanceGrowOut as tableInstanceGrow {+,`TableInstanceContext',`Word32'} -> `WasmResult'#}
+{#fun unsafe TableInstanceGrowOut as tableInstanceGrow 
+  {+
+  ,`TableInstanceContext'           -- ^ the WasmEdge_TableInstanceContext.
+  ,`Word32'                         -- ^ the count of reference values to grow in the table instance.
+  } -> `WasmResult'                 -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 
 -- Memory Instance
 {-|
   Creation of the WasmEdge_MemoryInstanceContext.
- 
-  The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
-  to destroy it if the returned object is not added into a
-  `WasmEdge_ModuleInstanceContext`.
- 
-  \param MemType the memory type context to initialize the memory instance
-  context.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe MemoryInstanceCreate as ^ {`MemoryTypeContext'} -> `MemoryInstanceContext'#} 
+{#fun unsafe MemoryInstanceCreate as ^ 
+  {`MemoryTypeContext'              -- ^ the memory type context to initialize the memory instance
+  } -> `MemoryInstanceContext'      -- ^ pointer to context, NULL if failed.
+#} 
+
 {-|
   Get the memory type context from a memory instance.
- 
-  The memory type context links to the memory type in the memory instance
-  context and owned by the context. The caller should __NOT__ call the
-  `WasmEdge_MemoryTypeDelete`.
- 
-  \param Cxt the WasmEdge_MemoryInstanceContext.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe MemoryInstanceGetMemoryType as ^ {`MemoryInstanceContext'} -> `MemoryTypeContext'#} 
+{#fun unsafe MemoryInstanceGetMemoryType as ^ 
+  {`MemoryInstanceContext'  -- ^ the WasmEdge_MemoryInstanceContext.
+  } -> `MemoryTypeContext'  -- ^ pointer to context, NULL if failed.
+#} 
 {#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData_ {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
 
+{-|
+Copy the data to the output buffer from a memory instance.
+-}
 memoryInstanceGetData ::
   MemoryInstanceContext
   -> Word32 -- ^ Length of the Buffer
@@ -3594,20 +3544,19 @@ memoryInstanceGetData micxt len off = do
 -- TODO:
 {-|
   Copy the data into a memory instance from the input buffer.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_MemoryInstanceContext.
-  \param Data the data buffer to copy.
-  \param Offset the data start offset in the memory instance.
-  \param Length the data buffer length. If the `Offset + Length` is larger
-  than the data size in the memory instance, this function will failed.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
+{#fun unsafe MemoryInstanceSetDataOut as memoryInstanceSetData 
+  {+
+  ,`MemoryInstanceContext'            -- ^ the WasmEdge_MemoryInstanceContext.
+  ,fromByteStringIn*`ByteString'&     -- ^ the data buffer to copy and the start offset in the memory instance
+  ,`Word32'                           -- ^ the data buffer length. If the `Offset + Length` is larger than the data size in the memory instance, this function will failed.
+  } -> `WasmResult'                   -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 {#fun unsafe MemoryInstanceGetPointer as memoryInstanceGetPointer_ {`MemoryInstanceContext',`Word32',`Word32'} -> `Ptr Word8'coercePtr#}
 
+{-|
+Get the data pointer in a memory instance.
+-}
 memoryInstanceGetPointer ::
   MemoryInstanceContext
   -> Word32 -- ^ Length of the Buffer
@@ -3626,156 +3575,129 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 
 {-|
   Get the current page size (64 KiB of each page) of a memory instance.
- 
-  \param Cxt the WasmEdge_MemoryInstanceContext.
- 
-  \returns the page size of the memory instance.
 -}
-{#fun unsafe MemoryInstanceGetPageSize as ^ {`MemoryInstanceContext'} -> `Word32'#} 
+{#fun unsafe MemoryInstanceGetPageSize as ^ 
+  {`MemoryInstanceContext'     -- ^ the WasmEdge_MemoryInstanceContext.
+  } -> `Word32'                -- ^ the page size of the memory instance.
+#} 
+
 {-|
   Grow a memory instance with a page size.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_MemoryInstanceContext.
-  \param Page the page count to grow in the memory instance.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage {+,`MemoryInstanceContext',`Word32'} -> `WasmResult'#} 
+{#fun unsafe MemoryInstanceGrowPageOut as memoryInstanceGrowPage 
+  {+
+  ,`MemoryInstanceContext'      -- ^ the WasmEdge_MemoryInstanceContext.
+  ,`Word32'                     -- ^ the page count to grow in the memory instance.
+  } -> `WasmResult'             -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#} 
 
 -- Global Instance
 {-|
   Creation of the WasmEdge_GlobalInstanceContext.
- 
-  The caller owns the object and should call `WasmEdge_GlobalInstanceDelete`
-  to destroy it if the returned object is not added into a
-  `WasmEdge_ModuleInstanceContext`.
- 
-  \param GlobType the global type context to initialize the global instance
-  context.
-  \param Value the initial value with its value type of the global instance.
-  This function will fail if the value type of `GlobType` and `Value` are not
-  the same.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate {`GlobalTypeContext',`WasmVal'} -> `GlobalInstanceContext'#}
+{#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate 
+  {`GlobalTypeContext'        -- ^ the global type context to initialize the global instance context.
+  ,`WasmVal'                  -- ^ the initial value with its value type of the global instance. 
+  } -> `GlobalInstanceContext' -- ^ pointer to context, NULL if failed.
+#}
+
 {-|
   Get the global type context from a global instance.
- 
-  The global type context links to the global type in the global instance
-  context and owned by the context. The caller should __NOT__ call the
-  `WasmEdge_GlobalTypeDelete`.
- 
-  \param Cxt the WasmEdge_GlobalInstanceContext.
- 
-  \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe GlobalInstanceGetGlobalType as ^ {`GlobalInstanceContext'} -> `GlobalTypeContext'#} 
+{#fun unsafe GlobalInstanceGetGlobalType as ^ 
+  {`GlobalInstanceContext'    -- ^ the WasmEdge_GlobalInstanceContext.
+  } -> `GlobalTypeContext'    -- ^ pointer to context, NULL if failed.
+#} 
+
 {-|
   Get the value from a global instance.
- 
-  \param v the WasmVal reference in which the result would be stored
-  \param Cxt the WasmEdge_GlobalInstanceContext.
- 
-  \returns the current value of the global instance.
 -}
-{#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue  {+,`GlobalInstanceContext'} -> `WasmVal'#}
+{#fun unsafe GlobalInstanceGetValueOut as globalInstanceGetValue 
+  {+
+  ,`GlobalInstanceContext'     -- ^ the WasmEdge_GlobalInstanceContext.      
+  } -> `WasmVal'               -- ^ the current value of the global instance.
+#}
+
 {-|
   Set the value from a global instance.
  
-  This function will do nothing if the global context is set as the `Const`
-  mutation or the value type not matched.
- 
-  \param Cxt the WasmEdge_GlobalInstanceContext.
-  \param Value the value to set into the global context.
+  This function will do nothing if the global context is set as the `Const` mutation or the value type not matched.
 -}
-{#fun unsafe GlobalInstanceSetValueOut as globalInstanceSetValue {`GlobalInstanceContext',`WasmVal'} -> `()'#} 
+{#fun unsafe GlobalInstanceSetValueOut as globalInstanceSetValue 
+  {`GlobalInstanceContext'      -- ^ the WasmEdge_GlobalInstanceContext.
+  ,`WasmVal'                    -- ^ the value to set into the global context.
+  } -> `()'
+#} 
 
 -- Calling Frame
 {-|
   Get the executor context from the current calling frame.
- 
-  \param Cxt the WasmEdge_CallingFrameContext.
- 
-  \returns the executor context, NULL if the Cxt is NULL.
 -}
-{#fun unsafe CallingFrameGetExecutor as ^ {`CallingFrameContext'} -> `ExecutorContext'#}
+{#fun unsafe CallingFrameGetExecutor as ^ 
+  {`CallingFrameContext'      -- ^ the WasmEdge_CallingFrameContext.
+  } -> `ExecutorContext'      -- ^ the executor context, NULL if the Cxt is NULL.
+#}
+
 {-|
   Get the module instance of the current calling frame.
  
-  When a WASM function is executing and start to call a host function, a frame
-  with the module instance which the WASM function belongs to will be pushed
-  onto the stack. And therefore the calling frame context will record that
-  module instance.
-  So in one case that the module instance will be `NULL`: developers execute
-  the function instance which is a host function and not added into a module
-  instance.
- 
-  \param Cxt the WasmEdge_CallingFrameContext.
- 
-  \returns the module instance of the current calling frame.
+  When a WASM function is executing and start to call a host function, a frame with the module instance which the WASM function belongs to will be pushed onto the stack. 
+  And therefore the calling frame context will record that module instance.
+  So in one case that the module instance will be `NULL`: developers execute the function instance which is a host function and not added into a module instance.
 -}
-{#fun unsafe CallingFrameGetModuleInstance as ^ {`CallingFrameContext'} -> `ModuleInstanceContext'#}
+{#fun unsafe CallingFrameGetModuleInstance as ^ 
+  {`CallingFrameContext'        -- ^ the WasmEdge_CallingFrameContext.
+  } -> `ModuleInstanceContext'  -- ^ the module instance of the current calling frame.
+#}
+
 {-|
-  Get the memory instance by index from the module instance of the current
-  calling frame.
- 
+  Get the memory instance by index from the module instance of the current calling frame.
   By default, a WASM module only have one memory instance after instantiation.
-  Therefore, developers can use:
-    `WasmEdge_CallingFrameGetMemoryInstance(Cxt, 0)`
-  to get the memory instance in host function body.
-  This extension is for the WASM multiple memories proposal. After enabling
-  the proposal, there may be greater than 1 memory instances in a WASM module.
-  So developers can use this function to access the memory instances which are
-  not in 0 index.
- 
-  \param Cxt the WasmEdge_CallingFrameContext.
-  \param Idx the index of memory instance in the module instance.
- 
-  \returns the memory instance, NULL if not found.
 -}
-{#fun unsafe CallingFrameGetMemoryInstance as ^ {`CallingFrameContext',`Word32'} -> `MemoryInstanceContext'#}
+{#fun unsafe CallingFrameGetMemoryInstance as ^ 
+  {`CallingFrameContext'        -- ^ the WasmEdge_CallingFrameContext.
+  ,`Word32'                     -- ^ the index of memory instance in the module instance.  
+  } -> `MemoryInstanceContext'  -- ^ the memory instance, NULL if not found.
+#}
 
 -- Async
+
 {-|
   Wait a WasmEdge_Async execution.
- 
-  \param Cxt the WasmEdge_ASync.
 -}
-{#fun unsafe AsyncWait as ^ {`Async'} -> `()'#}
+{#fun unsafe AsyncWait as ^ 
+  {`Async'                  -- ^ the WasmEdge_ASync.
+  } -> `()'
+#}
+
 {-|
   Wait a WasmEdge_Async execution with timeout.
- 
-  \param Cxt the WasmEdge_ASync.
-  \param Milliseconds times to wait.
- 
-  \returns Result of waiting, true for execution ended, false for timeout
-  occurred.
 -}
-{#fun unsafe AsyncWaitFor as ^ {`Async',`Word64'} -> `Bool'#}
+{#fun unsafe AsyncWaitFor as ^ 
+  {`Async'                    -- ^ the WasmEdge_ASync.
+  ,`Word64'                   -- ^ Milliseconds times to wait.
+  } -> `Bool'                 -- ^ Result of waiting, true for execution ended, false for timeout occurred.
+#}
 
 {- |
   Cancel a WasmEdge_Async execution.
- 
-  \param Cxt the WasmEdge_ASync.
 -}
-{#fun unsafe AsyncCancel as ^ {`Async'} -> `()'#}
+{#fun unsafe AsyncCancel as ^ 
+  {`Async'                        -- ^ the WasmEdge_ASync.
+  } -> `()'
+#}
+
 {-|
   Wait and get the return list length of the WasmEdge_Async execution.
  
-  This function will wait until the execution finished and return the return
-  value list length of the executed function. This function will return 0 if
-  the `Cxt` is NULL, the execution was failed, or the execution was canceled.
-  Developers can call the `WasmEdge_AsyncGet` to get the execution status and
-  the return values.
- 
-  \param Cxt the WasmEdge_ASync.
- 
-  \returns the return list length of the executed function.
+  This function will wait until the execution finished and return the return value list length of the executed function. 
+  This function will return 0 if the `Cxt` is NULL, the execution was failed, or the execution was canceled. Developers can call the `WasmEdge_AsyncGet` to get the execution status and the return values.
 -}
-{#fun unsafe AsyncGetReturnsLength as ^ {`Async'} -> `Word32'#}
+{#fun unsafe AsyncGetReturnsLength as ^ 
+  {`Async'                          -- ^ the WasmEdge_ASync.
+  } -> `Word32'                     -- ^ the return list length of the executed function.
+#}
+
 {-|
   Wait and get the result of WasmEdge_Async execution.
  
@@ -3796,40 +3718,22 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 
 -- VM
 {-|
-  Register a module instance into the store in VM with exporting its module
-  name.
- 
-  After calling this function, the existing module instance will be registered
-  into the store context in this VM, and the other modules can import the
-  exported instances for linking when instantiation. Developers SHOULD
-  guarantee the life cycle of this existing module instance, or the error will
-  occur when in execution after the module instance being destroyed if it has
-  been imported by other modules. That is, developers should call the
-  `WasmEdge_ModuleInstanceDelete` if this existing module instance will not be
-  used anymore or after the deletion of this VM. When the module instance is
-  deleted, it will be unregistered to the store context in this VM
-  automatically.
- 
-  This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext which contains the store.
-  \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
+  Register a module instance into the store in VM with exporting its module name.
+  After calling this function, the existing module instance will be registered into 
+  the store context in this VM, and the other modules can import the exported instances for linking when instantiation.
 -}
-{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport {+,`VMContext',`ModuleInstanceContext'} -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport 
+  {+
+  ,`VMContext'                  -- ^ the WasmEdge_VMContext which contains the store.
+  ,`ModuleInstanceContext'      -- ^ the WasmEdge_ModuleInstanceContext to register.
+  } -> `WasmResult'             -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Instantiate the WASM module from a WASM file and invoke a function by name.
  
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from the file path, and then invoke a
-  function by name and parameters. If the `Returns` buffer length is smaller
-  than the arity of the function, the overflowed return values will be
-  discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the file path, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
  
   This function is thread-safe.
  
@@ -3868,143 +3772,85 @@ vMRunWasmFromFile cxt fp fname args retLen = do
 {-|
   Instantiate the WASM module from a buffer and invoke a function by name.
  
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from a buffer, and then invoke a
-  function by name and parameters. If the `Returns` buffer length is smaller
-  than the arity of the function, the overflowed return values will be
-  discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
- 
-  This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param Buf the buffer of WASM binary.
-  \param BufLen the length of the buffer.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
-  \param [out] Returns the WasmEdge_Value buffer to fill the return values.
-  \param ReturnLen the return buffer length.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
 -}
-{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer {+,`VMContext',fromByteStringIn*`ByteString'&,%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#} 
-{-|
-  Instantiate the WASM module from a WasmEdge AST Module and invoke a function
-  by name.
- 
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from the WasmEdge AST Module, and then
-  invoke the function by name and parameters. If the `Returns` buffer length
-  is smaller than the arity of the function, the overflowed return values will
-  be discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
- 
-  This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
-  \param [out] Returns the WasmEdge_Value buffer to fill the return values.
-  \param ReturnLen the return buffer length.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
--}
-{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule {+,`VMContext',`ASTModuleContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer 
+  {+
+  ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
+  ,fromByteStringIn*`ByteString'&                 -- ^ the buffer of WASM binary and the length of the buffer
+  ,%`WasmString'                                  -- ^ the function name WasmEdge_String 
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ the WasmEdge_Value buffer with the parameter values and the length
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^  [out] Returns the WasmEdge_Value buffer to fill the return values and the length of the buffer
+  } -> `WasmResult'                               -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#} 
 
 {-|
-  Instantiate the WASM module from a WASM file and asynchronous invoke a
-  function by name.
+  Instantiate the WASM module from a WasmEdge AST Module and invoke a function by name.
  
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from the file path, and then invoke a
-  function by name and parameters. If the `Returns` buffer length is smaller
-  than the arity of the function, the overflowed return values will be
-  discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
- 
-  The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
-  it.
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the WasmEdge AST Module, and then invoke the function by name and parameters. If the `Returns` buffer length is smaller than the arity of the function, 
+  the overflowed return values will be discarded.  After calling this function, a new module instance is instantiated, and the old one will be destroyed.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param Path the NULL-terminated C string of the WASM file path.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile {`VMContext',`String',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule 
+  {+
+  ,`VMContext'                                      -- ^ the WasmEdge_VMContext.
+  ,`ASTModuleContext'                               -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  ,%`WasmString'                                    -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&     -- ^ the WasmEdge_Value buffer with the parameter values and the buffer length
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&     -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values and the buffer len
+  } -> `WasmResult'                                 -- ^  WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 
 {-|
-  Instantiate the WASM module from a WasmEdge AST Module and asynchronous
-  invoke a function by name.
- 
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from the WasmEdge AST Module, and then
-  invoke the function by name and parameters. If the `Returns` buffer length
-  is smaller than the arity of the function, the overflowed return values will
-  be discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
- 
-  The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
-  it.
- 
+  Instantiate the WASM module from a WASM file and asynchronous invoke a function by name.
+  
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the file path, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
+  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule {`VMContext',`ASTModuleContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile 
+  {`VMContext'                                     -- ^ the WasmEdge_VMContext.
+  ,`String'                                        -- ^ the NULL-terminated C string of the WASM file path.
+  ,%`WasmString'                                   -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&    -- ^ the WasmEdge_Value buffer with the parameter values and the buffer length
+  } -> `Async'                                     -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#}
+
 {-|
-  Instantiate the WASM module from a buffer and asynchronous invoke a function
-  by name.
+  Instantiate the WASM module from a WasmEdge AST Module and asynchronous invoke a function by name.
  
-  This is the function to invoke a WASM function rapidly.
-  Load and instantiate the WASM module from a buffer, and then invoke a
-  function by name and parameters. If the `Returns` buffer length is smaller
-  than the arity of the function, the overflowed return values will be
-  discarded.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the WasmEdge AST Module, and then invoke the function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
+
+  This function is thread-safe.
+-}
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule 
+  {`VMContext'                                          -- ^ the WasmEdge_VMContext.
+  ,`ASTModuleContext'                                   -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  ,%`WasmString'                                        -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&         -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  } -> `Async'                                          -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#}
+
+{-|
+  Instantiate the WASM module from a buffer and asynchronous invoke a function by name.
  
-  The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
-  it.
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param Buf the buffer of WASM binary.
-  \param BufLen the length of the buffer.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer {`VMContext',fromByteStringIn*`ByteString'&, %`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer 
+  {`VMContext'                                        -- ^ the WasmEdge_VMContext.
+  ,fromByteStringIn*`ByteString'&                     -- ^ the buffer of WASM binary and the length of the buffer.
+  , %`WasmString'                                     -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&        -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
+  } -> `Async'                                        -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#}
+
 {-|
   Creation of the WasmEdge_VMContext.
  
@@ -4035,302 +3881,243 @@ nullableFinalizablePtrOut p
 {-|
   Register and instantiate WASM into the store in VM from a WASM file.
  
-  Load a WASM file from the path, and register all exported instances and
-  instantiate them into the store into the VM with their exported name and
-  module name.
+  Load a WASM file from the path, and register all exported instances and instantiate them into the store into the VM with their exported name and module name.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext which contains the store.
-  \param ModuleName the WasmEdge_String of module name for all exported
-  instances.
-  \param Path the NULL-terminated C string of the WASM file path.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile {+,`VMContext',%`WasmString',`String'} -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile 
+  {+
+  ,`VMContext'                  -- ^ the WasmEdge_VMContext which contains the store.
+  ,%`WasmString'                -- ^ the WasmEdge_String of module name for all exported instances.
+  ,`String'                     -- ^ the NULL-terminated C string of the WASM file path.
+  } -> `WasmResult'             -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Register and instantiate WASM into the store in VM from a buffer.
  
-  Load a WASM module from a buffer, and register all exported instances and
-  instantiate them into the store into the VM with their exported name and
-  module name.
+  Load a WASM module from a buffer, and register all exported instances and instantiate them into the store into the VM with their exported name and module name.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext which contains the store.
-  \param ModuleName the WasmEdge_String of module name for all exported
-  instances.
-  \param Buf the buffer of WASM binary.
-  \param BufLen the length of the buffer.
 -}
-{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer {+,`VMContext',%`WasmString', fromByteStringIn*`ByteString'&} -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer 
+  {+
+  ,`VMContext'                      -- ^ the WasmEdge_VMContext which contains the store.
+  ,%`WasmString'                    -- ^ the WasmEdge_String of module name for all exported instances.
+  ,fromByteStringIn*`ByteString'&   -- ^ the buffer of WASM binary and the length of the buffer
+  } -> `WasmResult'                 -- ^ WasmResult
+#}
+
 {-|
   Instantiate and register an AST Module into a named module instance in VM.
  
-  Load from the AST Module, and register all exported instances and
-  instantiate them into the store in VM with their exported name and module
-  name.
+  Load from the AST Module, and register all exported instances and instantiate them into the store in VM with their exported name and module name.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext which contains the store.
-  \param ModuleName the WasmEdge_String of module name for all exported
-  instances.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule {+,`VMContext',%`WasmString',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule 
+  {+
+  ,`VMContext'                        -- ^ the WasmEdge_VMContext which contains the store.
+  ,%`WasmString'                      -- ^ the WasmEdge_String of module name for all exported instances.
+  ,`ASTModuleContext'                 -- ^ the WasmEdge AST Module context generated by loader or
+  } -> `WasmResult'                   -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
+
 {-|
   Load the WASM module from a WASM file.
  
-  This is the first step to invoke a WASM function step by step.
-  Load and parse the WASM module from the file path. You can then call
-  `WasmEdge_VMValidate` for the next step.
+  This is the first step to invoke a WASM function step by step. Load and parse the WASM module from the file path. You can then call `WasmEdge_VMValidate` for the next step.
  
   This function is thread-safe.
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param Path the NULL-terminated C string of the WASM file path.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile {+,`VMContext',`String'} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile 
+  {+
+  ,`VMContext'                        -- ^ the WasmEdge_VMContext.
+  ,`String'                           -- ^ the NULL-terminated C string of the WASM file path.
+  } -> `WasmResult'                   -- ^ WasmEdge_Result
+#}
+
 {-|
   Load the WASM module from a buffer.
  
-  This is the first step to invoke a WASM function step by step.
-  Load and parse the WASM module from a buffer. You can then call
-  `WasmEdge_VMValidate` for the next step.
+  This is the first step to invoke a WASM function step by step. Load and parse the WASM module from a buffer. You can then call `WasmEdge_VMValidate` for the next step.
  
   This function is thread-safe.
-
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param Buf the buffer of WASM binary.
-  \param BufLen the length of the buffer.
 -}
-{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer {+,`VMContext',fromByteStringIn*`ByteString'&} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer 
+  {+
+  ,`VMContext'                        -- ^ the WasmEdge_VMContext.
+  ,fromByteStringIn*`ByteString'&     -- ^ the buffer of WASM binary and the length of the buffer
+  } -> `WasmResult'
+#}
 
 {-|
   Load the WASM module from loaded WasmEdge AST Module.
  
-  This is the first step to invoke a WASM function step by step.
-  Copy the loaded WasmEdge AST Module context into VM. The VM context has no
-  dependency on the input AST Module context. You can then call
-  `WasmEdge_VMValidate` for the next step.
+  This is the first step to invoke a WASM function step by step. Copy the loaded WasmEdge AST Module context into VM. 
+  The VM context has no dependency on the input AST Module context. You can then call `WasmEdge_VMValidate` for the next step.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param ASTCxt the WasmEdge AST Module context generated by loader or
-  compiler.
 -}
-{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule {+,`VMContext',`ASTModuleContext'} -> `WasmResult'#}
+{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule 
+  {+
+  ,`VMContext'                         -- ^ the WasmEdge_VMContext.
+  ,`ASTModuleContext'                  -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  } -> `WasmResult'
+#}
 
 {-|
   Validate the WASM module loaded into the VM context.
  
-  This is the second step to invoke a WASM function step by step.
-  After loading a WASM module into VM context, You can call this function to
-  validate it. And you can then call `WasmEdge_VMInstantiate` for the next
-  step. Note that only validated WASM modules can be instantiated in the VM
-  context.
+  This is the second step to invoke a WASM function step by step. After loading a WASM module into VM context, You can call this function to validate it. 
+  And you can then call `WasmEdge_VMInstantiate` for the next step. Note that only validated WASM modules can be instantiated in the VM context.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
 -}
-{#fun unsafe VMValidateOut as vMValidate  {+,`VMContext'} -> `WasmResult'#}
+{#fun unsafe VMValidateOut as vMValidate  
+  {+,
+  `VMContext'                           -- ^ the WasmEdge_VMContext.
+  } -> `WasmResult'                     -- ^ WasmResult
+#}
 
-{-|
+{-
   Instantiate the validated WASM module in the VM context.
  
-  This is the third step to invoke a WASM function step by step.
-  After validating a WASM module in the VM context, You can call this function
-  to instantiate it. And you can then call `WasmEdge_VMExecute` for invoking
-  the exported function in this WASM module.
-  After calling this function, a new module instance is instantiated, and the
-  old one will be destroyed.
+  This is the third step to invoke a WASM function step by step. After validating a WASM module in the VM context, You can call this function to instantiate it. 
+  And you can then call `WasmEdge_VMExecute` for invoking the exported function in this WASM module. 
+  After calling this function, a new module instance is instantiated, and the old one will be destroyed.
  
   This function is thread-safe.
-
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
- 
-  \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
-  message.
 -}
-{#fun unsafe VMInstantiateOut as vMInstantiate  {+,`VMContext'} -> `WasmResult'#}
+{#fun unsafe VMInstantiateOut as vMInstantiate  
+  {+
+  ,`VMContext'                                -- ^ the WasmEdge_VMContext.
+  } -> `WasmResult'                           -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
+#}
 
 {-|
   Invoke a WASM function by name.
  
-  This is the final step to invoke a WASM function step by step.
-  After instantiating a WASM module in the VM context, the WASM module is
-  registered into the store in the VM context as an anonymous module. Then you
-  can repeatedly call this function to invoke the exported WASM functions by
-  their names until the VM context is reset or a new WASM module is registered
-  or loaded. For calling the functions in registered WASM modules with module
-  names, please use `WasmEdge_VMExecuteRegistered` instead. If the `Returns`
-  buffer length is smaller than the arity of the function, the overflowed
-  return values will be discarded.
+  This is the final step to invoke a WASM function step by step. After instantiating a WASM module in the VM context, the WASM module is registered into the store in the VM context as an anonymous module. 
+  Then you can repeatedly call this function to invoke the exported WASM functions by their names until the VM context is reset or a new WASM module is registered or loaded. For calling the functions in registered WASM modules with module names, please use `WasmEdge_VMExecuteRegistered` instead. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded.
  
   This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
-  \param [out] Returns the WasmEdge_Value buffer to fill the return values.
-  \param ReturnLen the return buffer length.
- 
-  message.
 -}
-{#fun unsafe VMExecuteOut as vMExecute {+,`VMContext',%`WasmString', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe VMExecuteOut as vMExecute 
+  {+
+  ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                  -- ^ the function name WasmEdge_String.  
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values and the return buffer length.
+  } -> `WasmResult'
+#}
+
 {-|
   Invoke a WASM function by its module name and function name.
  
-  After registering a WASM module in the VM context, you can repeatedly call
-  this function to invoke exported WASM functions by their module names and
-  function names until the VM context is reset. If the `Returns` buffer length
-  is smaller than the arity of the function, the overflowed return values will
-  be discarded.
- 
-  This function is thread-safe.
- 
-  \param resOut reference of wasmResult in which the result would be stored
-  \param Cxt the WasmEdge_VMContext.
-  \param ModuleName the module name WasmEdge_String.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
-  \param [out] Returns the WasmEdge_Value buffer to fill the return values.
-  \param ReturnLen the return buffer length.
+  After registering a WASM module in the VM context, you can repeatedly call this function to invoke exported WASM functions by their module names and function names until the VM context is reset. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded.
 -}
-{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered {+,`VMContext',%`WasmString',%`WasmString', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered 
+  {+                                             
+  ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
+  ,%`WasmString'                                  -- ^ the function name WasmEdge_String.
+  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values.
+  } -> `WasmResult'                               -- ^ WasmEdge_Result
+#}
+
 {-|
   Asynchronous invoke a WASM function by name.
  
-  This is the final step to invoke a WASM function step by step.
-  After instantiating a WASM module in the VM context, the WASM module is
-  registered into the store in the VM context as an anonymous module. Then you
-  can repeatedly call this function to invoke the exported WASM functions by
-  their names until the VM context is reset or a new WASM module is registered
-  or loaded. For calling the functions in registered WASM modules with module
-  names, please use `WasmEdge_VMAsyncExecuteRegistered` instead.
+  This is the final step to invoke a WASM function step by step. After instantiating a WASM module in the VM context, the WASM module is registered into the store in the VM context as an anonymous module. 
+  Then you can repeatedly call this function to invoke the exported WASM functions by their names until the VM context is reset or a new WASM module is registered or loaded. 
+  For calling the functions in registered WASM modules with module names, please use `WasmEdge_VMAsyncExecuteRegistered` instead.
  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute {`VMContext',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#}
+{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute 
+  {`VMContext'                                     -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                   -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&    -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  } -> `Async'                                     -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#}
+
 {-|
   Asynchronous invoke a WASM function by its module name and function name.
- 
-  After registering a WASM module in the VM context, you can repeatedly call
-  this function to invoke exported WASM functions by their module names and
-  function names until the VM context is reset.
- 
+  After registering a WASM module in the VM context, you can repeatedly call this function to invoke exported WASM functions by their module names and function names until the VM context is reset.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param ModuleName the module name WasmEdge_String.
-  \param FuncName the function name WasmEdge_String.
-  \param Params the WasmEdge_Value buffer with the parameter values.
-  \param ParamLen the parameter buffer length.
- 
-  \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
-  `WasmEdge_AsyncDelete` to destroy this object.
 -}
-{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered {`VMContext',%`WasmString',%`WasmString',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `Async'#} 
+{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered 
+  {`VMContext'                                        -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                      -- ^ the module name WasmEdge_String.
+  ,%`WasmString'                                      -- ^ the function name WasmEdge_String.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&       -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length buffer 
+  } -> `Async'                                        -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
+#} 
+
 {-|
   Get the function type by function name.
  
-  After instantiating a WASM module in the VM context, the WASM module is
-  registered into the store in the VM context as an anonymous module. Then you
-  can call this function to get the function type by the exported function
-  name until the VM context is reset or a new WASM module is registered or
-  loaded. For getting the function type of functions in registered WASM
-  modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered`
-  instead.
-  The returned function type context are linked to the context owned by the VM
-  context, and the caller should __NOT__ call the
-  `WasmEdge_FunctionTypeDelete` to destroy it.
- 
+  After instantiating a WASM module in the VM context, the WASM module is registered into the store in the VM context as an anonymous module. 
+  Then you can call this function to get the function type by the exported function name until the VM context is reset or a new WASM module is registered or loaded. 
+  For getting the function type of functions in registered WASM modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered` instead.
+  
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param FuncName the function name WasmEdge_String.
- 
-  \returns the function type. NULL if the function not found.
 -}
-{#fun unsafe VMGetFunctionType as ^ {`VMContext',%`WasmString'} -> `FunctionTypeContext'#}
+{#fun unsafe VMGetFunctionType as ^ 
+  {`VMContext'                                         -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                       -- ^ the function name WasmEdge_String.
+  } -> `FunctionTypeContext'                           -- ^ the function type. NULL if the function not found.
+#}
+
 {-|
   Get the function type by function name.
- 
-  After registering a WASM module in the VM context, you can call this
-  function to get the function type by the functions' exported module names
-  and function names until the VM context is reset.
-  The returned function type context are linked to the context owned by the VM
-  context, and the caller should __NOT__ call the
-  `WasmEdge_FunctionTypeDelete` to destroy it.
- 
+  After registering a WASM module in the VM context, you can call this function to get the function type by the functions' exported module names and function names until the VM context is reset.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param ModuleName the module name WasmEdge_String.
-  \param FuncName the function name WasmEdge_String.
- 
-  \returns the function type. NULL if the function not found.
 -}
-{#fun unsafe VMGetFunctionTypeRegistered as ^ {`VMContext',%`WasmString',%`WasmString'} -> `FunctionTypeContext'#}
+{#fun unsafe VMGetFunctionTypeRegistered as ^ 
+  {`VMContext',                                         -- ^ the WasmEdge_VMContext.
+  %`WasmString',                                        -- ^ the module name WasmEdge_String.
+  %`WasmString'                                         -- ^ the function name WasmEdge_String.
+  } -> `FunctionTypeContext'                            -- ^ the function type. NULL if the function not found.
+#}
+
 {-|
   Reset of WasmEdge_VMContext.
- 
-  After calling this function, the statistics, loaded module, the instantiated
-  instances, and the registered instances except the WASI and plug-ins will
-  all be cleared.
- 
+  After calling this function, the statistics, loaded module, the instantiated instances, and the registered instances except the WASI and plug-ins will all be cleared.
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext to reset.
 -}
-{#fun unsafe VMCleanup as ^ {`VMContext'} -> `()'#} 
+{#fun unsafe VMCleanup as ^ 
+  {`VMContext'                                          -- ^ the WasmEdge_VMContext to reset.
+  } -> `()'
+#} 
 
 {-|
   Get the length of exported function list.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
- 
-  \returns length of exported function list.
 -}
-{#fun unsafe VMGetFunctionListLength as ^ {`VMContext'} -> `Word32'#} 
-{#fun unsafe VMGetFunctionListOut as vmGetFunctionList_ {`VMContext', fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&, fromMutIOVecOr0Ptr*`IOVector (Ptr FunctionTypeContext)'&} -> `Word32'#}
+{#fun unsafe VMGetFunctionListLength as ^ 
+  {`VMContext'                                          -- ^ the WasmEdge_VMContext.
+  } -> `Word32'                                         -- ^ length of exported function list.
+#} 
 
+
+{#fun unsafe VMGetFunctionListOut as vmGetFunctionList_ 
+  {`VMContext'
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&, fromMutIOVecOr0Ptr*`IOVector (Ptr FunctionTypeContext)'&
+  } -> `Word32'
+#}
+
+{-|
+Get the length of exported function list.
+-}
 vMGetFunctionList ::
-  VMContext
-  -> Word32
-  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext)
+  VMContext                                                 -- ^ the WasmEdge_VMContext.
+  -> Word32                                                 -- ^ Names the output names WasmEdge_String buffer of exported functions and length of the buffer
+  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext) -- ^ actual exported function list size.
 vMGetFunctionList vmcxt sz = do
   namesVSM <- VSM.new (fromIntegral sz)
   ftypesVSM <- VSM.new (fromIntegral sz)
@@ -4340,146 +4127,131 @@ vMGetFunctionList vmcxt sz = do
   pure (names, ftypes)
   
 {-|
-  This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
-  \param Reg the host registration value to get the import module.
- 
-  \returns pointer to the module instance context. NULL if not found.
+Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 -}
-{#fun unsafe VMGetImportModuleContext as ^ {`VMContext',`HostRegistration'} -> `ModuleInstanceContext'#} 
+{#fun unsafe VMGetImportModuleContext as ^ 
+  {`VMContext',                                 -- ^ the WasmEdge_VMContext.
+  `HostRegistration'                            -- ^ the host registration value to get the import module.                            
+  } -> `ModuleInstanceContext'                  -- ^  the module instance context. NULL if not found.
+#} 
+
 {-|
   Get the current instantiated module in VM.
- 
-  After instantiating a module instance into the VM, developers can call this
-  API to get the module instance to retrieve the exported instances. The
-  module instance context links to the context owned by the VM context. The
-  caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete`.
- 
   This function is thread-safe.
- 
-  \param Cxt the WasmEdge_VMContext.
- 
-  \returns pointer to the module instance context. NULL if not found.
 -}
-{#fun unsafe VMGetActiveModule as ^ {`VMContext'} -> `ModuleInstanceContext'#} 
+{#fun unsafe VMGetActiveModule as ^ 
+  {`VMContext'                                  -- ^ the WasmEdge_VMContext. 
+  } -> `ModuleInstanceContext'                  -- ^ the module instance context. NULL if not found.
+#} 
+
 {-|
   Get the registered module in VM by the module name.
-  After registering a WASM module into the VM context, developers can call
-  this function to get the module instance by the module name. The returned
-  module instance context links to the context owned by the VM context, and
-  the caller should __NOT__ call the `WasmEdge_ModuleInstanceDelete` to
-  destroy it.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \param ModuleName the module name WasmEdge_String.
-  \returns pointer to the module instance context. NULL if not found.
 -}
-{#fun unsafe VMGetRegisteredModule as ^ {`VMContext',%`WasmString'} -> `ModuleInstanceContext'#}
+{#fun unsafe VMGetRegisteredModule as ^ 
+  {`VMContext'                                    -- ^ the WasmEdge_VMContext.
+  ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
+  } -> `ModuleInstanceContext'                    -- ^ the module instance context. NULL if not found.
+#}
+
 {-|
   Get the length of registered module list in the WasmEdge_VMContext.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns length of registered module list.
 -}
-{#fun unsafe VMListRegisteredModuleLength as ^ {`VMContext'} -> `Word32'#} 
+{#fun unsafe VMListRegisteredModuleLength as ^ 
+  {`VMContext'                                    -- ^ the WasmEdge_VMContext.
+  } -> `Word32'                                   -- ^ length of registered module list.
+#} 
+
 {-|
   List the registered module names in the WasmEdge_VMContext.
-  This function will list all registered module names.
-  The returned module names filled into the `Names` array are linked to the
-  registered module names in the VM context, and the caller should __NOT__
-  call the `WasmEdge_StringDelete`.
-  If the `Names` buffer length is smaller than the result of the registered
-  named module list size, the overflowed return values will be discarded.
+  If the `Names` buffer length is smaller than the result of the registered named module list size, the overflowed return values will be discarded.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \param [out] Names the output names WasmEdge_String buffer of the registered
-  modules.
-  \param Len the buffer length.
-  \returns actual registered module list size.
 -}
-{#fun unsafe VMListRegisteredModuleOut as vMListRegisteredModule {`VMContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+{#fun unsafe VMListRegisteredModuleOut as vMListRegisteredModule 
+  {`VMContext'                                     -- ^ the WasmEdge_VMContext.
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'& -- ^ WasmEdge_String buffer of the registered modules and length of the buffer
+  } -> `Word32'                                    -- ^ actual registered module list size.
+#} 
+
 {-|
   Get the store context used in the WasmEdge_VMContext.
-  The returned store context links to the store in the VM context and owned by
-  the VM context. This function will return NULL if error occurs. The caller
-  should __NOT__ call the `WasmEdge_StoreDelete`.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns pointer to the store context.
 -}
-{#fun unsafe VMGetStoreContext as ^ {`VMContext'} -> `StoreContext'#} 
+{#fun unsafe VMGetStoreContext as ^ 
+  {`VMContext'                                     -- ^ the WasmEdge_VMContext
+  } -> `StoreContext'                              -- ^ the store context.
+#} 
+
 {-|
   Get the loader context used in the WasmEdge_VMContext.
-  The returned loader context links to the loader in the VM context and owned
-  by the VM context. This function will return NULL if error occurs. The
-  caller should __NOT__ call the `WasmEdge_LoaderDelete`.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns pointer to the loader context.
--}
-{#fun unsafe VMGetLoaderContext as ^ {`VMContext'} -> `LoaderContext'#} 
+ -}
+{#fun unsafe VMGetLoaderContext as ^ 
+  {`VMContext'                                     -- ^ the WasmEdge_VMContext.
+  } -> `LoaderContext'                             -- ^ the loader context.
+#} 
+
 {-|
   Get the validator context used in the WasmEdge_VMContext.
-  The returned validator context links to the validator in the VM context and
-  owned by the VM context. This function will return NULL if error occurs. The
-  caller should __NOT__ call the `WasmEdge_ValidatorDelete`.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns pointer to the validator context.
 -}
-{#fun unsafe VMGetValidatorContext as ^ {`VMContext'} -> `ValidatorContext'#} 
+{#fun unsafe VMGetValidatorContext as ^ 
+  {`VMContext'                                      -- ^ the WasmEdge_VMContext.
+  } -> `ValidatorContext'                           -- ^ the validator context.
+#} 
+
 {-|
   Get the executor context used in the WasmEdge_VMContext.
-  The returned executor context links to the executor in the VM context and
-  owned by the VM context. This function will return NULL if error occurs. The
-  caller should __NOT__ call the `WasmEdge_ExecutorDelete`.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns pointer to the executor context.
 -}
-{#fun unsafe VMGetExecutorContext as ^ {`VMContext'} -> `ExecutorContext'#} 
+{#fun unsafe VMGetExecutorContext as ^ 
+  {`VMContext'                                        -- ^ the WasmEdge_VMContext.
+  } -> `ExecutorContext'                              -- ^ the executor context.
+#} 
+
 {-|
   Get the statistics context used in the WasmEdge_VMContext.
-  The statistics context links to the statistics in the VM context and owned
-  by the VM context. The caller should __NOT__ call the
-  `WasmEdge_StatisticsDelete`.
   This function is thread-safe.
-  \param Cxt the WasmEdge_VMContext.
-  \returns pointer to the statistics context.
 -}
-{#fun unsafe VMGetStatisticsContext as ^ {`VMContext'} -> `StatisticsContext'#} 
+{#fun unsafe VMGetStatisticsContext as ^ 
+  {`VMContext'                                          -- ^ the WasmEdge_VMContext
+  } -> `StatisticsContext'                              -- ^ pointer to the statistics context.
+#} 
 
 -- Driver
 {-|
   Entrypoint for the compiler tool.
   This function provides an entrypoint to the WasmEdge AOT compiler tool with
   the command line arguments.
-  \param Argc the argument count.
-  \param Argv the argument vector.
-  \returns the execution status.
 -}
-{#fun unsafe Driver_Compiler as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int32'#}
+{#fun unsafe Driver_Compiler as ^ 
+  {fromVecStringOr0Ptr*`V.Vector String'&               -- ^ Argc the argument count and argv vector
+  } -> `Int32'                                          -- ^ the execution status.
+#}
+
 {-|
   Entrypoint for the runtime tool.
   This function provides an entrypoint to the WasmEdge runtime tool with the
   command line arguments.
-  \param Argc the argument count.
-  \param Argv the argument vector.
-  \returns the execution status.
 -}
-{#fun unsafe Driver_Tool as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int32'#}
+{#fun unsafe Driver_Tool as ^ 
+  {fromVecStringOr0Ptr*`V.Vector String'&               -- ^ Argc the argument count and argv vector
+  } -> `Int32'                                          -- ^ the execution status.
+#}
+
 {-|
   Entrypoint for the unified tool.
   This function provides an entrypoint to the WasmEdge unified tool with the
   command line arguments.
-  \param Argc the argument count.
-  \param Argv the argument vector.
-  \returns the execution status.
 -}
-{#fun unsafe Driver_UniTool as ^ {fromVecStringOr0Ptr*`V.Vector String'&} -> `Int32'#}
+{#fun unsafe Driver_UniTool as ^ 
+  {fromVecStringOr0Ptr*`V.Vector String'&               -- ^ Argc the argument count and argv vector
+  } -> `Int32'                                          -- ^ the execution status.
+#}
 
 -- Plugin Function
+
 {-|
   Load plugins with the default search paths.
  
@@ -4489,101 +4261,81 @@ vMGetFunctionList vmcxt sz = do
     3. The "wasmedge/" directory under the library path if the WasmEdge is
        installed under the "/usr".
 -}
-{#fun unsafe PluginLoadWithDefaultPaths as ^ {} -> `()'#} 
+{#fun unsafe PluginLoadWithDefaultPaths as ^ 
+  {} -> `()'
+#} 
+
 {-|
   Load the plugin with the given file or directory.
  
   For the given file path, this function will load the plug-in.
   For the given directory path, this function will load the plug-ins under the
   directory recursively.
- 
-  \param Path the path to plug-in file or directory.
 -}
-{#fun unsafe PluginLoadFromPath as ^ {`String'} -> `()'#}
+{#fun unsafe PluginLoadFromPath as ^ 
+  {`String'                                             -- ^ the path to plug-in file or directory.
+  } -> `()'
+#}
+
 {-|
   Get the length of loaded plug-in list.
- 
-  \returns length of loaded plug-in list.
 -}
-{#fun unsafe PluginListPluginsLength as ^ {} -> `Word32'#} 
+{#fun unsafe PluginListPluginsLength as ^ 
+  {} -> `Word32'                                        -- ^ length of loaded plug-in list.
+#} 
+
 {-|
   List the loaded plug-ins with their names.
- 
-  The returned plug-in names filled into the `Names` array are owned by the
-  internal WasmEdge plug-in storage, and the caller should __NOT__ call the
-  `WasmEdge_StringDelete`.
-  If the `Names` buffer length is smaller than the result of the loaded
-  plug-in list size, the overflowed return values will be discarded.
- 
-  \param [out] Names the output WasmEdge_String buffer of the function names.
-  \param Len the buffer length.
- 
-  \returns actual loaded plug-in list size.
--}
-{#fun unsafe PluginListPluginsOut as pluginListPlugins {fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+ -}
+{#fun unsafe PluginListPluginsOut as pluginListPlugins 
+  {fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&      -- ^ Names the output WasmEdge_String buffer of the function names and length of the buffer
+  } -> `Word32'                                         -- ^ actual loaded plug-in list size.
+#} 
+
 {-|
   Find the loaded plug-in context by name.
- 
-  After loading the plug-ins from default paths or the given path, developers
-  can use this API to retrieve the plug-in context by name. Then developers
-  can create the module instance from the plug-in contexts.
- 
-  \param Name the plug-in name WasmEdge_String.
- 
-  \returns pointer to the plug-in context. NULL if the plug-in not found.
 -}
-{#fun unsafe PluginFind as ^ {%`WasmString'} -> `PluginContext'#} 
+{#fun unsafe PluginFind as ^ 
+  {%`WasmString'              -- ^ the plug-in name WasmEdge_String.
+  } -> `PluginContext'        -- ^ pointer to the plug-in context. NULL if the plug-in not found.
+#} 
+
 {-|
   Get the plug-in name of the plug-in context.
- 
-  The returned string object is linked to the plug-in name of the plug-in
-  context, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
-  \param strOut WasmEdge_String* in which the result would be stored
-  \param Cxt the WasmEdge_PluginContext.
- 
 -}
-{#fun unsafe PluginGetPluginNameOut as pluginGetPluginName {+,`PluginContext'} -> `WasmString'#} 
+{#fun unsafe PluginGetPluginNameOut as pluginGetPluginName 
+  {+,                                                      -- ^ WasmEdge_String* in which the result would be stored
+  `PluginContext'                                          -- ^ the WasmEdge_PluginContext.
+  } -> `WasmString'                                        -- ^ WasmString Which contains name of the plugin
+#} 
+
 {-|
   Get the length of module list in the plug-in context.
- 
-  There may be several modules in a plug-in. Developers can use this function
-  to get the length of the module list in a plug-in.
- 
-  \param Cxt the WasmEdge_PluginContext to get the length of the module list.
- 
-  \returns length of module list.
 -}
-{#fun unsafe PluginListModuleLength as ^ {`PluginContext'} -> `Word32'#} 
+{#fun unsafe PluginListModuleLength as ^ 
+  {`PluginContext' -- ^ the WasmEdge_PluginContext to get the length of the module list.
+  } -> `Word32' -- ^ length of module list.
+#} 
+
 {-|
   List the modules in the plug-in context with their names.
- 
-  The returned module names filled into the `Names` array are owned by the
-  internal WasmEdge plug-in storage, and the caller should __NOT__ call the
-  `WasmEdge_StringDelete`.
-  If the `Names` buffer length is smaller than the result of the loaded
-  plug-in list size, the overflowed return values will be discarded.
- 
-  \param Cxt the WasmEdge_PluginContext to list the modules.
-  \param [out] Names the output WasmEdge_String buffer of the function names.
-  \param Len the buffer length.
- 
-  \returns actual module list size of the plug-in.
 -}
-{#fun unsafe PluginListModuleOut as pluginListModule {`PluginContext',fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&} -> `Word32'#} 
+{#fun unsafe PluginListModuleOut as pluginListModule 
+  {`PluginContext'                                    -- ^ the WasmEdge_PluginContext to list the modules. 
+  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&    -- ^ Names the output WasmEdge_String buffer of the function names and the Buffer length
+  } -> `Word32'                                       -- ^ actual module list size of the plug-in.
+#} 
+
 {-|
-- Create the module instance in the plug-in by the module name.
-- By giving the module name, developers can retrieve the module in the plug-in
-  and create the module instance.
-  The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
-  to destroy it.
- 
-  \param Cxt the WasmEdge_PluginContext to retrieve and create module.
-  \param ModuleName the module name to retrieve.
- 
-  \returns pointer to the module instance context, NULL if the module name not
-  found in the plug-in or the plug-in is not valid.
+  Create the module instance in the plug-in by the module name. By giving the module name, developers can retrieve the module in the plug-in and create the module instance. 
+  The caller owns the object and should call `WasmEdge_ModuleInstanceDelete` to destroy it.
 -}
-{#fun unsafe PluginCreateModule as ^ {`PluginContext',%`WasmString'} -> `ModuleInstanceContext'#} 
+{#fun unsafe PluginCreateModule as ^ 
+  {`PluginContext'                   -- ^ the WasmEdge_PluginContext to retrieve and create module.
+    ,%`WasmString'                   -- ^ the module name to retrieve.
+  } -> `ModuleInstanceContext'       -- ^ pointer to the module instance context, NULL if the module name not found in the plug-in or the plug-in is not valid.
+#} 
+
 {-|
   Implement by plugins for returning the plugin descriptor.
   \returns the plugin descriptor.
