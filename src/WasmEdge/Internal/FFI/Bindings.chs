@@ -3750,13 +3750,21 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile_ {+,`VMContext',`String',%`WasmString',fromVecOfFPtr*`V.Vector WasmVal'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 
 
+{-|
+  Instantiate the WASM module from a WASM file and invoke a function by name.
+ 
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the file path, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
+ 
+  This function is thread-safe.
+-}
 vMRunWasmFromFile ::
-  VMContext
-  -> String
-  -> WasmString
-  -> V.Vector WasmVal
-  -> Word32
-  -> IO (WasmResult, V.Vector WasmVal)
+  VMContext -- ^ the WasmEdge_VMContext.
+  -> String -- ^ the WASM file path.
+  -> WasmString -- ^ the function name.
+  -> V.Vector WasmVal -- ^ the parameter values.
+  -> Word32 -- ^ the return buffer length.
+  -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
 vMRunWasmFromFile cxt fp fname args retLen = do
   retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
   res <- vMRunWasmFromFile_ cxt fp fname args retOut
