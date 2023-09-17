@@ -19,6 +19,7 @@ import qualified Data.ByteString.Char8 as Char8
 import Data.String
 import Data.Kind
 import GHC.Generics
+import Control.Monad
 import Control.Monad.IO.Class
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Vector as V
@@ -132,12 +133,13 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test2
   liftIO $ test3
   liftIO $ test4
+  liftIO $ test5
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
 test1 :: IO ()
 test1 = do
-  withWasmRes configureCreate $ \cfgCxt -> do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
     _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
       addTwoRes <- vMRunWasmFromFile vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
@@ -148,7 +150,7 @@ test1 = do
 test2 :: IO ()
 test2 = do
   wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
-  withWasmRes configureCreate $ \cfgCxt -> do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
     _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
       addTwoRes <- vMRunWasmFromBuffer vm wasmBS "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
@@ -158,9 +160,9 @@ test2 = do
 
 test3 :: IO ()
 test3 = do
-  withWasmRes configureCreate $ \cfgCxt -> do    
+  void $ withWasmResT configureCreate $ \cfgCxt -> do    
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    withWasmRes (loaderCreate cfgCxt) $ \loader -> do
+    void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
       (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
       let astMod = maybe (error "Failed to load AST module") id astModMay
       _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
@@ -172,13 +174,25 @@ test3 = do
 test4 :: IO ()
 test4 = do
   wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
-  withWasmRes configureCreate $ \cfgCxt -> do    
+  void $ withWasmResT configureCreate $ \cfgCxt -> do    
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    withWasmRes (loaderCreate cfgCxt) $ \loader -> do
+    void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
       (_, astModMay) <- loaderParseFromBuffer loader wasmBS
       let astMod = maybe (error "Failed to load AST module") id astModMay
       _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
         addTwoRes <- vMRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
         print addTwoRes
       pure ()
-    pure ()    
+    pure ()
+
+test5 :: IO ()
+test5 = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do    
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+      (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+      let astMod = maybe (error "Failed to load AST module") id astModMay
+      void $ withWasmResT (validatorCreate cfgCxt) $ \validator -> do
+        vres <- validatorValidate validator astMod
+        print vres
+      pure ()

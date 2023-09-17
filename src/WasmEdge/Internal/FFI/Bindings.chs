@@ -1429,10 +1429,6 @@ Get the patch version value of the WasmEdge C API.
 {#fun pure unsafe VersionGetPatch as ^ {} -> `Word' fromIntegral#}
     
 
-fromCStrToText :: CString -> IO Text
-fromCStrToText cs = T.fromPtr0 $ castPtr cs
-
-
 {-|
   HsRef
 -}
@@ -1477,39 +1473,6 @@ Program option for plugins.
 {#pointer *WasmEdge_PluginDescriptor as PluginDescriptor foreign newtype #}
 
 ---
-{-|
-  fromHsRefIn 
--}
-fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
-fromHsRefIn = fromHsRefGenIn
-
-fromHsRefAsVoidPtrIn :: HsRef -> (Ptr () -> IO a) -> IO a
-fromHsRefAsVoidPtrIn = fromHsRefGenIn
-
-fromHsRefGenIn :: HsRef -> (Ptr p -> IO a) -> IO a
-fromHsRefGenIn (HsRef fprnt sp) f = do
-  fp <- mallocForeignPtrBytes {#sizeof HsRef#}
-  withForeignPtr fp $ \p -> alloca @Fingerprint $ \pFing -> do
-    poke pFing fprnt
-    {#set HsRef.Fingerprint#} p (castPtr pFing)
-    {#set HsRef.Ref#} p (castStablePtrToPtr sp)
-    f p
-
-toHsRefOut :: Ptr HsRefPtr -> IO HsRef
-toHsRefOut hsr = do
-  pFing <- {#get HsRef.Fingerprint#} hsr
-  fprint <- peek @Fingerprint (castPtr pFing)
-  r <- {#get HsRef.Ref#} hsr
-  pure $ HsRef fprint (castPtrToStablePtr r)
-
-toHsRefFromVoidPtrOut :: Ptr () -> IO HsRef
-toHsRefFromVoidPtrOut = toHsRefOut . castPtr
-
-fromHsRefWithFinalzrIn :: HsRef -> ((Ptr (), FunPtr (Ptr () -> IO ())) -> IO a) -> IO a
-fromHsRefWithFinalzrIn hsRef f = do
-  hsDataFinalzr <- finalizerHSData $ const (freeHsRef hsRef)
-  fromHsRefAsVoidPtrIn hsRef $ \pRef -> f (pRef, hsDataFinalzr)
-
 foreign import ccall "wrapper" finalizerHSData :: (Ptr () -> IO ()) -> IO (FunPtr (Ptr () -> IO ()))
 
 pattern WasmInt32 :: Int32 -> WasmVal
@@ -1679,13 +1642,6 @@ Generate the I32 WASM value.
   } -> `WasmVal'            -- ^ WasmEdge_Value struct with the V128 value.
 #}
 
-allocI128 :: Int128 -> (Ptr CULong -> IO a) -> IO a
-allocI128 i128 f = alloca $ \p -> poke p i128 *> f (castPtr p)
-
-peekI128 :: Ptr CULong -> IO Int128
-peekI128 p = peek @Int128 (castPtr p) 
-
-
 {-|
   Retrieve the V128 value from the WASM value.
 -}
@@ -1784,33 +1740,6 @@ instance (TypeError ('Text "Use `withWasmResF` or `withWasmResT` instead of `wit
 -}
 finalize :: HasFinalizer t => t -> IO ()
 finalize = runFinalizer
-
-coercePtr :: Coercible a b => Ptr a -> Ptr b
-coercePtr = castPtr
-
-useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
-useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
-
-useAsPtrCUCharLenBS :: ByteString -> ((Ptr CUChar, CUInt) -> IO a) -> IO a
-useAsPtrCUCharLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (bimap convPtrCCharToPtrCUChar fromIntegral strLen))
-  where
-    convPtrCCharToPtrCUChar :: CString -> Ptr CUChar
-    convPtrCCharToPtrCUChar = castPtr
-    
-
-_packCStringLenBS :: CString -> CUInt -> IO ByteString
-_packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
-
-packCStringBS :: CString -> IO ByteString
-packCStringBS cstr = BS.packCString cstr
-
-memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
-memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> f (p, fromIntegral (memBuffLen mem))
-
-data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
-
-allocMemBuff :: Int -> IO MemBuff
-allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
 
 {-|
   Copy the content of WasmEdge_String object to the buffer.
@@ -2235,7 +2164,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
   Creation of the WasmEdge_ConfigureContext.
 -}
 {#fun unsafe ConfigureCreate as ^ 
-  {} -> `ConfigureContext'    -- pointer to the context, NULL if failed.
+  {} -> `Maybe ConfigureContext'nullableFinalizablePtrOut*    -- pointer to the context, NULL if failed.
 #}
 
 {-|
@@ -2501,7 +2430,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
   The caller owns the object and should call `WasmEdge_StatisticsDelete` to destroy it.
 -}
 {#fun unsafe StatisticsCreate as ^ 
-{} -> `StatisticsContext'   -- ^ pointer to context, NULL if failed. 
+{} -> `Maybe StatisticsContext'nullableFinalizablePtrOut*   -- ^ pointer to context, NULL if failed. 
 #}
 
 {-|
@@ -2583,7 +2512,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 {#fun unsafe FunctionTypeCreate as ^ 
   {fromStoreVecOr0Ptr*`Vector ValType'&,    -- ^ the value types list of parameters. NULL if the length is 0 and the buffer length 
   fromStoreVecOr0Ptr*`Vector ValType'&      -- ^ the value types list of returns. NULL if the length is 0 and the buffer length
-  } -> `FunctionTypeContext'                -- ^ pointer to context, NULL if failed.
+  } -> `Maybe FunctionTypeContext'nullableFinalizablePtrOut* -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -2620,57 +2549,6 @@ astModuleListExports fcxt buffLen = do
   len <- astModuleListExports_ fcxt v
   VS.unsafeFreeze $ VSM.unsafeCoerceMVector $ VSM.slice 0 (fromIntegral len) v  
   
-
-fromStoreVecOr0Ptr :: (Storable a, Num n) => Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
-fromStoreVecOr0Ptr v f
-  | VS.null v = f (nullPtr, 0)
-  | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
-
-fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
-fromVecOr0Ptr getPtr v f
-  | V.null v = f (nullPtr, 0)
-  | otherwise = do
-      ptrs <- VSM.generateM (fromIntegral $ V.length v) (getPtr . V.unsafeIndex v)
-      r <- fromMutIOVecOr0Ptr ptrs f
-      VSM.mapM_ free ptrs
-      pure r
-
-fromVecStringOr0Ptr :: (Num sz) => V.Vector String -> ((Ptr (Ptr CChar), sz) -> IO b) -> IO b
-fromVecStringOr0Ptr = fromVecOr0Ptr newCString
-
-fromVecOfFPtr :: forall t sz b.(Coercible t (ForeignPtr t), Num sz) => V.Vector t -> ((Ptr (Ptr t), sz) -> IO b) -> IO b
-fromVecOfFPtr v f
-  | V.null v = f (nullPtr, 0)
-  | otherwise = do
-      ptrs <- VSM.generate (fromIntegral $ V.length v) (unsafeForeignPtrToPtr . coerce . V.unsafeIndex v)
-      r <- fromMutIOVecOr0Ptr ptrs f
-      -- Keep the ref of ptrs taken from vec alive transitively by keeping the vec alive
-      maybe (pure ()) (touchForeignPtr . (coerce @t @(ForeignPtr t))) (v V.!? 0)
-      pure r
-      
-
-fromMutIOVecOr0Ptr :: (Storable a, Num sz) => IOVector a -> ((Ptr a, sz) -> IO b) -> IO b
-fromMutIOVecOr0Ptr v f
-  | VSM.null v = f (nullPtr, 0)
-  | otherwise = VSM.unsafeWith v $ \p -> f (p, fromIntegral $ VSM.length v)
-
-fromMutIOVecOfCEnumOr0Ptr :: (Storable a, Enum a) => IOVector a -> ((Ptr CInt, CUInt) -> IO b) -> IO b
-fromMutIOVecOfCEnumOr0Ptr v f
-  | VSM.null v = f (nullPtr, 0)
-  | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
-
-fromByteStringIn :: (Coercible Word8 w8, Num sz) => BS.ByteString -> ((Ptr w8, sz) -> IO b) -> IO b
-fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coercePtr (castPtr p :: Ptr Word8), fromIntegral l)
---
-
-newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
-
-instance Enum t => Storable (ViaFromEnum t) where
-  sizeOf = sizeOf . fromEnum . getHsEnumTy
-  alignment = alignment . fromEnum . getHsEnumTy
-  peek = fmap (ViaFromEnum . toEnum) . peek @Int . castPtr 
-  poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
-
 -- Function Type
 {-|
 Get the return types list length from the WasmEdge_FunctionTypeContext.
@@ -2693,12 +2571,6 @@ functionTypeGetReturns fcxt buffLen = do
   len <- functionTypeGetReturns_ fcxt v
   VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
 
-noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
-noFinalizer = coerce . newForeignPtr_
-
-useFinalizerFree :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
-useFinalizerFree = coerce . newForeignPtr finalizerFree
-
 -- Table Type
 {-|
   Creation of the WasmEdge_TableTypeContext.
@@ -2707,7 +2579,7 @@ useFinalizerFree = coerce . newForeignPtr finalizerFree
 {#fun unsafe TableTypeCreate as ^ 
   {`RefType'                  -- ^ the reference type of the table type.
   ,%`Limit'                   -- ^ the limit struct of the table type.
-  } -> `TableTypeContext'     -- ^ pointer to context, NULL if failed.
+  } -> `Maybe TableTypeContext'nullableFinalizablePtrOut* -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -2734,7 +2606,7 @@ useFinalizerFree = coerce . newForeignPtr finalizerFree
 -}
 {#fun unsafe MemoryTypeCreate as ^ 
   {%`Limit'                   -- ^ the limit struct of the memory type.
-  } -> `MemoryTypeContext'    -- ^ pointer to context, NULL if failed.
+  } -> `Maybe MemoryTypeContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #}  
 
 {-|
@@ -2754,7 +2626,7 @@ useFinalizerFree = coerce . newForeignPtr finalizerFree
 {#fun unsafe GlobalTypeCreate as ^ 
   {`ValType'                  -- ^ the value type of the global type.
   ,`Mutability'               -- ^ the mutation of the global type.
-  } -> `GlobalTypeContext'    -- ^ pointer to context, NULL if failed.
+  } -> `Maybe GlobalTypeContext'nullableFinalizablePtrOut* -- ^ pointer to context, NULL if failed.
 #} 
 
 {-|
@@ -2891,7 +2763,7 @@ Get the value type from a global type.
 -}
 {#fun unsafe CompilerCreate as ^ 
   {`ConfigureContext'       -- ^ the WasmEdge_CompilerContext.
-  } -> `CompilerContext'    -- ^ pointer to context, NULL if failed.
+  } -> `Maybe CompilerContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #}
 
 {- |
@@ -2925,7 +2797,7 @@ Get the value type from a global type.
 -}
 {#fun unsafe LoaderCreate as ^ 
   {`ConfigureContext'             -- ^ the WasmEdge_ConfigureContext as the configuration of Loader. NULL for the default configuration.
-  } -> `LoaderContext'            -- ^ pointer to context, NULL if failed.
+  } -> `Maybe LoaderContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -2958,7 +2830,7 @@ Get the value type from a global type.
 -}
 {#fun unsafe ValidatorCreate as ^ 
   {`ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Validator. NULL for the default configuration.
-  } -> `ValidatorContext'   -- ^ pointer to context, NULL if failed.
+  } -> `Maybe ValidatorContext'nullableFinalizablePtrOut*   -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -2977,9 +2849,9 @@ Get the value type from a global type.
   The caller owns the object and should call `WasmEdge_ExecutorDelete` to delete it.
 -}
 {#fun unsafe ExecutorCreate as ^ 
-  {`ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Executor. NULL for the default configuration.
-  ,`StatisticsContext'      -- ^ the WasmEdge_StatisticsContext as the statistics object set into Executor. The statistics will refer to this context, and the life cycle should be guaranteed until the executor context is deleted. NULL for not doing the statistics.
-  } -> `ExecutorContext'    -- ^ pointer to context, NULL if failed.
+  {nullablePtrIn*`Maybe ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Executor. NULL for the default configuration.
+  ,nullablePtrIn*`Maybe StatisticsContext'      -- ^ the WasmEdge_StatisticsContext as the statistics object set into Executor. The statistics will refer to this context, and the life cycle should be guaranteed until the executor context is deleted. NULL for not doing the statistics.
+  } -> `Maybe ExecutorContext'nullableFinalizablePtrOut*    -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3060,28 +2932,13 @@ executorInvoke ecxt ficxt pars = do
   } -> `Async'                                    -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
-peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
-peekOutPtr pout = do
-  pres <- peek pout
-  fmap coerce $ newForeignPtr getFinalizer pres
-
-peekOutNullablePtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO (Maybe t)
-peekOutNullablePtr pout = do
-  pres <- peek pout
-  if nullPtr == pres
-    then pure Nothing
-    else fmap (Just . coerce) $ newForeignPtr getFinalizer pres  
-
-peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
-peekCoerce = fmap coerce peek
-
 -- Store
 {-|
   Creation of the WasmEdge_StoreContext.
   The caller owns the object and should call `WasmEdge_StoreDelete` to destroy it.
 -}
 {#fun unsafe StoreCreate as ^ 
-  {} -> `StoreContext'          -- ^ pointer to context, NULL if failed.
+  {} -> `Maybe StoreContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #} 
 
 {-|
@@ -3122,7 +2979,7 @@ peekCoerce = fmap coerce peek
 -}
 {#fun unsafe ModuleInstanceCreate as ^ 
   {%`WasmString'                -- ^ the module name WasmEdge_String of this host module to import.
-  } -> `ModuleInstanceContext'  -- ^ pointer to context, NULL if failed.
+  } -> `Maybe ModuleInstanceContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #} 
 
 {-|
@@ -3131,7 +2988,7 @@ peekCoerce = fmap coerce peek
 {#fun ModuleInstanceCreateWithData as ^ 
   {%`WasmString'                      -- ^ the module name WasmEdge_String of this host module to import.
   ,fromHsRefWithFinalzrIn*`HsRef'&    -- ^ the host data to set into the module instance. When calling the finalizer, this pointer will become the argument of the finalizer function and Finalizer the function to finalize the host data.
-  } -> `ModuleInstanceContext'        -- ^ pointer to context, NULL if failed.
+  } -> `Maybe ModuleInstanceContext'nullableFinalizablePtrOut* -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3142,7 +2999,7 @@ peekCoerce = fmap coerce peek
   {fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the command line arguments. The first argument suggests being the program name. NULL if the length is 0. and the length
   ,fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the environment variables in the format `ENV=VALUE`. NULL if the length is 0. and the length
   ,fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the directory paths to preopen. String format in `PATH1:PATH2` means the path mapping, or the same path will be mapped. NULL if the length is 0. and the length of the paths
-  } -> `ModuleInstanceContext'             -- ^ pointer to context, NULL if failed.
+  } -> `Maybe ModuleInstanceContext'nullableFinalizablePtrOut*             -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3460,7 +3317,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   ,`HostFuncT'                    -- ^ the host function pointer. 
   ,fromHsRefIn*`HsRef'            -- ^ the additional object, such as the pointer to a data structure, to set to this host function context. The caller should guarantee the life cycle of the object. NULL if the additional data object is not needed.
   ,`Word64'                       -- ^ the function cost in statistics. Pass 0 if the calculation is not needed
-  } -> `FunctionInstanceContext'  -- ^ pointer to context, NULL if failed.
+  } -> `Maybe FunctionInstanceContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #}
 
 -- TODO:
@@ -3480,7 +3337,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 -}
 {#fun unsafe TableInstanceCreate as ^ 
   {`TableTypeContext'           -- ^ the table type context to initialize the table instance context.
-  } -> `TableInstanceContext'   -- ^ pointer to context, NULL if failed.
+  } -> `Maybe TableInstanceContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3501,9 +3358,6 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
-allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
-
 {#fun unsafe TableInstanceGetDataOut as tableInstanceGetData {+,`TableInstanceContext',allocWasmVal-`WasmVal'useFinalizerFree*,`Word32'} -> `WasmResult'#}
 
 {-|
@@ -3541,7 +3395,7 @@ allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
 -}
 {#fun unsafe MemoryInstanceCreate as ^ 
   {`MemoryTypeContext'              -- ^ the memory type context to initialize the memory instance
-  } -> `MemoryInstanceContext'      -- ^ pointer to context, NULL if failed.
+  } -> `Maybe MemoryInstanceContext'nullableFinalizablePtrOut*  -- ^ pointer to context, NULL if failed.
 #} 
 
 {-|
@@ -3623,7 +3477,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {#fun unsafe GlobalInstanceCreateOut as globalInstanceCreate 
   {`GlobalTypeContext'        -- ^ the global type context to initialize the global instance context.
   ,`WasmVal'                  -- ^ the initial value with its value type of the global instance. 
-  } -> `GlobalInstanceContext' -- ^ pointer to context, NULL if failed.
+  } -> `Maybe GlobalInstanceContext'nullableFinalizablePtrOut* -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3940,16 +3794,6 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   \returns pointer to context, NULL if failed.
 -}
 {#fun unsafe VMCreate as ^ {`ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
-
-nullablePtrIn :: (Coercible t (ForeignPtr t)) => Maybe t -> (Ptr t -> IO r) -> IO r
-nullablePtrIn Nothing f = f nullPtr
-nullablePtrIn (Just t) f = withForeignPtr (coerce t) f
-
-nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
-nullableFinalizablePtrOut p
-  | p == nullPtr = pure Nothing
-  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p
-  
 
 {-|
   Register and instantiate WASM into the store in VM from a WASM file.
@@ -4415,3 +4259,158 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 -}
 -- TODO:
 -- {#fun unsafe Plugin_GetDescriptor as ^ {} -> `PluginDescriptor'#} 
+
+
+-- * FFI Utils
+fromCStrToText :: CString -> IO Text
+fromCStrToText cs = T.fromPtr0 $ castPtr cs
+
+{-|
+  fromHsRefIn 
+-}
+fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
+fromHsRefIn = fromHsRefGenIn
+
+fromHsRefAsVoidPtrIn :: HsRef -> (Ptr () -> IO a) -> IO a
+fromHsRefAsVoidPtrIn = fromHsRefGenIn
+
+fromHsRefGenIn :: HsRef -> (Ptr p -> IO a) -> IO a
+fromHsRefGenIn (HsRef fprnt sp) f = do
+  fp <- mallocForeignPtrBytes {#sizeof HsRef#}
+  withForeignPtr fp $ \p -> alloca @Fingerprint $ \pFing -> do
+    poke pFing fprnt
+    {#set HsRef.Fingerprint#} p (castPtr pFing)
+    {#set HsRef.Ref#} p (castStablePtrToPtr sp)
+    f p
+
+toHsRefOut :: Ptr HsRefPtr -> IO HsRef
+toHsRefOut hsr = do
+  pFing <- {#get HsRef.Fingerprint#} hsr
+  fprint <- peek @Fingerprint (castPtr pFing)
+  r <- {#get HsRef.Ref#} hsr
+  pure $ HsRef fprint (castPtrToStablePtr r)
+
+toHsRefFromVoidPtrOut :: Ptr () -> IO HsRef
+toHsRefFromVoidPtrOut = toHsRefOut . castPtr
+
+fromHsRefWithFinalzrIn :: HsRef -> ((Ptr (), FunPtr (Ptr () -> IO ())) -> IO a) -> IO a
+fromHsRefWithFinalzrIn hsRef f = do
+  hsDataFinalzr <- finalizerHSData $ const (freeHsRef hsRef)
+  fromHsRefAsVoidPtrIn hsRef $ \pRef -> f (pRef, hsDataFinalzr)
+
+allocI128 :: Int128 -> (Ptr CULong -> IO a) -> IO a
+allocI128 i128 f = alloca $ \p -> poke p i128 *> f (castPtr p)
+
+peekI128 :: Ptr CULong -> IO Int128
+peekI128 p = peek @Int128 (castPtr p) 
+
+coercePtr :: Coercible a b => Ptr a -> Ptr b
+coercePtr = castPtr
+
+useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
+useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
+
+useAsPtrCUCharLenBS :: ByteString -> ((Ptr CUChar, CUInt) -> IO a) -> IO a
+useAsPtrCUCharLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (bimap convPtrCCharToPtrCUChar fromIntegral strLen))
+  where
+    convPtrCCharToPtrCUChar :: CString -> Ptr CUChar
+    convPtrCCharToPtrCUChar = castPtr
+    
+
+_packCStringLenBS :: CString -> CUInt -> IO ByteString
+_packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
+
+packCStringBS :: CString -> IO ByteString
+packCStringBS cstr = BS.packCString cstr
+
+memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
+memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> f (p, fromIntegral (memBuffLen mem))
+
+data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
+
+allocMemBuff :: Int -> IO MemBuff
+allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
+
+fromStoreVecOr0Ptr :: (Storable a, Num n) => Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
+fromStoreVecOr0Ptr v f
+  | VS.null v = f (nullPtr, 0)
+  | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
+
+fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
+fromVecOr0Ptr getPtr v f
+  | V.null v = f (nullPtr, 0)
+  | otherwise = do
+      ptrs <- VSM.generateM (fromIntegral $ V.length v) (getPtr . V.unsafeIndex v)
+      r <- fromMutIOVecOr0Ptr ptrs f
+      VSM.mapM_ free ptrs
+      pure r
+
+fromVecStringOr0Ptr :: (Num sz) => V.Vector String -> ((Ptr (Ptr CChar), sz) -> IO b) -> IO b
+fromVecStringOr0Ptr = fromVecOr0Ptr newCString
+
+fromVecOfFPtr :: forall t sz b.(Coercible t (ForeignPtr t), Num sz) => V.Vector t -> ((Ptr (Ptr t), sz) -> IO b) -> IO b
+fromVecOfFPtr v f
+  | V.null v = f (nullPtr, 0)
+  | otherwise = do
+      ptrs <- VSM.generate (fromIntegral $ V.length v) (unsafeForeignPtrToPtr . coerce . V.unsafeIndex v)
+      r <- fromMutIOVecOr0Ptr ptrs f
+      -- Keep the ref of ptrs taken from vec alive transitively by keeping the vec alive
+      maybe (pure ()) (touchForeignPtr . (coerce @t @(ForeignPtr t))) (v V.!? 0)
+      pure r
+      
+
+fromMutIOVecOr0Ptr :: (Storable a, Num sz) => IOVector a -> ((Ptr a, sz) -> IO b) -> IO b
+fromMutIOVecOr0Ptr v f
+  | VSM.null v = f (nullPtr, 0)
+  | otherwise = VSM.unsafeWith v $ \p -> f (p, fromIntegral $ VSM.length v)
+
+fromMutIOVecOfCEnumOr0Ptr :: (Storable a, Enum a) => IOVector a -> ((Ptr CInt, CUInt) -> IO b) -> IO b
+fromMutIOVecOfCEnumOr0Ptr v f
+  | VSM.null v = f (nullPtr, 0)
+  | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
+
+fromByteStringIn :: (Coercible Word8 w8, Num sz) => BS.ByteString -> ((Ptr w8, sz) -> IO b) -> IO b
+fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coercePtr (castPtr p :: Ptr Word8), fromIntegral l)
+
+noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
+noFinalizer = coerce . newForeignPtr_
+
+useFinalizerFree :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
+useFinalizerFree = coerce . newForeignPtr finalizerFree
+
+peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
+peekOutPtr pout = do
+  pres <- peek pout
+  fmap coerce $ newForeignPtr getFinalizer pres
+
+peekOutNullablePtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO (Maybe t)
+peekOutNullablePtr pout = do
+  pres <- peek pout
+  if nullPtr == pres
+    then pure Nothing
+    else fmap (Just . coerce) $ newForeignPtr getFinalizer pres
+
+nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
+nullableFinalizablePtrOut p
+  | p == nullPtr = pure Nothing
+  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p    
+
+peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
+peekCoerce = fmap coerce peek
+
+allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
+allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
+
+nullablePtrIn :: (Coercible t (ForeignPtr t)) => Maybe t -> (Ptr t -> IO r) -> IO r
+nullablePtrIn Nothing f = f nullPtr
+nullablePtrIn (Just t) f = withForeignPtr (coerce t) f
+
+--
+
+newtype ViaFromEnum t = ViaFromEnum {getHsEnumTy :: t}
+
+instance Enum t => Storable (ViaFromEnum t) where
+  sizeOf = sizeOf . fromEnum . getHsEnumTy
+  alignment = alignment . fromEnum . getHsEnumTy
+  peek = fmap (ViaFromEnum . toEnum) . peek @Int . castPtr 
+  poke p v = poke @Int (castPtr p) (fromEnum $ getHsEnumTy v)
