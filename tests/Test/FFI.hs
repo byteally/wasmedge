@@ -14,7 +14,7 @@ import qualified Hedgehog.Range as Range
 import WasmEdge.Internal.FFI.Bindings
 import qualified Data.Text as T
 import Data.ByteString (ByteString)
--- import qualified Data.ByteString as BS
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import Data.String
 import Data.Kind
@@ -129,6 +129,9 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
       { 
       }
   liftIO $ test1
+  liftIO $ test2
+  liftIO $ test3
+  liftIO $ test4
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -141,3 +144,41 @@ test1 = do
       print addTwoRes
       pure ()
     pure ()
+
+test2 :: IO ()
+test2 = do
+  wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
+  withWasmRes configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
+      addTwoRes <- vMRunWasmFromBuffer vm wasmBS "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
+      print addTwoRes
+      pure ()
+    pure ()
+
+test3 :: IO ()
+test3 = do
+  withWasmRes configureCreate $ \cfgCxt -> do    
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    withWasmRes (loaderCreate cfgCxt) $ \loader -> do
+      (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+      let astMod = maybe (error "Failed to load AST module") id astModMay
+      _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
+        addTwoRes <- vMRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
+        print addTwoRes
+      pure ()
+    pure ()
+
+test4 :: IO ()
+test4 = do
+  wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
+  withWasmRes configureCreate $ \cfgCxt -> do    
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    withWasmRes (loaderCreate cfgCxt) $ \loader -> do
+      (_, astModMay) <- loaderParseFromBuffer loader wasmBS
+      let astMod = maybe (error "Failed to load AST module") id astModMay
+      _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \vm -> do
+        addTwoRes <- vMRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
+        print addTwoRes
+      pure ()
+    pure ()    

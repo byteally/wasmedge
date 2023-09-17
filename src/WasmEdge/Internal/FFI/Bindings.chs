@@ -154,6 +154,8 @@ module WasmEdge.Internal.FFI.Bindings
   ,compilerCompile
   ,compilerCompileFromBuffer
   ,loaderCreate
+  ,loaderParseFromFile
+  ,loaderParseFromBuffer
   ,validatorCreate
   ,validatorValidate
   ,executorCreate
@@ -2925,10 +2927,29 @@ Get the value type from a global type.
   {`ConfigureContext'             -- ^ the WasmEdge_ConfigureContext as the configuration of Loader. NULL for the default configuration.
   } -> `LoaderContext'            -- ^ pointer to context, NULL if failed.
 #}
--- TODO:
--- Are we supposed to write haskell functions for these? I am not exporting them since they _ at end
-{#fun unsafe LoaderParseFromFileOut as loaderParseFromFile_ {+,`LoaderContext',id`Ptr (Ptr ASTModuleContext)',`String'} -> `WasmResult'#}
-{#fun unsafe LoaderParseFromBufferOut as loaderParseFromBuffer_ {+, `LoaderContext',id`Ptr (Ptr ASTModuleContext)',useAsPtrCUCharLenBS*`ByteString'&} -> `WasmResult'#}
+
+{-|
+  Load and parse the WASM module from the file path, and return a `ASTModuleContext` as the result.
+  The caller owns the object.
+-}
+{#fun unsafe LoaderParseFromFileOut as loaderParseFromFile
+   {+
+   ,`LoaderContext'  -- ^ the WasmEdge `LoaderContext`.
+   ,alloca-`Maybe ASTModuleContext'peekOutNullablePtr*
+   ,`String'         -- ^ the WASM file path.
+   } -> `WasmResult' -- ^ the result status & the output ASTModuleContext if succeeded.
+#}
+
+{-|
+  Load and parse the WASM module from a buffer, and return a `ASTModuleContext` as the result.
+  The caller owns the object.
+-}
+{#fun unsafe LoaderParseFromBufferOut as loaderParseFromBuffer
+ {+
+ , `LoaderContext'  -- ^ the WasmEdge `LoaderContext`.
+ ,alloca-`Maybe ASTModuleContext'peekOutNullablePtr*
+ ,useAsPtrCUCharLenBS*`ByteString'& -- ^ the buffer of WASM binary.
+ } -> `WasmResult'#} -- ^ the result status & the output ASTModuleContext if succeeded.
 
 -- Validator
 {-|
@@ -3043,6 +3064,13 @@ peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO 
 peekOutPtr pout = do
   pres <- peek pout
   fmap coerce $ newForeignPtr getFinalizer pres
+
+peekOutNullablePtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO (Maybe t)
+peekOutNullablePtr pout = do
+  pres <- peek pout
+  if nullPtr == pres
+    then pure Nothing
+    else fmap (Just . coerce) $ newForeignPtr getFinalizer pres  
 
 peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
 peekCoerce = fmap coerce peek
@@ -3780,15 +3808,34 @@ vMRunWasmFromFile cxt fp fname args retLen = do
   This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
   If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
 -}
-{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer 
+{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer_ 
   {+
   ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,fromByteStringIn*`ByteString'&                 -- ^ the buffer of WASM binary and the length of the buffer
   ,%`WasmString'                                  -- ^ the function name WasmEdge_String 
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ the WasmEdge_Value buffer with the parameter values and the length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&              -- ^ the WasmEdge_Value buffer with the parameter values and the length
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^  [out] Returns the WasmEdge_Value buffer to fill the return values and the length of the buffer
   } -> `WasmResult'                               -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
-#} 
+#}
+
+{-|
+  Instantiate the WASM module from a buffer and invoke a function by name.
+ 
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
+  If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
+-}
+vMRunWasmFromBuffer ::
+  VMContext -- ^ the WasmEdge_VMContext.
+  -> ByteString -- ^ the buffer of WASM binary.
+  -> WasmString -- ^ the function name.
+  -> V.Vector WasmVal -- ^ the parameter values.
+  -> Word32 -- ^ the return buffer length.
+  -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
+vMRunWasmFromBuffer cxt wasmBuff fname args retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+  res <- vMRunWasmFromBuffer_ cxt wasmBuff fname args retOut
+  rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure (res, rets)
 
 {-|
   Instantiate the WASM module from a WasmEdge AST Module and invoke a function by name.
@@ -3798,15 +3845,36 @@ vMRunWasmFromFile cxt fp fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule 
+{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule_ 
   {+
   ,`VMContext'                                      -- ^ the WasmEdge_VMContext.
   ,`ASTModuleContext'                               -- ^ the WasmEdge AST Module context generated by loader or compiler.
   ,%`WasmString'                                    -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&     -- ^ the WasmEdge_Value buffer with the parameter values and the buffer length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&                -- ^ the WasmEdge_Value buffer with the parameter values and the buffer length
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&     -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values and the buffer len
   } -> `WasmResult'                                 -- ^  WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
 #}
+
+{-|
+  Instantiate the WASM module from a WasmEdge AST Module and invoke a function by name.
+ 
+  This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from the WasmEdge AST Module, and then invoke the function by name and parameters. If the `Returns` buffer length is smaller than the arity of the function, 
+  the overflowed return values will be discarded.  After calling this function, a new module instance is instantiated, and the old one will be destroyed.
+ 
+  This function is thread-safe.
+-}
+vMRunWasmFromASTModule ::
+  VMContext -- ^ the WasmEdge_VMContext.
+  -> ASTModuleContext -- ^ the WasmEdge AST Module context generated by loader or compiler.
+  -> WasmString -- ^ the function name.
+  -> V.Vector WasmVal -- ^ the parameter values.
+  -> Word32 -- ^ the return buffer length.
+  -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
+vMRunWasmFromASTModule cxt astMod fname args retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+  res <- vMRunWasmFromASTModule_ cxt astMod fname args retOut
+  rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure (res, rets)
 
 {-|
   Instantiate the WASM module from a WASM file and asynchronous invoke a function by name.
