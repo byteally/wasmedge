@@ -1069,12 +1069,16 @@ void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal
   WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
   WasmEdge_GlobalInstanceSetValue(Cxt,val);
 }
-void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal *v,const uint32_t ReturnLen)
+void AsyncGetOut(WasmEdge_Result *resOut,const WasmEdge_Async *Cxt, WasmVal **ReturnsOut,const uint32_t ReturnLen)
 {
-   WasmEdge_Value* Data = (WasmEdge_Value*)malloc(sizeof(WasmEdge_Value));
-   *resOut = WasmEdge_AsyncGet(Cxt,Data,ReturnLen);
-   *v = (WasmVal){.Val = Data->Value, .Type = Data->Type};
-   free(Data);
+   WasmEdge_Value *Returns = (WasmEdge_Value *)malloc(ReturnLen * sizeof(WasmEdge_Value));
+   *resOut = WasmEdge_AsyncGet(Cxt,Returns,ReturnLen);
+   for (int i = 0; i < ReturnLen; i++)
+   {
+    WasmVal* pRes = ReturnsOut[i];
+    toWasmVal(pRes, Returns[i]);
+   }
+   free(Returns);
 }
 void VMRunWasmFromFileOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName, const WasmVal **WValParams, const uint32_t ParamLen,WasmVal **ReturnsOut, const uint32_t ReturnLen) 
 {
@@ -3546,7 +3550,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {-|
   Wait a WasmEdge_Async execution.
 -}
-{#fun unsafe AsyncWait as ^ 
+{#fun AsyncWait as ^ 
   {`Async'                  -- ^ the WasmEdge_ASync.
   } -> `()'
 #}
@@ -3554,7 +3558,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {-|
   Wait a WasmEdge_Async execution with timeout.
 -}
-{#fun unsafe AsyncWaitFor as ^ 
+{#fun AsyncWaitFor as ^ 
   {`Async'                    -- ^ the WasmEdge_ASync.
   ,`Word64'                   -- ^ Milliseconds times to wait.
   } -> `Bool'                 -- ^ Result of waiting, true for execution ended, false for timeout occurred.
@@ -3563,7 +3567,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {- |
   Cancel a WasmEdge_Async execution.
 -}
-{#fun unsafe AsyncCancel as ^ 
+{#fun AsyncCancel as ^ 
   {`Async'                        -- ^ the WasmEdge_ASync.
   } -> `()'
 #}
@@ -3574,7 +3578,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   This function will wait until the execution finished and return the return value list length of the executed function. 
   This function will return 0 if the `Cxt` is NULL, the execution was failed, or the execution was canceled. Developers can call the `WasmEdge_AsyncGet` to get the execution status and the return values.
 -}
-{#fun unsafe AsyncGetReturnsLength as ^ 
+{#fun AsyncGetReturnsLength as ^ 
   {`Async'                          -- ^ the WasmEdge_ASync.
   } -> `Word32'                     -- ^ the return list length of the executed function.
 #}
@@ -3595,7 +3599,29 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
   \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
   message.
 -}
-{#fun unsafe AsyncGetOut as asyncGet {+,`Async',allocWasmVal-`WasmVal'useFinalizerFree*,`Word32'} -> `WasmResult'#}
+{#fun AsyncGetOut as asyncGet_
+ {+
+ ,`Async'
+ ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&
+ } -> `WasmResult'#}
+
+{-|
+  Wait and get the result of WasmEdge_Async execution.
+ 
+  This function will wait until the execution finished and return the
+  execution status and the return values.
+  If the `Returns` buffer length is smaller than the arity of the function,
+  the overflowed return values will be discarded.
+-}
+asyncGet ::
+  Async -- ^ the WasmEdge_ASync.
+  -> Word32 -- ^ the return buffer length.
+  -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
+asyncGet async retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+  res <- asyncGet_ async retOut
+  rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure (res, rets)
 
 -- VM
 {-|
@@ -3740,11 +3766,11 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   
   This function is thread-safe.
 -}
-{#fun unsafe VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile 
+{#fun VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
-  ,`String'                                        -- ^ the NULL-terminated C string of the WASM file path.
+  ,`String'                                        -- ^ the WASM file path.
   ,%`WasmString'                                   -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&    -- ^ the WasmEdge_Value buffer with the parameter values and the buffer length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&               -- ^ the parameter values
   } -> `Async'                                     -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 

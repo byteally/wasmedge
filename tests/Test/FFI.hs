@@ -138,6 +138,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test7
   liftIO $ test8
   liftIO $ test9
+  liftIO $ testAsyncRun
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -262,6 +263,19 @@ test9 = do
             Just _fnInst <- moduleInstanceFindFunction _modInst "addTwo"
             res <- executorInvoke exec _fnInst (V.fromList [WasmInt32 1, WasmInt32 3])
             print res
+
+testAsyncRun :: IO ()
+testAsyncRun = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    _ <- withWasmResT (vMCreate cfgCxt Nothing) $ \_vm -> do
+      _addTwoAsync <- vMAsyncRunWasmFromFile _vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3])
+      -- TODO: Fix: Not waiting sometimes segv. Chcck the lifetime of WasmVal passed or async returned(most likely). If later, try cancel before finalization
+      retLen <- asyncGetReturnsLength _addTwoAsync
+      res <- asyncGet _addTwoAsync retLen
+      print ("AsyncRet" :: String, res)
+      pure ()
+    pure ()
   
           
         
