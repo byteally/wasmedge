@@ -2846,7 +2846,7 @@ Get the value type from a global type.
 -- Executor
 {-|
   Creation of the WasmEdge_ExecutorContext.
-  The caller owns the object and should call `WasmEdge_ExecutorDelete` to delete it.
+  The caller owns the object and should call `finalize` to delete it.
 -}
 {#fun unsafe ExecutorCreate as ^ 
   {nullablePtrIn*`Maybe ConfigureContext'       -- ^ the WasmEdge_ConfigureContext as the configuration of Executor. NULL for the default configuration.
@@ -2901,22 +2901,24 @@ executorInvoke ::
   -> V.Vector WasmVal -- ^ the WasmEdge_Value buffer with the parameter values.
   -> IO (WasmResult, V.Vector WasmVal) -- ^ the WasmEdge_Value buffer to fill the return values.
 executorInvoke ecxt ficxt pars = do
-  funcType <- functionInstanceGetFunctionType ficxt
-  parLen <- fromIntegral <$> functionTypeGetParametersLength funcType
-  retLen <- fromIntegral <$> functionTypeGetReturnsLength funcType
-  if parLen /= V.length pars
-    then pure (WRFail, V.empty)
-    else do
-    paramsVSM <- VSM.generateM (parLen) ((flip withWasmVal pure) . (pars V.!))
-    retsVSM <- VSM.new (retLen)
-    wres <- executorInvoke_ ecxt ficxt paramsVSM retsVSM
-    rets <- V.generateM (retLen) ((noFinalizer =<<) . (VSM.read retsVSM))
-    pure (wres, rets)
+  funcTypeMay <- functionInstanceGetFunctionType ficxt
+  case funcTypeMay of
+    Nothing -> pure (WRFail, V.empty)
+    Just funcType -> do 
+      parLen <- fromIntegral <$> functionTypeGetParametersLength funcType
+      retLen <- fromIntegral <$> functionTypeGetReturnsLength funcType
+      if parLen /= V.length pars
+        then pure (WRFail, V.empty)
+        else do
+        retsVSM <- VSM.generateM (retLen) (const $ allocWasmVal pure)
+        wres <- executorInvoke_ ecxt ficxt pars retsVSM
+        rets <- V.generateM (retLen) ((useFinalizerFree =<<) . (VSM.read retsVSM))
+        pure (wres, rets)
 
 {#fun unsafe ExecutorInvokeOut as executorInvoke_ 
   {+,`ExecutorContext'
   ,`FunctionInstanceContext'
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&
+  ,fromVecOfFPtr*`V.Vector WasmVal'&
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&
   } -> `WasmResult'
 #}
@@ -3072,7 +3074,7 @@ executorInvoke ecxt ficxt pars = do
 {#fun unsafe ModuleInstanceFindFunction as ^ 
   {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
   ,%`WasmString'                  -- ^ the function name WasmEdge_String.  
-  } -> `FunctionInstanceContext'  -- ^ pointer to the function instance context. NULL if not found.
+  } -> `Maybe FunctionInstanceContext'nullableNoFinalizer*  -- ^ pointer to the function instance context. NULL if not found.
 #}
 
 {-|
@@ -3328,7 +3330,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 -}
 {#fun unsafe FunctionInstanceGetFunctionType as ^ 
   {`FunctionInstanceContext'      -- ^ the WasmEdge_FunctionInstanceContext.
-  } -> `FunctionTypeContext'      -- ^ pointer to context, NULL if failed.
+  } -> `Maybe FunctionTypeContext'nullableNoFinalizer*  -- ^ pointer to context, NULL if failed.
 #}
 
 -- Table Instance
@@ -4375,6 +4377,17 @@ fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coerce
 noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
 noFinalizer = coerce . newForeignPtr_
 
+nullableNoFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO (Maybe t)
+nullableNoFinalizer p
+  | p == nullPtr = pure Nothing
+  | otherwise = (Just . coerce) <$> newForeignPtr_ p
+
+nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
+nullableFinalizablePtrOut p
+  | p == nullPtr = pure Nothing
+  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p    
+
+
 useFinalizerFree :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
 useFinalizerFree = coerce . newForeignPtr finalizerFree
 
@@ -4390,10 +4403,17 @@ peekOutNullablePtr pout = do
     then pure Nothing
     else fmap (Just . coerce) $ newForeignPtr getFinalizer pres
 
-nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
-nullableFinalizablePtrOut p
-  | p == nullPtr = pure Nothing
-  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p    
+peekCOwnedOutPtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO t
+peekCOwnedOutPtr pout = do
+  pres <- peek pout
+  fmap coerce $ newForeignPtr_ pres
+
+peekCOwnedOutNullablePtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO (Maybe t)
+peekCOwnedOutNullablePtr pout = do
+  pres <- peek pout
+  if nullPtr == pres
+    then pure Nothing
+    else fmap (Just . coerce) $ newForeignPtr_ pres    
 
 peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
 peekCoerce = fmap coerce peek

@@ -134,6 +134,10 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test3
   liftIO $ test4
   liftIO $ test5
+  liftIO $ test6
+  liftIO $ test7
+  liftIO $ test8
+  liftIO $ test9
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -185,6 +189,7 @@ test4 = do
       pure ()
     pure ()
 
+-- Validator
 test5 :: IO ()
 test5 = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do    
@@ -196,3 +201,69 @@ test5 = do
         vres <- validatorValidate validator astMod
         print vres
       pure ()
+
+-- executor
+test6 :: IO ()
+test6 = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    void $ withWasmResT (executorCreate (Just cfgCxt) Nothing) $ \exec -> do
+      void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+        (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+        let astMod = maybe (error "Failed to load AST module") id astModMay
+        void $ withWasmResT (validatorCreate cfgCxt) $ \validator -> do
+          vres <- validatorValidate validator astMod
+          print vres
+          void $ withWasmResT (storeCreate) $ \store -> do
+            (eres, _modInst) <- executorRegister exec store astMod "mod"
+            print ("exec"::String, eres)
+
+-- Register an existing Module instance and export the module name
+test7 :: IO ()
+test7 = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    void $ withWasmResT (executorCreate (Just cfgCxt) Nothing) $ \exec -> do
+      void $ withWasmResT (storeCreate) $ \store -> do
+        void $ withWasmResT (moduleInstanceCreate "host-module") $ \modInst -> do
+          eres <- executorRegisterImport exec store modInst
+          print ("execImp"::String, eres)
+
+-- Instantiate an AST module to an anonymous Module instance
+test8 :: IO ()
+test8 = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    void $ withWasmResT (executorCreate (Just cfgCxt) Nothing) $ \exec -> do
+      void $ withWasmResT (storeCreate) $ \store -> do
+        void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          void $ withWasmResT (validatorCreate cfgCxt) $ \validator -> do
+            _vres <- validatorValidate validator astMod
+            -- Not validating before Instantiate throws an error
+            (eres, _modInst) <- executorInstantiate exec store astMod
+            print ("execInst"::String, eres)
+
+-- Invoke functions
+test9 :: IO ()
+test9 = do
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+    configureAddHostRegistration cfgCxt HostRegistration_Wasi
+    void $ withWasmResT (executorCreate (Just cfgCxt) Nothing) $ \exec -> do
+      void $ withWasmResT (storeCreate) $ \store -> do
+        void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          void $ withWasmResT (validatorCreate cfgCxt) $ \validator -> do
+            _vres <- validatorValidate validator astMod
+            -- Not validating before Instantiate throws an error
+            (_eres, _modInst) <- executorInstantiate exec store astMod
+            Just _fnInst <- moduleInstanceFindFunction _modInst "addTwo"
+            res <- executorInvoke exec _fnInst (V.fromList [WasmInt32 1, WasmInt32 3])
+            print res
+  
+          
+        
+      
+  
