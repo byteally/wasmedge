@@ -139,9 +139,12 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test8
   liftIO $ test9
   liftIO $ testAsyncRun
+  liftIO $ testCompilerCompile
+  liftIO $ testCompilerCompileFromBuffer 
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
+-- vMRunWasmFromFile
 test1 :: IO ()
 test1 = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do
@@ -152,6 +155,7 @@ test1 = do
       pure ()
     pure ()
 
+-- vMRunWasmFromBuffer
 test2 :: IO ()
 test2 = do
   wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
@@ -163,6 +167,7 @@ test2 = do
       pure ()
     pure ()
 
+-- loaderParseFromFile 
 test3 :: IO ()
 test3 = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do    
@@ -176,7 +181,8 @@ test3 = do
       pure ()
     pure ()
 
-test4 :: IO ()
+-- loaderParseFromBuffer 
+test4 :: IO () 
 test4 = do
   wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
   void $ withWasmResT configureCreate $ \cfgCxt -> do    
@@ -277,7 +283,23 @@ testAsyncRun = do
       pure ()
     pure ()
   
-          
-        
-      
-  
+-- AOT Compiler
+testCompilerCompile :: IO ()
+testCompilerCompile = do
+    void $ withWasmResT configureCreate $ \cfgCxt -> do
+     configureAddHostRegistration cfgCxt HostRegistration_Wasi
+     _ <- withWasmResT (compilerCreate cfgCxt) $ \compilerCxt -> do
+      res <- compilerCompile compilerCxt "./tests/sample/wasm/addTwo.wasm" "./tests/sample/wasm/addTwo_aot.wasm"
+      print res
+     pure ()
+
+-- AOT Compiler from Buffer
+testCompilerCompileFromBuffer :: IO ()
+testCompilerCompileFromBuffer = do
+  wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
+  void $ withWasmResT configureCreate $ \cfgCxt -> do
+   configureAddHostRegistration cfgCxt HostRegistration_Wasi
+   _ <- withWasmResT (compilerCreate cfgCxt) $ \compilerCxt -> do
+    res <- compilerCompileFromBuffer compilerCxt wasmBS "./tests/sample/wasm/addTwo_aot2.wasm"
+    print res
+   pure()
