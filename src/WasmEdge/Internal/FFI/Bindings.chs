@@ -19,14 +19,15 @@ Maintainer  : magesh85@gmail.com
 module WasmEdge.Internal.FFI.Bindings
   ( 
   --pointer
-  HsRefPtr 
+  HsRefPtr
+  ,HsRef
   ,fromHsRefAsVoidPtrIn
   ,WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
            , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
            )
   ,WasmString
   ,WasmResult
-  ,Limit
+  ,Limit (WasmLimit, hasMax, shared, minLimit, maxLimit)
   ,ProgramOption
   ,ModuleDescriptor
   ,PluginVersionData
@@ -183,6 +184,7 @@ module WasmEdge.Internal.FFI.Bindings
   ,globalInstanceCreate
   ,globalInstanceGetGlobalType
   ,globalInstanceGetValue
+  ,globalInstanceSetValue
   ,callingFrameGetExecutor
   ,callingFrameGetModuleInstance
   ,callingFrameGetMemoryInstance
@@ -1040,7 +1042,7 @@ void TableInstanceGetDataOut(WasmEdge_Result* resOut,const WasmEdge_TableInstanc
 {
    WasmEdge_Value* Data = (WasmEdge_Value*)malloc(sizeof(WasmEdge_Value));
    *resOut = WasmEdge_TableInstanceGetData(Cxt,Data,Offset);
-   *v = (WasmVal){.Val = Data->Value, .Type = Data->Type};
+   toWasmVal(v, *Data);
    free(Data);
 }
 void TableInstanceSetDataOut(WasmEdge_Result *resOut,WasmEdge_TableInstanceContext *Cxt,WasmVal *v, const uint32_t Offset)
@@ -1061,8 +1063,8 @@ WasmEdge_GlobalInstanceContext* GlobalInstanceCreateOut (const WasmEdge_GlobalTy
 }
 void GlobalInstanceGetValueOut(WasmVal *v,const WasmEdge_GlobalInstanceContext *Cxt)
 {
-    WasmEdge_Value val = {.Value = pack_uint128_t(v->Val), .Type = v->Type};
-    val = WasmEdge_GlobalInstanceGetValue(Cxt);
+    WasmEdge_Value val = WasmEdge_GlobalInstanceGetValue(Cxt);
+    toWasmVal(v, val);
 }
 void GlobalInstanceSetValueOut(WasmEdge_GlobalInstanceContext *Cxt,const WasmVal *v)
 {
@@ -1121,6 +1123,14 @@ void VMRunWasmFromASTModuleOut(WasmEdge_Result *resOut,WasmEdge_VMContext *Cxt, 
   free(Returns);
 }
 
+void AsyncFinalize(WasmEdge_Async *Cxt)
+{
+  printf("Before AsyncFinalize\n");
+  // WasmEdge_AsyncCancel(Cxt);
+  WasmEdge_AsyncDelete(Cxt);
+  printf("After AsyncFinalize\n");
+}
+
 WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,const WasmVal **WValParams, const uint32_t ParamLen)
 {
  WasmEdge_Value *Params = (WasmEdge_Value *)malloc(ParamLen * sizeof(WasmEdge_Value));
@@ -1129,7 +1139,9 @@ WasmEdge_Async *VMAsyncRunWasmFromFileOut(WasmEdge_VMContext *Cxt, const char *P
     const WasmVal* pVal = WValParams[i];
     Params[i] = (WasmEdge_Value) {.Value = pack_uint128_t(pVal->Val), .Type = pVal->Type};
   }
+  printf("Before AsyncRun\n");
   WasmEdge_Async *res = WasmEdge_VMAsyncRunWasmFromFile(Cxt,Path,FuncName,Params,ParamLen);
+  printf("After AsyncRun\n");
   free(Params);
   return res;
 }
@@ -1457,6 +1469,35 @@ instance HasFinalizer WasmString where
  Struct of WASM limit.
 -}
 {#pointer *WasmEdge_Limit as Limit foreign newtype #}
+
+pattern WasmLimit :: Bool -> Bool -> Word32 -> Word32 -> Limit
+pattern WasmLimit {hasMax, shared, minLimit, maxLimit} <- ((getLimitHasMax_ &&& getLimitShared_ &&& getLimitMin_ &&& getLimitMax_) -> (hasMax, (shared, (minLimit, maxLimit)))) where
+  WasmLimit hasMax shared minLimit maxLimit = mkLimit hasMax shared minLimit maxLimit
+
+{-# COMPLETE WasmLimit #-}  
+
+mkLimit :: Bool -> Bool -> Word32 -> Word32 -> Limit
+mkLimit hasMax' shared' minLimit' maxLimit'  = unsafePerformIO $ do
+  fp <- mallocForeignPtrBytes {#sizeof WasmEdge_Limit#}
+  withForeignPtr fp $ \p -> do
+    {#set WasmEdge_Limit.HasMax#} p hasMax'
+    {#set WasmEdge_Limit.Shared#} p shared'
+    {#set WasmEdge_Limit.Min#} p (fromIntegral minLimit')
+    {#set WasmEdge_Limit.Max#} p (fromIntegral maxLimit')
+
+  pure $ coerce fp
+
+getLimitHasMax_ :: Limit -> Bool
+getLimitHasMax_ lmt = unsafePerformIO $ withLimit lmt {#get WasmEdge_Limit.HasMax#}
+
+getLimitShared_ :: Limit -> Bool
+getLimitShared_ lmt = unsafePerformIO $ withLimit lmt {#get WasmEdge_Limit.Shared#}
+
+getLimitMin_ :: Limit -> Word32
+getLimitMin_ lmt = unsafePerformIO $ withLimit lmt ((fmap fromIntegral) . {#get WasmEdge_Limit.Min#})
+
+getLimitMax_ :: Limit -> Word32
+getLimitMax_ lmt = unsafePerformIO $ withLimit lmt ((fmap fromIntegral) . {#get WasmEdge_Limit.Max#})
 
 {- | 
 Program option for plugins.
@@ -2017,10 +2058,10 @@ Opaque struct of WasmEdge function type.
 {-|
 Opaque struct of WasmEdge function type.
 -}
-{#pointer *Async as ^ foreign finalizer AsyncDelete as ^ newtype #}
+{#pointer *Async as ^ foreign finalizer AsyncFinalize as ^ newtype #}
 
 instance HasFinalizer Async where
-  getFinalizer = asyncDelete
+  getFinalizer = asyncFinalize
 
 {-|
 Opaque struct of WasmEdge function type.
@@ -2955,7 +2996,7 @@ executorInvoke ecxt ficxt pars = do
 {#fun unsafe StoreFindModule as ^ 
   {`StoreContext'                 -- ^ the WasmEdge_StoreContext.
   ,%`WasmString'                  -- ^ the module name WasmEdge_String.
-  } -> `ModuleInstanceContext'    -- ^ pointer to the module instance context. NULL if not found.
+  } -> `Maybe ModuleInstanceContext'nullableNoFinalizer*    -- ^ pointer to the module instance context. NULL if not found.
 #}
 
 {-|
@@ -2973,11 +3014,27 @@ executorInvoke ecxt ficxt pars = do
   named module list size, the overflowed return values will be discarded.
   This function is thread-safe.
 -}
-{#fun unsafe StoreListModuleOut as storeListModule 
+{#fun unsafe StoreListModuleOut as storeListModule_ 
   {`StoreContext'                                   -- ^ the WasmEdge_StoreContext.
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&  -- ^ [out] Names the output names WasmEdge_String buffer of named modules and length of the buffer
   } -> `Word32'                                     -- ^ actual registered named module list size.
 #}
+
+{-|
+  List the registered module names.
+  If the `Names` buffer length is smaller than the result of the registered
+  named module list size, the overflowed return values will be discarded.
+  This function is thread-safe.
+-}
+storeListModule ::
+  StoreContext -- ^ the WasmEdge_StoreContext.
+  -> Word32 -- ^ the length of the buffer 
+  -> IO (V.Vector WasmString) -- ^ the output names `WasmString` buffer of named modules
+storeListModule store retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+  res <- storeListModule_ store retOut
+  rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure rets
 
 -- Module Instance
 {-|
@@ -3146,11 +3203,22 @@ executorInvoke ecxt ficxt pars = do
  
   This function is thread-safe.
 -}
-{#fun unsafe ModuleInstanceListFunctionOut as moduleInstanceListFunction 
+{#fun unsafe ModuleInstanceListFunctionOut as moduleInstanceListFunction_ 
   {`ModuleInstanceContext'                              -- ^ the WasmEdge_ModuleInstanceContext.
   , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&     -- ^ [out] Names the output WasmEdge_String buffer of the function names and length of the buffer
   } -> `Word32'                                         -- ^ actual exported function list size.
 #}
+
+moduleInstanceListFunction ::
+  ModuleInstanceContext
+  -> Word32
+  -> IO (V.Vector WasmString)
+moduleInstanceListFunction modInst retLen = do
+  retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+  res <- moduleInstanceListFunction_ modInst retOut
+  rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+  pure rets
+  
 
 {-|
   Get the length of exported table list of a module instance.
@@ -3351,7 +3419,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 -}
 {#fun unsafe TableInstanceGetTableType as ^ 
   {`TableInstanceContext'                 -- ^ the WasmEdge_TableInstanceContext.
-  } -> `TableTypeContext'                 -- ^ pointer to context, NULL if failed.
+  } -> `Maybe TableTypeContext'nullableNoFinalizer* -- ^ pointer to context, NULL if failed.
 #}
 
 {-|
@@ -3434,9 +3502,10 @@ memoryInstanceGetData micxt len off = do
   {+
   ,`MemoryInstanceContext'            -- ^ the WasmEdge_MemoryInstanceContext.
   ,fromByteStringIn*`ByteString'&     -- ^ the data buffer to copy and the start offset in the memory instance
-  ,`Word32'                           -- ^ the data buffer length. If the `Offset + Length` is larger than the data size in the memory instance, this function will failed.
+  ,`Word32'                           -- ^ the data start offset in the memory instance. If the `Offset + Length` is larger than the data size in the memory instance, this function will failed.
   } -> `WasmResult'                   -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
 #}
+
 {#fun unsafe MemoryInstanceGetPointer as memoryInstanceGetPointer_ {`MemoryInstanceContext',`Word32',`Word32'} -> `Ptr Word8'coercePtr#}
 
 {-|
@@ -3491,7 +3560,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 -}
 {#fun unsafe GlobalInstanceGetGlobalType as ^ 
   {`GlobalInstanceContext'    -- ^ the WasmEdge_GlobalInstanceContext.
-  } -> `GlobalTypeContext'    -- ^ pointer to context, NULL if failed.
+  } -> `Maybe GlobalTypeContext'nullableNoFinalizer* -- ^ pointer to context, NULL if failed.
 #} 
 
 {-|
@@ -4446,6 +4515,9 @@ peekCoerce = fmap coerce peek
 
 allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
 allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
+
+allocWasmString :: (Ptr WasmString -> IO a) -> IO a
+allocWasmString f = f =<< mallocBytes {#sizeof WasmEdge_String #}
 
 nullablePtrIn :: (Coercible t (ForeignPtr t)) => Maybe t -> (Ptr t -> IO r) -> IO r
 nullablePtrIn Nothing f = f nullPtr
