@@ -1,5 +1,5 @@
 {-|
-Module      : WasmEdge.Internal.FFI.ValueTypes
+Module      : WasmEdge.Internal.FFI.Bindings
 Description : Haskell bindings for wasmedge runtime hosting
 Copyright   : (c) ByteAlly, 2023
 License     : BSD-3

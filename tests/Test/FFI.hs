@@ -148,6 +148,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ testMemoryInst
   liftIO $ testMutGlobalInst
   liftIO $ testConstGlobalInst
+  liftIO $ testValueGenNullRef
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -503,5 +504,8 @@ testConstGlobalInst = do
   print i64
   pure ()  
   
-
-
+-- ValueGenNullRef
+testValueGenNullRef :: IO ()
+testValueGenNullRef = do
+    let val = valueGenNullRef RefType_ExternRef
+    print $ valueIsNullRef val
