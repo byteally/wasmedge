@@ -15,583 +15,294 @@ Maintainer  : magesh85@gmail.com
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+-- {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.Bindings
-  ( 
-  --pointer
-  HsRefPtr
-  ,HsRef
-  ,fromHsRefAsVoidPtrIn
-  ,WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
-           , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
-           )
-  ,WasmString
-  ,WasmResult
-  ,Limit (WasmLimit, hasMax, shared, minLimit, maxLimit)
-  ,ProgramOption
-  ,ModuleDescriptor
-  ,PluginVersionData
-  ,PluginDescriptor
-  ,ConfigureContext 
-  ,StatisticsContext
-  ,ASTModuleContext
-  ,FunctionTypeContext
-  ,MemoryTypeContext
-  ,TableTypeContext
-  ,GlobalTypeContext
-  ,ImportTypeContext
-  ,ExportTypeContext
-  ,CompilerContext
-  ,LoaderContext
-  ,ValidatorContext
-  ,ExecutorContext
-  ,StoreContext
-  ,ModuleInstanceContext
-  ,FunctionInstanceContext
-  ,TableInstanceContext
-  ,MemoryInstanceContext
-  ,GlobalInstanceContext
-  ,CallingFrameContext
-  ,Async
-  ,VMContext
-  ,PluginContext
-  ,HostFuncT
-  --funs
-  ,versionGet
-  ,versionGetMajor
-  ,versionGetMinor
-  ,versionGetPatch
-  ,valueGenI32
-  ,valueGetI32
-  ,valueGenI64
-  ,valueGetI64
-  ,valueGenF32
-  ,valueGetF32
-  ,valueGenF64
-  ,valueGetF64
-  ,valueGenV128
-  ,valueGetV128
-  ,valueGenNullRef
-  ,valueIsNullRef
-  ,mkStringFromBytesIO
-  ,stringWrap
-  ,wasmStringEq
-  ,_stringCopy
-  ,mkResultSuccess
-  ,mkResultTerminate 
-  ,mkResultFail
-  ,resultOK
-  ,resultGen 
-  ,resultGetCode
-  ,resultGetCategory
-  ,resultGetMessage
-  ,valueGenFuncRef 
-  ,valueGetFuncRef
-  ,valueGenExternRef 
-  ,valueGetExternRef 
-  ,logSetErrorLevel 
-  ,logSetDebugLevel
-  ,logOff
-  ,configureCreate 
-  ,configureAddProposal
-  ,configureRemoveProposal
-  ,configureHasProposal
-  ,configureAddHostRegistration
-  ,configureRemoveHostRegistration
-  ,configureHasHostRegistration
-  ,configureSetMaxMemoryPage
-  ,configureGetMaxMemoryPage
-  ,configureSetForceInterpreter
-  ,configureIsForceInterpreter
-  ,configureCompilerSetOptimizationLevel
-  ,configureCompilerGetOptimizationLevel
-  ,configureCompilerSetOutputFormat
-  ,configureCompilerGetOutputFormat
-  ,configureCompilerSetDumpIR
-  ,configureCompilerIsDumpIR
-  ,configureCompilerSetGenericBinary
-  ,configureCompilerIsGenericBinary
-  ,configureCompilerSetInterruptible
-  ,configureCompilerIsInterruptible
-  ,configureStatisticsSetInstructionCounting
-  ,configureStatisticsIsInstructionCounting
-  ,configureStatisticsSetCostMeasuring
-  ,configureStatisticsIsCostMeasuring
-  ,configureStatisticsSetTimeMeasuring
-  ,configureStatisticsIsTimeMeasuring
-  ,statisticsCreate
-  ,statisticsGetInstrCount
-  ,statisticsGetInstrPerSecond
-  ,statisticsGetTotalCost
-  ,statisticsSetCostTable
-  ,statisticsSetCostLimit
-  ,statisticsClear
-  ,aSTModuleListImportsLength
-  ,aSTModuleListExportsLength
-  ,functionTypeCreate
-  ,functionTypeGetParametersLength
-  ,functionTypeGetParameters
-  ,functionTypeGetReturnsLength 
-  ,tableTypeCreate 
-  ,tableTypeGetRefType
-  ,memoryTypeCreate
-  ,memoryTypeGetLimit
-  ,globalTypeCreate
-  ,globalTypeGetValType
-  ,globalTypeGetMutability
-  ,importTypeGetModuleName
-  ,importTypeGetExternalName
-  ,importTypeGetFunctionType
-  ,importTypeGetTableType
-  ,importTypeGetMemoryType
-  ,importTypeGetGlobalType
-  ,exportTypeGetExternalType
-  ,exportTypeGetExternalName
-  ,exportTypeGetFunctionType
-  ,exportTypeGetTableType
-  ,exportTypeGetMemoryType
-  ,exportTypeGetGlobalType
-  ,compilerCreate
-  ,compilerCompile
-  ,compilerCompileFromBuffer
-  ,loaderCreate
-  ,loaderParseFromFile
-  ,loaderParseFromBuffer
-  ,validatorCreate
-  ,validatorValidate
-  ,executorCreate
-  ,executorInstantiate
-  ,executorRegister
-  ,executorRegisterImport
-  ,executorInvoke
-  ,executorAsyncInvoke
-  ,functionInstanceCreate
-  ,functionInstanceGetFunctionType 
-  ,tableInstanceCreate
-  ,tableInstanceGetTableType
-  ,tableInstanceGetData
-  ,tableInstanceSetData
-  ,tableInstanceGetSize
-  ,tableInstanceGrow
-  ,memoryInstanceCreate
-  ,memoryInstanceGetMemoryType
-  ,memoryInstanceGetData
-  ,memoryInstanceSetData
-  ,memoryInstanceGetPointer
-  ,memoryInstanceGetPointerConst
-  ,memoryInstanceGetPageSize
-  ,memoryInstanceGrowPage
-  ,globalInstanceCreate
-  ,globalInstanceGetGlobalType
-  ,globalInstanceGetValue
-  ,globalInstanceSetValue
-  ,callingFrameGetExecutor
-  ,callingFrameGetModuleInstance
-  ,callingFrameGetMemoryInstance
-  ,asyncWait
-  ,asyncWaitFor
-  ,asyncCancel
-  ,asyncGetReturnsLength
-  ,asyncGet
-  ,vMCreate
-  ,vMRegisterModuleFromFile
-  ,vMRunWasmFromFile
-  ,vMRunWasmFromBuffer
-  ,vMRunWasmFromASTModule
-  ,vMAsyncRunWasmFromFile
-  ,vMAsyncRunWasmFromASTModule
-  ,vMAsyncRunWasmFromBuffer
-  ,vMRegisterModuleFromBuffer
-  ,vMRegisterModuleFromASTModule
-  ,vMRegisterModuleFromImport
-  ,vMLoadWasmFromFile
-  ,vMLoadWasmFromBuffer
-  ,vMLoadWasmFromASTModule
-  ,vMValidate
-  ,vMInstantiate
-  ,vMExecute
-  ,vMExecuteRegistered
-  ,vMAsyncExecute
-  ,vMAsyncExecuteRegistered
-  ,vMGetFunctionType
-  ,vMGetFunctionTypeRegistered
-  ,vMCleanup
-  ,vMGetFunctionListLength
-  ,vMGetFunctionList
-  ,vMGetImportModuleContext
-  ,vMGetActiveModule
-  ,vMGetRegisteredModule
-  ,vMListRegisteredModuleLength
-  ,vMListRegisteredModule
-  ,vMGetStoreContext
-  ,vMGetLoaderContext
-  ,vMGetValidatorContext
-  ,vMGetExecutorContext
-  ,vMGetStatisticsContext
-  ,pluginLoadWithDefaultPaths 
-  ,pluginLoadFromPath 
-  ,pluginListPluginsLength 
-  ,pluginListPlugins 
-  ,pluginFind 
-  ,pluginGetPluginName
-  ,pluginListModuleLength 
-  ,pluginListModule 
-  ,pluginCreateModule 
+  ( HsRef
+  , HsRefPtr, withHsRefPtr
+  , WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
+            , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
+            )
+  , WasmString
+  , WasmResult
+  , Limit (WasmLimit, hasMax, shared, minLimit, maxLimit)
+  , ProgramOption, withProgramOption
+  , ModuleDescriptor, withModuleDescriptor
+  , PluginVersionData, withPluginVersionData
+  , PluginDescriptor, withPluginDescriptor
+  , ConfigureContext 
+  , StatisticsContext
+  , ASTModuleContext
+  , FunctionTypeContext
+  , MemoryTypeContext
+  , TableTypeContext
+  , GlobalTypeContext
+  , ImportTypeContext
+  , ExportTypeContext
+  , CompilerContext
+  , LoaderContext
+  , ValidatorContext
+  , ExecutorContext
+  , StoreContext
+  , ModuleInstanceContext
+  , FunctionInstanceContext
+  , TableInstanceContext
+  , MemoryInstanceContext
+  , GlobalInstanceContext
+  , CallingFrameContext
+  , Async
+  , VMContext
+  , PluginContext
+  , HostFuncT
+  , versionGet
+  , versionGetMajor
+  , versionGetMinor
+  , versionGetPatch
+  , valueGenI32
+  , valueGetI32
+  , valueGenI64
+  , valueGetI64
+  , valueGenF32
+  , valueGetF32
+  , valueGenF64
+  , valueGetF64
+  , valueGenV128
+  , valueGetV128
+  , valueGenNullRef
+  , valueIsNullRef
+  , mkStringFromBytesIO
+  , stringWrap
+  , wasmStringEq
+  , _stringCopy
+  , mkResultSuccess
+  , mkResultTerminate 
+  , mkResultFail
+  , resultOK
+  , resultGen 
+  , resultGetCode
+  , resultGetCategory
+  , resultGetMessage
+  , valueGenFuncRef 
+  , valueGetFuncRef
+  , valueGenExternRef 
+  , valueGetExternRef 
+  , logSetErrorLevel 
+  , logSetDebugLevel
+  , logOff
+  , configureCreate 
+  , configureAddProposal
+  , configureRemoveProposal
+  , configureHasProposal
+  , configureAddHostRegistration
+  , configureRemoveHostRegistration
+  , configureHasHostRegistration
+  , configureSetMaxMemoryPage
+  , configureGetMaxMemoryPage
+  , configureSetForceInterpreter
+  , configureIsForceInterpreter
+  , configureCompilerSetOptimizationLevel
+  , configureCompilerGetOptimizationLevel
+  , configureCompilerSetOutputFormat
+  , configureCompilerGetOutputFormat
+  , configureCompilerSetDumpIR
+  , configureCompilerIsDumpIR
+  , configureCompilerSetGenericBinary
+  , configureCompilerIsGenericBinary
+  , configureCompilerSetInterruptible
+  , configureCompilerIsInterruptible
+  , configureStatisticsSetInstructionCounting
+  , configureStatisticsIsInstructionCounting
+  , configureStatisticsSetCostMeasuring
+  , configureStatisticsIsCostMeasuring
+  , configureStatisticsSetTimeMeasuring
+  , configureStatisticsIsTimeMeasuring
+  , statisticsCreate
+  , statisticsGetInstrCount
+  , statisticsGetInstrPerSecond
+  , statisticsGetTotalCost
+  , statisticsSetCostTable
+  , statisticsSetCostLimit
+  , statisticsClear
+  , aSTModuleListImportsLength
+  , astModuleListImports
+  , aSTModuleListExportsLength
+  , astModuleListExports
+  , functionTypeCreate
+  , functionTypeGetParametersLength
+  , functionTypeGetParameters
+  , functionTypeGetReturnsLength
+  , functionTypeGetReturns
+  , tableTypeCreate 
+  , tableTypeGetRefType
+  , memoryTypeCreate
+  , memoryTypeGetLimit
+  , globalTypeCreate
+  , globalTypeGetValType
+  , globalTypeGetMutability
+  , importTypeGetModuleName
+  , importTypeGetExternalName
+  , importTypeGetFunctionType
+  , importTypeGetTableType
+  , importTypeGetMemoryType
+  , importTypeGetGlobalType
+  , exportTypeGetExternalType
+  , exportTypeGetExternalName
+  , exportTypeGetFunctionType
+  , exportTypeGetTableType
+  , exportTypeGetMemoryType
+  , exportTypeGetGlobalType
+  , compilerCreate
+  , compilerCompile
+  , compilerCompileFromBuffer
+  , loaderCreate
+  , loaderParseFromFile
+  , loaderParseFromBuffer
+  , validatorCreate
+  , validatorValidate
+  , executorCreate
+  , executorInstantiate
+  , executorRegister
+  , executorRegisterImport
+  , executorInvoke
+  , executorAsyncInvoke
+  , functionInstanceCreate
+  , functionInstanceGetFunctionType 
+  , tableInstanceCreate
+  , tableInstanceGetTableType
+  , tableInstanceGetData
+  , tableInstanceSetData
+  , tableInstanceGetSize
+  , tableInstanceGrow
+  , memoryInstanceCreate
+  , memoryInstanceGetMemoryType
+  , memoryInstanceGetData
+  , memoryInstanceSetData
+  , memoryInstanceGetPointer
+  , memoryInstanceGetPointerConst
+  , memoryInstanceGetPageSize
+  , memoryInstanceGrowPage
+  , globalInstanceCreate
+  , globalInstanceGetGlobalType
+  , globalInstanceGetValue
+  , globalInstanceSetValue
+  , callingFrameGetExecutor
+  , callingFrameGetModuleInstance
+  , callingFrameGetMemoryInstance
+  , asyncWait
+  , asyncWaitFor
+  , asyncCancel
+  , asyncGetReturnsLength
+  , asyncGet
+  , vMCreate
+  , vMRegisterModuleFromFile
+  , vMRunWasmFromFile
+  , vMRunWasmFromBuffer
+  , vMRunWasmFromASTModule
+  , vMAsyncRunWasmFromFile
+  , vMAsyncRunWasmFromASTModule
+  , vMAsyncRunWasmFromBuffer
+  , vMRegisterModuleFromBuffer
+  , vMRegisterModuleFromASTModule
+  , vMRegisterModuleFromImport
+  , vMLoadWasmFromFile
+  , vMLoadWasmFromBuffer
+  , vMLoadWasmFromASTModule
+  , vMValidate
+  , vMInstantiate
+  , vMExecute
+  , vMExecuteRegistered
+  , vMAsyncExecute
+  , vMAsyncExecuteRegistered
+  , vMGetFunctionType
+  , vMGetFunctionTypeRegistered
+  , vMCleanup
+  , vMGetFunctionListLength
+  , vMGetFunctionList
+  , vMGetImportModuleContext
+  , vMGetActiveModule
+  , vMGetRegisteredModule
+  , vMListRegisteredModuleLength
+  , vMListRegisteredModule
+  , vMGetStoreContext
+  , vMGetLoaderContext
+  , vMGetValidatorContext
+  , vMGetExecutorContext
+  , vMGetStatisticsContext
+  , pluginLoadWithDefaultPaths 
+  , pluginLoadFromPath 
+  , pluginListPluginsLength 
+  , pluginListPlugins 
+  , pluginFind 
+  , pluginGetPluginName
+  , pluginListModuleLength 
+  , pluginListModule 
+  , pluginCreateModule 
   -- ,pluginGetDescriptor -- TODO: Getting undefined ref to 'WasmEdge_Plugin_GetDescriptor'
   --enum
-  ,ProgramOptionType (..)
-  ,Proposal  (..)
-  ,HostRegistration (..)
-  ,CompilerOptimizationLevel (..)
-  ,CompilerOutputFormat (..)
-  ,ErrCategory (..)
-  ,ErrCode (..)
-  ,ValType (..)
-  ,NumType (..)
-  ,RefType (..)
-  ,Mutability (..)
-  ,ExternalType (..)
+  , ProgramOptionType (..)
+  , Proposal  (..)
+  , HostRegistration (..)
+  , CompilerOptimizationLevel (..)
+  , CompilerOutputFormat (..)
+  , ErrCategory (..)
+  , ErrCode (..)
+  , ValType (..)
+  , NumType (..)
+  , RefType (..)
+  , Mutability (..)
+  , ExternalType (..)
   --Haskell funcs
-  ,withWasmRes
-  ,withWasmResF
-  ,withWasmResT
-  ,storeCreate 
-  ,storeFindModule
-  ,storeListModuleLength
-  ,storeListModule
-  ,moduleInstanceCreate
-  ,moduleInstanceCreateWithData
-  ,moduleInstanceCreateWASI
-  ,moduleInstanceInitWASI
-  ,moduleInstanceWASIGetExitCode
-  ,moduleInstanceWASIGetNativeHandler
-  ,moduleInstanceInitWasmEdgeProcess
-  ,moduleInstanceGetModuleName
-  ,moduleInstanceGetHostData
-  ,moduleInstanceFindFunction
-  ,moduleInstanceFindTable
-  ,moduleInstanceFindMemory
-  ,moduleInstanceFindGlobal
-  ,moduleInstanceListFunctionLength
-  ,moduleInstanceListFunction
-  ,moduleInstanceListTableLength
-  ,moduleInstanceListTable
-  ,moduleInstanceListMemoryLength 
-  ,moduleInstanceListMemory
-  ,moduleInstanceListGlobalLength 
-  ,moduleInstanceListGlobal
-  ,moduleInstanceAddFunction 
-  ,moduleInstanceAddTable
-  ,moduleInstanceAddMemory 
-  ,moduleInstanceAddGlobal
-  ,tableTypeGetLimit
-  ,hostFuncCallbackPure
-  ,hostFuncCallback
-  ,driverCompiler
-  ,driverTool
-  ,driverUniTool
-  ,fromHsRefIn
-  ,fromHsRef
-  ,toHsRef
-  ,stringCreateByCString
-  ,mkStringFromBytes
-  ,wrapCFinalizer
-  ,finalize
-  ,coercePtr
-  ,useAsCStringLenBS
-  ,useAsPtrCUCharLenBS
-  ,_packCStringLenBS
-  ,packCStringBS
-  ,memBuffIn
-  ,getValType
-  ,allocMemBuff
-  ,stringCopy
-  ,wasmStringLength
-  ,toText
-  ,cToEnum
-  ,cFromEnum
-  ,fromStoreVecOr0Ptr
-  ,fromVecOr0Ptr
-  ,fromVecStringOr0Ptr
-  ,fromMutIOVecOr0Ptr
-  ,noFinalizer 
-  ,peekOutPtr
-  {-
-  ,fromCStrToText 
-  ,fromHsRefIn 
-  ,fromHsRefAsVoidPtrIn 
-  ,fromHsRefGenIn 
-  ,toHsRefOut 
-  ,toHsRefFromVoidPtrOut 
-  ,fromHsRefWithFinalzrIn 
-  ,toHsRef 
-  ,fromHsRef 
-  ,freeHsRef 
-  ,getValType 
-  ,ValueGenI32 
-  ,ValueGetI32 
-  ,ValueGenI64 
-  ,ValueGetI64 
-  ,ValueGenF32 
-  ,ValueGetF32 
-  ,ValueGenF64 
-  ,ValueGetF64 
-  ,ValueGenV128 
-  ,allocI128 
-  ,peekI128   
-  ,ValueGetV128 
-  ,ValueGenNullRef 
-  ,ValueIsNullRef 
-  ,StringCreateByCString
-  ,stringWrap 
-  ,mkStringFromBytesIO 
-  ,WasmEdge_StringIsEqual 
-  ,WasmEdge_StringCopy 
-  ,mkResultSuccess
-  ,mkResultTerminate 
-  ,mkResultFail 
-  ,wrapCFinalizer 
-  ,mkStringFromBytes 
-  ,finalize 
-  ,coercePtr 
-  ,useAsPtrCUCharLenBS 
-  ,packCStringBS 
-  ,memBuffIn 
-  ,allocMemBuff 
-  ,stringCopy 
-  ,wasmStringLength 
-  ,toText 
-  ,ResultOK 
-  ,ResultGenOut 
-  ,WasmEdge_ResultGetCode 
-  ,WasmEdge_ResultGetCategory 
-  ,WasmEdge_ResultGetMessage 
-  ,ValueGenFuncRef 
-  ,ValueGetFuncRef 
-  ,ValueGenExternRef 
-  ,ValueGetExternRef 
-  -- WasmEdge logging functions
-  ,LogSetErrorLevel
-  ,LogSetDebugLevel 
-  -- Configure
-  ,ConfigureCreate 
-  ,ConfigureAddProposal 
-  ,ConfigureRemoveProposal 
-  ,ConfigureHasProposal 
-  ,ConfigureAddHostRegistration 
-  ,ConfigureRemoveHostRegistration 
-  ,ConfigureHasHostRegistration 
-  ,ConfigureSetMaxMemoryPage 
-  ,ConfigureGetMaxMemoryPage 
-  ,ConfigureSetForceInterpreter 
-  ,ConfigureIsForceInterpreter 
-  ,ConfigureCompilerSetOptimizationLevel 
-  ,ConfigureCompilerGetOptimizationLevel 
-  ,ConfigureCompilerSetOutputFormat 
-  ,ConfigureCompilerGetOutputFormat 
-  ,ConfigureCompilerSetDumpIR 
-  ,ConfigureCompilerIsDumpIR 
-  ,ConfigureCompilerSetGenericBinary 
-  ,ConfigureCompilerIsGenericBinary 
-  ,ConfigureCompilerSetInterruptible 
-  ,ConfigureCompilerIsInterruptible 
-  ,ConfigureStatisticsIsInstructionCounting 
-  ,ConfigureStatisticsSetCostMeasuring 
-  ,ConfigureStatisticsIsCostMeasuring 
-  ,ConfigureStatisticsSetTimeMeasuring 
-  ,ConfigureStatisticsIsTimeMeasuring 
-  -- Statistics
-  ,StatisticsCreate 
-  ,StatisticsGetInstrCount
-  ,StatisticsGetInstrPerSecond
-  ,StatisticsGetTotalCost 
-  ,StatisticsSetCostTable 
-  ,StatisticsSetCostLimit 
-  ,StatisticsClear
-  -- AST Module
-  ,ASTModuleListImportsLength
-  ,ASTModuleListExportsLength
-  -- Function
-  ,FunctionTypeCreate 
-  ,FunctionTypeGetParametersLength
-  ,functionTypeGetParameters
-  ,astModuleListImports 
-  ,astModuleListExports 
-  ,astModuleListExports 
-  ,fromStoreVecOr0Ptr 
-  ,fromVecOr0Ptr 
-  ,fromVecStringOr0Ptr 
-  ,fromMutIOVecOr0Ptr 
-  ,fromMutIOVecOfCEnumOr0Ptr 
-  ,fromByteStringIn 
-  -- Function Type
-  ,FunctionTypeGetReturnsLength 
-  ,functionTypeGetReturns 
-  ,noFinalizer
-  -- Table Type
-  ,TableTypeCreate
-  ,TableTypeGetRefType
-  ,TableTypeGetLimit
-  -- Memory Type
-  ,MemoryTypeCreate 
-  ,MemoryTypeGetLimit
-  -- Global Type
-  ,GlobalTypeCreate 
-  ,GlobalTypeGetValType 
-  ,GlobalTypeGetMutability 
-  -- Import Type
-  ,ImportTypeGetModuleName
-  ,ImportTypeGetExternalName
-  ,ImportTypeGetFunctionType
-  ,ImportTypeGetTableType
-  ,ImportTypeGetMemoryType
-  ,ImportTypeGetGlobalType 
-  -- Export Type
-  ,ExportTypeGetExternalType
-  ,ExportTypeGetExternalName
-  ,ExportTypeGetFunctionType 
-  ,ExportTypeGetTableType 
-  ,ExportTypeGetMemoryType 
-  ,ExportTypeGetGlobalType 
-  -- AOT Compiler
-  ,CompilerCreate 
-  ,CompilerCompile
-  ,CompilerCompileFromBuffer 
-  -- Loader
-  ,LoaderCreate 
-  -- Validator
-  ,ValidatorCreate 
-  ,ValidatorValidate
-  -- Executor
-  ,ExecutorCreate 
-  ,ExecutorInstantiate
-  ,ExecutorRegister
-  ,ExecutorRegisterImport
-  ,executorInvoke 
-  ,ExecutorAsyncInvoke
-  ,peekOutPtr 
-  ,peekCoerce 
-  -- Store
-  ,StoreCreate 
-  ,StoreFindModule 
-  ,StoreListModuleLength
-  ,StoreListModule
-  -- Module Instance
-  ,ModuleInstanceCreate 
-  ,ModuleInstanceCreateWithData 
-  ,ModuleInstanceCreateWASI 
-  ,ModuleInstanceInitWASI 
-  ,ModuleInstanceWASIGetExitCode
-  ,ModuleInstanceWASIGetNativeHandler 
-  ,ModuleInstanceInitWasmEdgeProcess
-  ,ModuleInstanceGetModuleName
-  ,ModuleInstanceGetHostData 
-  ,ModuleInstanceFindFunction 
-  ,ModuleInstanceFindTable
-  ,ModuleInstanceFindMemory 
-  ,ModuleInstanceFindGlobal 
-  ,ModuleInstanceListFunctionLength 
-  ,ModuleInstanceListFunction
-  ,ModuleInstanceListTableLength
-  ,ModuleInstanceListTable
-  ,ModuleInstanceListMemoryLength
-  ,ModuleInstanceListMemory
-  ,ModuleInstanceListGlobalLength 
-  ,ModuleInstanceListGlobal
-  ,ModuleInstanceAddFunction
-  ,ModuleInstanceAddTable 
-  ,ModuleInstanceAddMemory 
-  ,ModuleInstanceAddGlobal 
-  ,hostFuncCallback 
-  ,hostFuncCallbackPure
-  -- Function Instance
-  ,functionInstanceCreate 
-  ,FunctionInstanceGetFunctionType 
-  -- Table Instance
-  ,TableInstanceCreate 
-  ,TableInstanceGetTableType
-  ,TableInstanceGetData
-  ,TableInstanceSetData
-  ,TableInstanceGetSize 
-  ,TableInstanceGrowOut 
-  -- Memory Instance
-  ,MemoryInstanceCreate
-  ,MemoryInstanceGetMemoryType
-  ,memoryInstanceGetData
-  ,MemoryInstanceSetData
-  ,MemoryInstanceGetPointer
-  ,memoryInstanceGetPointerConst
-  ,MemoryInstanceGetPageSize
-  ,MemoryInstanceGrowPage
-  ,GlobalInstanceCreate
-  ,GlobalInstanceGetGlobalType 
-  ,GlobalInstanceGetValueOut 
-  ,GlobalInstanceSetValueOut 
-  -- Calling Frame
-  ,CallingFrameGetExecutor 
-  ,CallingFrameGetModuleInstance 
-  ,CallingFrameGetMemoryInstance 
-  -- Async
-  ,AsyncWait 
-  ,AsyncWaitFor
-  ,asyncCancel
-  ,AsyncGetReturnsLength
-  ,AsyncGet 
-  -- VM
-  ,VMRegisterModuleFromImport
-  ,VMRunWasmFromFile
-  ,VMRunWasmFromBuffer
-  ,VMRunWasmFromASTModule
-  ,VMAsyncRunWasmFromFile
-  ,VMAsyncRunWasmFromASTModule
-  ,VMAsyncRunWasmFromBuffer
-  ,VMCreate 
-  ,VMRegisterModuleFromFile
-  ,VMRegisterModuleFromBuffer
-  ,VMRegisterModuleFromASTModule
-  ,VMLoadWasmFromFile
-  ,VMLoadWasmFromBuffer
-  ,VMLoadWasmFromASTModule
-  ,VMValidate
-  ,VMInstantiate
-  ,VMExecute
-  ,VMExecuteRegistered
-  ,vMAsyncExecute 
-  ,VMAsyncExecuteRegistered
-  ,VMGetFunctionType 
-  ,VMGetFunctionTypeRegistered 
-  ,VMCleanup 
-  ,VMGetFunctionListLength 
-  ,vMGetFunctionList 
-  ,VMGetImportModuleContext 
-  ,VMGetActiveModule 
-  ,VMGetRegisteredModule 
-  ,VMListRegisteredModuleLength 
-  ,vMListRegisteredModule 
-  ,VMGetStoreContext 
-  ,VMGetLoaderContext 
-  ,VMGetValidatorContext 
-  ,VMGetExecutorContext 
-  ,VMGetStatisticsContext 
-  -- Driver
-  ,Driver_Compiler 
-  ,Driver_Tool 
-  ,Driver_UniTool 
-  -- Plugin Function
-  ,PluginLoadWithDefaultPaths 
-  ,PluginLoadFromPath 
-  ,PluginListPluginsLength 
-  ,pluginListPlugins 
-  ,PluginFind 
-  ,pluginGetPluginName 
-  ,PluginListModuleLength 
-  ,PluginListModule
-  ,PluginCreateModule 
--}
-  -- * Re-exports
+  , withWasmRes
+  , withWasmResF
+  , withWasmResT
+  , storeCreate 
+  , storeFindModule
+  , storeListModuleLength
+  , storeListModule
+  , moduleInstanceCreate
+  , moduleInstanceCreateWithData
+  , moduleInstanceCreateWASI
+  , moduleInstanceInitWASI
+  , moduleInstanceWASIGetExitCode
+  , moduleInstanceWASIGetNativeHandler
+  , moduleInstanceInitWasmEdgeProcess
+  , moduleInstanceGetModuleName
+  , moduleInstanceGetHostData
+  , moduleInstanceFindFunction
+  , moduleInstanceFindTable
+  , moduleInstanceFindMemory
+  , moduleInstanceFindGlobal
+  , moduleInstanceListFunctionLength
+  , moduleInstanceListFunction
+  , moduleInstanceListTableLength
+  , moduleInstanceListTable
+  , moduleInstanceListMemoryLength 
+  , moduleInstanceListMemory
+  , moduleInstanceListGlobalLength 
+  , moduleInstanceListGlobal
+  , moduleInstanceAddFunction 
+  , moduleInstanceAddTable
+  , moduleInstanceAddMemory 
+  , moduleInstanceAddGlobal
+  , tableTypeGetLimit
+  , hostFuncCallbackPure
+  , hostFuncCallback
+  , driverCompiler
+  , driverTool
+  , driverUniTool
+  , fromHsRef
+  , toHsRef
+  , stringCreateByCString
+  , mkStringFromBytes
+  , wrapCFinalizer
+  , finalize
+  , getValType
+  , stringCopy
+  , wasmStringLength
+  , toText
+    -- * Re-exports
   , Int128
   #if TESTONLY && !(__HADDOCK_VERSION__)
-  ,testonly_accquire
+  , testonly_accquire
   , testonly_isAlive
   , testonly_release
 #endif
@@ -679,9 +390,6 @@ testonly_ref = do
   modifyMVar testonly_ref_count $ \uqs -> do
     uqMay <- tryTakeMVar testonly_ref_barrier
     pure (maybe uqs (\uq -> Set.insert uq uqs) uqMay, uqMay)
-
-foreign import ccall "wrapper" releaseFnPtr :: (Ptr a -> IO ()) -> IO (FunPtr (Ptr a -> IO ()))
-    
 
 #endif
 
@@ -4498,13 +4206,13 @@ peekOutNullablePtr pout = do
     then pure Nothing
     else fmap (Just . coerce) $ newForeignPtr getFinalizer pres
 
-peekCOwnedOutPtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO t
-peekCOwnedOutPtr pout = do
+_peekCOwnedOutPtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO t
+_peekCOwnedOutPtr pout = do
   pres <- peek pout
   fmap coerce $ newForeignPtr_ pres
 
-peekCOwnedOutNullablePtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO (Maybe t)
-peekCOwnedOutNullablePtr pout = do
+_peekCOwnedOutNullablePtr :: (Coercible (ForeignPtr t) t) => Ptr (Ptr t) -> IO (Maybe t)
+_peekCOwnedOutNullablePtr pout = do
   pres <- peek pout
   if nullPtr == pres
     then pure Nothing

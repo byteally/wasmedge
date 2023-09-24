@@ -133,6 +133,9 @@ library
                       WasmEdge.Plugin
                       WasmEdge.Statistic
                       WasmEdge.Module
+                      WasmEdge.Table
+                      WasmEdge.Global
+                      WasmEdge.Memory
                       WasmEdge.Utils
                       WasmEdge.Executor
                       WasmEdge.Driver

@@ -23,6 +23,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Vector as V
+import qualified Data.Vector.Storable as SV
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -149,6 +150,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ testMutGlobalInst
   liftIO $ testConstGlobalInst
   liftIO $ testValueGenNullRef
+  liftIO $ testHostFnAlloc
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -509,3 +511,27 @@ testValueGenNullRef :: IO ()
 testValueGenNullRef = do
     let val = valueGenNullRef RefType_ExternRef
     print $ valueIsNullRef val
+
+testHostFnAlloc :: IO ()
+testHostFnAlloc = do
+  hFn <- hostFuncCallbackPure 2 1 $ \_ _ args ->
+    let
+      n1 = case args V.!? 0 of
+        Just (WasmInt32 n1') -> n1'
+        _ -> error "Expecting WasmInt32"
+      n2 = case args V.!? 1 of
+        Just (WasmInt32 n2') -> n2'
+        _ -> error "Expecting WasmInt32"
+    in V.fromList [WasmInt32 (n1 + n2)]
+  Just funTy <- functionTypeCreate (SV.fromList [ValType_I32, ValType_I32]) (SV.fromList [ValType_I32])
+  hsref <- toHsRef ("test" :: T.Text)
+  Just _funInst <- functionInstanceCreate funTy hFn hsref 0
+  pure ()
+
+-- testHostFnCallingFrameCxt :: IO ()
+-- testHostFnCallingFrameCxt = do
+--   pure ()
+
+-- testUDErrorCode :: IO ()
+-- testUDErrorCode = do
+--   pure ()
