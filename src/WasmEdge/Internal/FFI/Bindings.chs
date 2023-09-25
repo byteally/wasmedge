@@ -15,10 +15,10 @@ Maintainer  : magesh85@gmail.com
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
--- {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module WasmEdge.Internal.FFI.Bindings
   ( HsRef
   , HsRefPtr, withHsRefPtr
+  , HasFinalizer
   , WasmVal ( WasmInt32, WasmInt64, WasmFloat, WasmDouble, WasmInt128, WasmExternRef
             , WasmFuncRef, WasmNullExternRef, WasmNullFuncRef
             )
@@ -69,10 +69,8 @@ module WasmEdge.Internal.FFI.Bindings
   , valueGetV128
   , valueGenNullRef
   , valueIsNullRef
-  , mkStringFromBytesIO
   , stringWrap
   , wasmStringEq
-  , _stringCopy
   , mkResultSuccess
   , mkResultTerminate 
   , mkResultFail
@@ -292,8 +290,7 @@ module WasmEdge.Internal.FFI.Bindings
   , fromHsRef
   , toHsRef
   , stringCreateByCString
-  , mkStringFromBytes
-  , wrapCFinalizer
+  , stringCreateByBuffer
   , finalize
   , getValType
   , stringCopy
@@ -302,9 +299,8 @@ module WasmEdge.Internal.FFI.Bindings
     -- * Re-exports
   , Int128
   #if TESTONLY && !(__HADDOCK_VERSION__)
-  , testonly_accquire
-  , testonly_isAlive
-  , testonly_release
+  , testonly_getOwner
+  , OwnedBy (..)
 #endif
   ) where
 
@@ -346,11 +342,9 @@ import GHC.Fingerprint
 import GHC.TypeLits
 import Data.Typeable
 #if TESTONLY
-import Data.Unique
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Concurrent.MVar
-import GHC.Stack
 #endif
 
 #include "wasmedge/wasmedge.h"
@@ -361,36 +355,38 @@ import GHC.Stack
 {#context prefix = "WasmEdge"#}
 
 #if TESTONLY && !(__HADDOCK_VERSION__)
-testonly_ref_barrier :: MVar Unique
-testonly_ref_barrier = unsafePerformIO newEmptyMVar
-{-# NOINLINE testonly_ref_barrier #-}
 
-testonly_ref_count :: MVar (Set Unique)
-testonly_ref_count = unsafePerformIO $ newMVar mempty
-{-# NOINLINE testonly_ref_count #-}
+data RefStore = RefStore !(Set String) !(Set String)
+testonly_ownership :: MVar RefStore
+testonly_ownership = unsafePerformIO $ newMVar (RefStore mempty mempty)
+{-# NOINLINE testonly_ownership #-}
 
-testonly_accquire :: HasCallStack => IO a -> IO (Unique, a)
-testonly_accquire act = do
-  uq <- newUnique
-  putMVar testonly_ref_barrier uq
-  !r <- act
-  isUnlocked <- fmap (maybe True (uq/=)) $ tryReadMVar testonly_ref_barrier
-  if isUnlocked
-    then pure (uq, r)
-    else error $ "No C finalizer added for resource accquired with ref: " ++ (show $ hashUnique uq)
+testonly_hsOwned :: Ptr a -> IO ()
+testonly_hsOwned p = do
+  let !addr = show p
+  modifyMVar_ testonly_ownership $ \(RefStore hsSet cSet) -> pure $! (RefStore (Set.insert addr hsSet) cSet)
 
-testonly_release :: Unique -> IO ()
-testonly_release uq = modifyMVar_ testonly_ref_count (pure . Set.delete uq)
+testonly_cOwned :: Ptr a -> IO ()
+testonly_cOwned p = do
+  let !addr = show p
+  modifyMVar_ testonly_ownership $ \(RefStore hsSet cSet) -> pure $! RefStore hsSet (Set.insert addr cSet)
 
-testonly_isAlive :: Unique -> IO Bool
-testonly_isAlive uq = withMVar testonly_ref_count (pure . Set.member uq)
+testonly_getOwner :: HasFinalizer t => t -> IO (Maybe OwnedBy)
+testonly_getOwner t = do
+  RefStore hsSet cSet <- readMVar testonly_ownership
+  addrStr <- withForeignPtr (unsafeToFP t) (pure . show)
+  case (Set.member addrStr hsSet, Set.member addrStr cSet) of
+    (True, False) -> pure $ Just HsOwned
+    (False, True) -> pure $ Just COwned
+    (True, True) -> error "Panic: Can't be both HsOwned & COwned"
+    (False, False) -> pure Nothing
+  where
+    unsafeToFP :: t -> ForeignPtr t
+    unsafeToFP = unsafeCoerce
 
-testonly_ref :: IO (Maybe Unique)
-testonly_ref = do
-  modifyMVar testonly_ref_count $ \uqs -> do
-    uqMay <- tryTakeMVar testonly_ref_barrier
-    pure (maybe uqs (\uq -> Set.insert uq uqs) uqMay, uqMay)
-
+data OwnedBy = HsOwned | COwned
+  deriving (Show, Eq)
+  
 #endif
 
 #c
@@ -1164,9 +1160,9 @@ Get the patch version value of the WasmEdge C API.
 {-|
   WasmEdge string struct.
 -}
-{#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as deleteString newtype #}
+{#pointer *WasmEdge_String as WasmString foreign finalizer StringDeleteByPtr as ^ newtype #}
 instance HasFinalizer WasmString where
-  getFinalizer = deleteString
+  getFinalizer = stringDeleteByPtr
 
 {-|
   WasmEdge Result construct
@@ -1424,14 +1420,28 @@ Generate the I32 WASM value.
 {-|
 Creation of the WasmEdge_String with the C string.
 -}
-{#fun unsafe StringCreateByCStringOut as stringCreateByCString 
-  {+
+{#fun pure unsafe StringCreateByCStringOut as stringCreateByCString 
+  {allocWasmString-`WasmString'useCAndFinalizerFree*
   ,`String'           -- ^ the NULL-terminated C string to copy into the WasmEdge_String object.
-  } -> `WasmString'   -- ^ string object. Length will be 0 and Buf will be NULL if failed or the input string is a NULL. 
+  } -> `()'   -- ^ string object. Length will be 0 and Buf will be NULL if failed or the input string is a NULL. 
 #}
 
-{#fun unsafe StringCreateByBufferOut as mkStringFromBytesIO {+, useAsCStringLenBS*`ByteString'& } -> `WasmString' #}
-{#fun pure unsafe StringWrapOut as stringWrap {+, useAsCStringLenBS*`ByteString'&} -> `WasmString' #}
+{- |
+Creation of the WasmEdge_String with the buffer and its length.
+-}
+{#fun pure unsafe StringCreateByBufferOut as stringCreateByBuffer
+  {allocWasmString-`WasmString'useCAndFinalizerFree*
+  , unsafeUseAsCStringLenBS*`ByteString'&  -- ^ the buffer to copy into the WasmEdge_String object.
+  } -> `()'
+#}
+
+{- |
+Create the WasmEdge_String wraps to the buffer.
+-}
+{#fun pure unsafe StringWrapOut as stringWrap
+ {allocWasmString-`WasmString'useFinalizerFree*
+ , useAsCStringLenBS*`ByteString'&
+ } -> `()' #}
 
 {-|
 Compare the two WasmEdge_String objects.
@@ -1446,41 +1456,22 @@ Compare the two WasmEdge_String objects.
   Copy the content of WasmEdge_String object to the buffer.
   This function copy at most `Len` characters from the `WasmEdge_String` object to the destination buffer. If the string length is less than `Len` characters long, the remainder of the buffer is filled with `\0' characters. Otherwise, the destination is not terminated.
 -}
-{#fun pure unsafe WasmEdge_StringCopy as _stringCopy 
+{#fun unsafe WasmEdge_StringCopy as stringCopy_ 
   {%`WasmString'                  -- ^ the source WasmEdge_String object to copy.
-  , memBuffIn*`MemBuff'&          -- ^ the buffer to fill the string content. and the length of the buffer
-} -> `Word32' #}                  -- ^ the copied length of string.
+  , id`Ptr CChar'            -- ^ the buffer to fill the string content.
+  , `Word32'                      -- ^ the length of the buffer
+} -> `Int' #}                  -- ^ the copied length of string.
 
 {#fun pure unsafe C_Result_Success as mkResultSuccess {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Terminate as mkResultTerminate {+} -> `WasmResult' #}
 {#fun pure unsafe C_Result_Fail as mkResultFail {+} -> `WasmResult' #}
 
 
-{-|
-  Converting ByteString to WasmEdge_String
--}
-mkStringFromBytes :: ByteString -> WasmString
-mkStringFromBytes bs = unsafePerformIO $ wrapCFinalizer deleteString $ mkStringFromBytesIO bs
-
-wrapCFinalizer :: forall t.(Coercible t (ForeignPtr t)) => FinalizerPtr t -> IO t -> IO t
-wrapCFinalizer final tAct = tAct >>= \t -> do
-  addForeignPtrFinalizer final (coerce t)
-#if TESTONLY
-  uqMay <- testonly_ref
-  case uqMay of
-    Nothing -> pure ()
-    Just _ -> pure ()
-    -- Just uq -> do
-    --   relFin <- releaseFnPtr @t (const $ testonly_release uq)
-    --   addForeignPtrFinalizer relFin (coerce t)
-#endif  
-  pure t
-{-#INLINE wrapCFinalizer #-}
-
 class HasFinalizer t where
   runFinalizer :: t -> IO ()
   default runFinalizer :: Coercible t (ForeignPtr t) => t -> IO ()
   runFinalizer t = finalizeForeignPtr @t (coerce t)
+  {-#INLINE runFinalizer #-}
 
   getFinalizer :: FinalizerPtr t
 
@@ -1498,16 +1489,13 @@ finalize = runFinalizer
   Copy the content of WasmEdge_String object to the buffer.
 -}
 stringCopy :: Word32 -> WasmString -> ByteString
-stringCopy sz wstr = unsafePerformIO $ do
-  mem <- allocMemBuff (fromIntegral sz)
-  let cpLen = _stringCopy wstr mem
-  withForeignPtr (memBuff mem) $ \p -> BS.packCStringLen (p, fromIntegral cpLen)
+stringCopy sz wstr = unsafePerformIO $ IntBS.createAndTrim (fromIntegral sz) $ \pw8 -> stringCopy_ wstr (castPtr @Word8 @CChar pw8) sz
 
 instance Eq WasmString where
   (==) = wasmStringEq
 
 instance IsString WasmString where
-  fromString = mkStringFromBytes . Char8.pack
+  fromString = stringCreateByBuffer . Char8.pack
 
 instance Eq WasmResult where
   wr1 == wr2 = unsafePerformIO $ withWasmResult wr1 $ \wrp1 ->
@@ -2245,7 +2233,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
   {`ASTModuleContext'          -- ^ the WasmEdge_ASTModuleContext.
   } -> `Word32'                -- ^ length of the imports list.
 #}
-{#fun unsafe ASTModuleListImports as astModuleListImports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ImportTypeContext'&} -> `Word32'#}
+{#fun unsafe ASTModuleListImports as astModuleListImports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector (ImportTypeContext)'&} -> `Word32'#}
 
 {-|
   Get the length of exports list of the AST module.
@@ -2290,7 +2278,13 @@ functionTypeGetParameters fcxt buffLen = do
   len <- functionTypeGetParameters_ fcxt v
   VS.unsafeFreeze $ VSM.slice 0 (fromIntegral len) v
 
-astModuleListImports :: ASTModuleContext -> Word32 -> IO (Vector ImportTypeContext)
+{-|
+List the imports of the AST module.
+-}
+astModuleListImports ::
+  ASTModuleContext -- ^ the WasmEdge_ASTModuleContext.
+  -> Word32 -- ^ the buffer length.
+  -> IO (Vector ImportTypeContext) -- ^ the import type contexts
 astModuleListImports fcxt buffLen = do
   v <- VSM.new (fromIntegral buffLen)
   len <- astModuleListImports_ fcxt v
@@ -4067,18 +4061,19 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 
 
 -- * FFI Utils
+{-# INLINE fromCStrToText #-}
 fromCStrToText :: CString -> IO Text
 fromCStrToText cs = T.fromPtr0 $ castPtr cs
 
-{-|
-  fromHsRefIn 
--}
+{-# INLINE fromHsRefIn #-}
 fromHsRefIn :: HsRef -> (Ptr HsRefPtr -> IO a) -> IO a
 fromHsRefIn = fromHsRefGenIn
 
+{-# INLINE fromHsRefAsVoidPtrIn #-}
 fromHsRefAsVoidPtrIn :: HsRef -> (Ptr () -> IO a) -> IO a
 fromHsRefAsVoidPtrIn = fromHsRefGenIn
 
+{-# INLINE fromHsRefGenIn #-}
 fromHsRefGenIn :: HsRef -> (Ptr p -> IO a) -> IO a
 fromHsRefGenIn (HsRef fprnt sp) f = do
   fp <- mallocForeignPtrBytes {#sizeof HsRef#}
@@ -4088,6 +4083,7 @@ fromHsRefGenIn (HsRef fprnt sp) f = do
     {#set HsRef.Ref#} p (castStablePtrToPtr sp)
     f p
 
+{-# INLINE toHsRefOut #-}
 toHsRefOut :: Ptr HsRefPtr -> IO HsRef
 toHsRefOut hsr = do
   pFing <- {#get HsRef.Fingerprint#} hsr
@@ -4095,26 +4091,36 @@ toHsRefOut hsr = do
   r <- {#get HsRef.Ref#} hsr
   pure $ HsRef fprint (castPtrToStablePtr r)
 
+{-# INLINE toHsRefFromVoidPtrOut #-}
 toHsRefFromVoidPtrOut :: Ptr () -> IO HsRef
 toHsRefFromVoidPtrOut = toHsRefOut . castPtr
 
+{-# INLINE fromHsRefWithFinalzrIn #-}
 fromHsRefWithFinalzrIn :: HsRef -> ((Ptr (), FunPtr (Ptr () -> IO ())) -> IO a) -> IO a
 fromHsRefWithFinalzrIn hsRef f = do
   hsDataFinalzr <- finalizerHSData $ const (freeHsRef hsRef)
   fromHsRefAsVoidPtrIn hsRef $ \pRef -> f (pRef, hsDataFinalzr)
 
+{-# INLINE allocI128 #-}
 allocI128 :: Int128 -> (Ptr CULong -> IO a) -> IO a
 allocI128 i128 f = alloca $ \p -> poke p i128 *> f (castPtr p)
 
+{-# INLINE peekI128 #-}
 peekI128 :: Ptr CULong -> IO Int128
 peekI128 p = peek @Int128 (castPtr p) 
 
+{-# INLINE coercePtr #-}
 coercePtr :: Coercible a b => Ptr a -> Ptr b
 coercePtr = castPtr
 
+{-# INLINE useAsCStringLenBS #-}
 useAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
 useAsCStringLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
 
+unsafeUseAsCStringLenBS :: ByteString -> ((CString, CUInt) -> IO a) -> IO a
+unsafeUseAsCStringLenBS bs f = UnsafeBS.unsafeUseAsCStringLen bs (\strLen -> f (fromIntegral <$> strLen))
+
+{-# INLINE useAsPtrCUCharLenBS #-}
 useAsPtrCUCharLenBS :: ByteString -> ((Ptr CUChar, CUInt) -> IO a) -> IO a
 useAsPtrCUCharLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (bimap convPtrCCharToPtrCUChar fromIntegral strLen))
   where
@@ -4125,22 +4131,17 @@ useAsPtrCUCharLenBS bs f = BS.useAsCStringLen bs (\strLen -> f (bimap convPtrCCh
 _packCStringLenBS :: CString -> CUInt -> IO ByteString
 _packCStringLenBS cstr len = BS.packCStringLen (cstr, fromIntegral len)
 
+{-# INLINE packCStringBS #-}
 packCStringBS :: CString -> IO ByteString
 packCStringBS cstr = BS.packCString cstr
 
-memBuffIn :: MemBuff -> ((Ptr CChar, CUInt) -> IO a) -> IO a
-memBuffIn mem f = withForeignPtr (memBuff mem) $ \p -> f (p, fromIntegral (memBuffLen mem))
-
-data MemBuff = MemBuff {memBuffLen :: Int, memBuff :: ForeignPtr CChar}
-
-allocMemBuff :: Int -> IO MemBuff
-allocMemBuff sz = MemBuff sz <$> mallocForeignPtrBytes sz
-
+{-# INLINE fromStoreVecOr0Ptr #-}
 fromStoreVecOr0Ptr :: (Storable a, Num n) => Vector a -> ((Ptr n, CUInt) -> IO b) -> IO b
 fromStoreVecOr0Ptr v f
   | VS.null v = f (nullPtr, 0)
   | otherwise = VS.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VS.length v)
 
+{-# INLINE fromVecOr0Ptr #-}
 fromVecOr0Ptr :: (Num sz) => (a -> IO (Ptr c)) -> V.Vector a -> ((Ptr (Ptr c), sz) -> IO b) -> IO b
 fromVecOr0Ptr getPtr v f
   | V.null v = f (nullPtr, 0)
@@ -4150,9 +4151,11 @@ fromVecOr0Ptr getPtr v f
       VSM.mapM_ free ptrs
       pure r
 
+{-# INLINE fromVecStringOr0Ptr #-}
 fromVecStringOr0Ptr :: (Num sz) => V.Vector String -> ((Ptr (Ptr CChar), sz) -> IO b) -> IO b
 fromVecStringOr0Ptr = fromVecOr0Ptr newCString
 
+{-# INLINE fromVecOfFPtr #-}
 fromVecOfFPtr :: forall t sz b.(Coercible t (ForeignPtr t), Num sz) => V.Vector t -> ((Ptr (Ptr t), sz) -> IO b) -> IO b
 fromVecOfFPtr v f
   | V.null v = f (nullPtr, 0)
@@ -4164,44 +4167,90 @@ fromVecOfFPtr v f
       pure r
       
 
+{-# INLINE fromMutIOVecOr0Ptr #-}
 fromMutIOVecOr0Ptr :: (Storable a, Num sz) => IOVector a -> ((Ptr a, sz) -> IO b) -> IO b
 fromMutIOVecOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
   | otherwise = VSM.unsafeWith v $ \p -> f (p, fromIntegral $ VSM.length v)
 
+{-# INLINE fromMutIOVecOfCEnumOr0Ptr #-}
 fromMutIOVecOfCEnumOr0Ptr :: (Storable a, Enum a) => IOVector a -> ((Ptr CInt, CUInt) -> IO b) -> IO b
 fromMutIOVecOfCEnumOr0Ptr v f
   | VSM.null v = f (nullPtr, 0)
   | otherwise = VSM.unsafeWith v $ \p -> f (castPtr p, fromIntegral $ VSM.length v)
 
+{-# INLINE fromByteStringIn #-}
 fromByteStringIn :: (Coercible Word8 w8, Num sz) => BS.ByteString -> ((Ptr w8, sz) -> IO b) -> IO b
 fromByteStringIn bs f = UnsafeBS.unsafeUseAsCStringLen bs $ \(p, l) -> f (coercePtr (castPtr p :: Ptr Word8), fromIntegral l)
 
-noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
-noFinalizer = coerce . newForeignPtr_
+{-# INLINE _hsFinalizer #-}
+_hsFinalizer :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO t
+_hsFinalizer p = coerce $ newForeignPtr getFinalizer p
+#if TESTONLY
+              <* testonly_hsOwned p
+#endif
 
+{-# INLINE noFinalizer #-}
+noFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
+noFinalizer p = coerce $ newForeignPtr_ p
+#if TESTONLY
+              <* testonly_cOwned p
+#endif    
+
+{-# INLINE nullableNoFinalizer #-}
 nullableNoFinalizer :: (Coercible (ForeignPtr t) t) => Ptr t -> IO (Maybe t)
 nullableNoFinalizer p
   | p == nullPtr = pure Nothing
   | otherwise = (Just . coerce) <$> newForeignPtr_ p
+#if TESTONLY  
+                <* testonly_cOwned p
+#endif                
 
+{-# INLINE nullableFinalizablePtrOut #-}
 nullableFinalizablePtrOut :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO (Maybe t)
 nullableFinalizablePtrOut p
   | p == nullPtr = pure Nothing
-  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p    
+  | otherwise = (Just . coerce) <$> newForeignPtr (getFinalizer @t) p
+#if TESTONLY  
+                <* testonly_hsOwned p
+#endif                
 
 
+{-# INLINE useFinalizerFree #-}
 useFinalizerFree :: (Coercible (ForeignPtr t) t) => Ptr t -> IO t
-useFinalizerFree = coerce . newForeignPtr finalizerFree
+useFinalizerFree p = coerce $ newForeignPtr finalizerFree p
+#if TESTONLY  
+                     <* testonly_hsOwned p
+#endif
 
+{-# INLINE useCAndFinalizerFree #-}
+useCAndFinalizerFree :: forall t.(Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr t -> IO t
+useCAndFinalizerFree p = do
+  fp <- newForeignPtr_ p
+  addForeignPtrFinalizer finalizerFree fp
+  addForeignPtrFinalizer (getFinalizer @t) fp  
+#if TESTONLY  
+  testonly_hsOwned p
+#endif  
+  pure $! coerce fp
+
+
+{-# INLINE peekOutPtr #-}
 peekOutPtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO t
 peekOutPtr pout = do
   pres <- peek pout
+#if TESTONLY  
+  testonly_hsOwned pres
+#endif
   fmap coerce $ newForeignPtr getFinalizer pres
 
+{-# INLINE peekOutNullablePtr #-}
 peekOutNullablePtr :: (Coercible (ForeignPtr t) t, HasFinalizer t) => Ptr (Ptr t) -> IO (Maybe t)
 peekOutNullablePtr pout = do
   pres <- peek pout
+#if TESTONLY  
+  testonly_hsOwned pres
+#endif  
   if nullPtr == pres
     then pure Nothing
     else fmap (Just . coerce) $ newForeignPtr getFinalizer pres
@@ -4218,15 +4267,35 @@ _peekCOwnedOutNullablePtr pout = do
     then pure Nothing
     else fmap (Just . coerce) $ newForeignPtr_ pres    
 
+{-# INLINE peekCoerce #-}
 peekCoerce :: (Coercible a b, Storable a) => Ptr a -> IO b
 peekCoerce = fmap coerce peek
 
+{-# INLINE allocWasmVal #-}
 allocWasmVal :: (Ptr WasmVal -> IO a) -> IO a
 allocWasmVal f = f =<< mallocBytes {#sizeof WasmVal #}
 
+{-# INLINE allocWasmString #-}
 allocWasmString :: (Ptr WasmString -> IO a) -> IO a
 allocWasmString f = f =<< mallocBytes {#sizeof WasmEdge_String #}
 
+-- _cOwnedWasmString :: WasmString -> IO ()
+-- #if TESTONLY  
+-- _cOwnedWasmString ws = withWasmString ws (testonly_cOwned)
+-- #else
+-- _cOwnedWasmString _ = pure ()
+-- #endif
+
+-- hsOwnedWasmString :: WasmString -> IO ()
+-- hsOwnedWasmString ws = do
+--   addForeignPtrFinalizer (getFinalizer @WasmString) (coerce ws)  
+-- #if TESTONLY  
+--   -- withForeignPtr (coerce ws) testonly_hsOwned
+-- #endif
+--   pure ()
+  
+
+{-# INLINE nullablePtrIn #-}
 nullablePtrIn :: (Coercible t (ForeignPtr t)) => Maybe t -> (Ptr t -> IO r) -> IO r
 nullablePtrIn Nothing f = f nullPtr
 nullablePtrIn (Just t) f = withForeignPtr (coerce t) f

@@ -24,6 +24,7 @@ import Control.Monad.IO.Class
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as SV
+import GHC.Stack
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -36,6 +37,7 @@ ffiTT = testGroup "ffi tests"
   , valueTT
   , stringTT
   , prop_finalization
+  , ownershipTT
   ]
 
 versionTT :: TestTree
@@ -49,9 +51,9 @@ versionTT = testGroup "version tests"
 
 stringTT :: TestTree
 stringTT = testGroup "string tests"
-  [ testProperty "null-terminated string" $ withTests 1 $ property $ (tripping "wasm\0edge" (mkStringFromBytes . Char8.pack) (Just . T.unpack . toText))
+  [ testProperty "null-terminated string" $ withTests 1 $ property $ (tripping "wasm\0edge" (stringCreateByBuffer . Char8.pack) (Just . T.unpack . toText))
   , testProperty "null-terminated fromString" $ withTests 1 $ property $ (tripping "wasm\0edge" (fromString @WasmString) (Just . T.unpack . toText))
-  , testProperty "C String" $ withTests 1 $ property $ (tripping "Testing string" (unsafePerformIO.stringCreateByCString) (Just. T.unpack. toText))
+  , testProperty "C String" $ withTests 1 $ property $ (tripping "Testing string" (stringCreateByCString) (Just. T.unpack. toText))
   , testProperty "finalizeString" $ withTests 1 $ property $ do
       let ws = "foo" :: WasmString
       toText ws === "foo"
@@ -106,9 +108,9 @@ stringCmd :: FFICmd
 stringCmd = Command
   { commandGen = \State{} -> Just $ pure $ NewString "wasm\0edge"
   , commandExecute = \(NewString bs) -> do
-      (uq, ws) <- liftIO $ testonly_accquire (pure $ mkStringFromBytes bs)
+      (ws) <- liftIO $ (pure $ stringCreateByBuffer bs)
 --      liftIO $ finalize ws
-      pure (ShowableUnique uq, ws)
+      pure (ShowableUnique undefined, ws)
   , commandCallbacks = [ Require $ \State {} _ -> True
                        , Ensure $ \_ _ (NewString _bs) (ShowableUnique _uq, _ws) -> do
 --                           isalive <- evalIO $ testonly_isAlive uq
@@ -121,6 +123,45 @@ data State (v :: Type -> Type) = State
   } deriving (Eq, Ord)
 
 type FFICmd = Command Gen (PropertyT IO) State
+
+ownershipTT :: TestTree
+ownershipTT = testGroup "ownership tests"
+  [ testProperty "fromString" $ withTests 1 $ property $ assertHsOwnedResult (pure $! "wasm\0edge" :: IO WasmString)
+  , testProperty "C String" $ withTests 1 $ property $ assertHsOwnedResult (pure $! stringCreateByCString "wasmedge")
+  , testProperty "StringWrap" $ withTests 1 $ property $ assertHsOwnedResult (pure $! stringWrap "wasmedge")
+  , testProperty "ConfigureCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (configureCreate)
+  , testProperty "StatisticsCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (statisticsCreate)
+  , testProperty "FunctionTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (functionTypeCreate (SV.fromList [ValType_I32]) (SV.fromList [ValType_F32]))
+  , testProperty "TableTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (tableTypeCreate RefType_ExternRef (WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}))
+  , testProperty "MemoryTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (memoryTypeCreate (WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}))
+  , testProperty "GlobalTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (globalTypeCreate ValType_I32 Mutability_Const)
+  -- , testProperty "ImportTypeGetModuleName" $ withTests 1 $ property $ do
+  --     imps <- liftIO $ withWasmResT configureCreate $ \cfgCxt -> do    
+  --       configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  --       withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+  --         (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/trap.wasm"
+  --         let astMod = maybe (error "Failed to load AST module") id astModMay
+  --         astModuleListImports astMod 10
+  --     assertCOwnedResult (importTypeGetModuleName (SV.head $ maybe mempty id (join imps)))
+  ]
+
+assertHsOwnedResult :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
+assertHsOwnedResult act = withFrozenCallStack $ do
+  ownr <- liftIO $ act >>= testonly_getOwner
+  ownr === Just HsOwned
+
+assertHsOwnedOptResult :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO (Maybe a) -> m ()
+assertHsOwnedOptResult act = withFrozenCallStack $ do
+  resMay <- liftIO $ act
+  res <- maybe failure pure resMay
+  ownr <- liftIO $ testonly_getOwner res
+  ownr === Just HsOwned  
+
+_assertCOwnedResult :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
+_assertCOwnedResult act = withFrozenCallStack $ do
+  ownr <- liftIO $ act >>= testonly_getOwner
+  ownr === Just COwned  
+  
 
 prop_finalization :: TestTree
 prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $ do
@@ -382,6 +423,7 @@ testExternRefTableInst = do
   let wasmLimit = WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}
   Just tabTy <- tableTypeCreate RefType_ExternRef wasmLimit
   Just tabInst <- tableInstanceCreate tabTy
+  finalize tabTy
   Just _tabTy1 <- tableInstanceGetTableType tabInst
   _refty <- tableTypeGetRefType _tabTy1
   print ("tableTypeGetRefType" :: String, _refty)
@@ -397,7 +439,7 @@ testExternRefTableInst = do
   _ <- tableInstanceGrow tabInst 6
   tabSzGrown <- tableInstanceGetSize tabInst
   print ("tableInstanceGetSize After Grow" :: String, tabSzGrown)
-  finalize tabTy
+  -- finalize tabTy
   pure ()
 
 
@@ -406,6 +448,7 @@ testFunRefTableInst = do
   let wasmLimit = WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}
   Just tabTy <- tableTypeCreate RefType_FuncRef wasmLimit
   Just tabInst <- tableInstanceCreate tabTy
+  finalize tabTy
   Just _tabTy1 <- tableInstanceGetTableType tabInst
   _refty <- tableTypeGetRefType _tabTy1
   print ("tableTypeGetRefType" :: String, _refty)
@@ -431,7 +474,7 @@ testFunRefTableInst = do
             print ("tableInstanceSetData" :: String, res)
             pure ()
 
-  finalize tabTy
+  --finalize tabTy
 
 
 testMemoryInst :: IO ()
@@ -439,6 +482,7 @@ testMemoryInst = do
   let wasmLimit = WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}
   Just memTy <- memoryTypeCreate wasmLimit
   Just memInst <- memoryInstanceCreate memTy
+  finalize memTy
   res <- memoryInstanceSetData memInst "ab" 0
   print ("memoryInstanceSetData" :: String, res)
 
@@ -455,7 +499,7 @@ testMemoryInst = do
   pageSz1 <- memoryInstanceGetPageSize memInst
   print ("memoryInstanceGetPageSizeAfterGrow" :: String, pageSz1)
   
-  finalize memTy
+  -- finalize memTy
   pure ()
 
 testMutGlobalInst :: IO ()
