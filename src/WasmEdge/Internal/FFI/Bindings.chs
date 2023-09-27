@@ -120,9 +120,9 @@ module WasmEdge.Internal.FFI.Bindings
   , statisticsSetCostTable
   , statisticsSetCostLimit
   , statisticsClear
-  , aSTModuleListImportsLength
+  , astModuleListImportsLength
   , astModuleListImports
-  , aSTModuleListExportsLength
+  , astModuleListExportsLength
   , astModuleListExports
   , functionTypeCreate
   , functionTypeGetParametersLength
@@ -301,7 +301,7 @@ module WasmEdge.Internal.FFI.Bindings
   #if TESTONLY && !(__HADDOCK_VERSION__)
   , testonly_getOwner
   , OwnedBy (..)
-#endif
+  #endif
   ) where
 
 import Data.Int
@@ -2229,7 +2229,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 {-|
   Get the length of imports list of the AST module.
 -}
-{#fun unsafe ASTModuleListImportsLength as ^ 
+{#fun unsafe ASTModuleListImportsLength as astModuleListImportsLength 
   {`ASTModuleContext'          -- ^ the WasmEdge_ASTModuleContext.
   } -> `Word32'                -- ^ length of the imports list.
 #}
@@ -2238,7 +2238,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 {-|
   Get the length of exports list of the AST module.
 -}
-{#fun unsafe ASTModuleListExportsLength as ^ 
+{#fun unsafe ASTModuleListExportsLength as astModuleListExportsLength 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   } -> `Word32'               -- ^ length of the exports list.
 #}

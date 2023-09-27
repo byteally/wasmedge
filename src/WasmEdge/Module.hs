@@ -2,8 +2,8 @@ module WasmEdge.Module
   ( ModuleDescriptor
   , ASTModuleContext
   , ModuleInstanceContext
-  , aSTModuleListImportsLength
-  , aSTModuleListExportsLength
+  , astModuleListImportsLength
+  , astModuleListExportsLength
   ) where
 
 import WasmEdge.Internal.FFI.Bindings

@@ -9,3 +9,10 @@ module WasmEdge.Executor
   ) where
 
 import WasmEdge.Internal.FFI.Bindings
+    ( executorAsyncInvoke,
+      executorCreate,
+      executorInstantiate,
+      executorInvoke,
+      executorRegister,
+      executorRegisterImport,
+      ExecutorContext )
