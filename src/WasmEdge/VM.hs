@@ -1,40 +1,76 @@
 module WasmEdge.VM
   ( VMContext
-  , vMCreate
-  , vMRegisterModuleFromFile
-  , vMRunWasmFromFile
-  , vMRunWasmFromBuffer
-  , vMRunWasmFromASTModule
-  , vMAsyncRunWasmFromFile
-  , vMAsyncRunWasmFromASTModule
-  , vMAsyncRunWasmFromBuffer
-  , vMRegisterModuleFromBuffer
-  , vMRegisterModuleFromASTModule
-  , vMRegisterModuleFromImport
-  , vMLoadWasmFromFile
-  , vMLoadWasmFromBuffer
-  , vMLoadWasmFromASTModule
-  , vMValidate
-  , vMInstantiate
-  , vMExecute
-  , vMExecuteRegistered
-  , vMAsyncExecute
-  , vMAsyncExecuteRegistered
-  , vMGetFunctionType
-  , vMGetFunctionTypeRegistered
-  , vMCleanup
-  , vMGetFunctionListLength
-  , vMGetFunctionList
-  , vMGetImportModuleContext
-  , vMGetActiveModule
-  , vMGetRegisteredModule
-  , vMListRegisteredModuleLength
-  , vMListRegisteredModule
-  , vMGetStoreContext
-  , vMGetLoaderContext
-  , vMGetValidatorContext
-  , vMGetExecutorContext
-  , vMGetStatisticsContext
+  , vmCreate
+  , vmRegisterModuleFromFile
+  , vmRunWasmFromFile
+  , vmRunWasmFromBuffer
+  , vmRunWasmFromASTModule
+  , vmAsyncRunWasmFromFile
+  , vmAsyncRunWasmFromASTModule
+  , vmAsyncRunWasmFromBuffer
+  , vmRegisterModuleFromBuffer
+  , vmRegisterModuleFromASTModule
+  , vmRegisterModuleFromImport
+  , vmLoadWasmFromFile
+  , vmLoadWasmFromBuffer
+  , vmLoadWasmFromASTModule
+  , vmValidate
+  , vmInstantiate
+  , vmExecute
+  , vmExecuteRegistered
+  , vmAsyncExecute
+  , vmAsyncExecuteRegistered
+  , vmGetFunctionType
+  , vmGetFunctionTypeRegistered
+  , vmCleanup
+  , vmGetFunctionListLength
+  , vmGetFunctionList
+  , vmGetImportModuleContext
+  , vmGetActiveModule
+  , vmGetRegisteredModule
+  , vmListRegisteredModuleLength
+  , vmListRegisteredModule
+  , vmGetStoreContext
+  , vmGetLoaderContext
+  , vmGetValidatorContext
+  , vmGetExecutorContext
+  , vmGetStatisticsContext
   ) where
 
 import WasmEdge.Internal.FFI.Bindings
+    ( vmAsyncExecute,
+      vmAsyncExecuteRegistered,
+      vmAsyncRunWasmFromASTModule,
+      vmAsyncRunWasmFromBuffer,
+      vmAsyncRunWasmFromFile,
+      vmCleanup,
+      vmCreate,
+      vmExecute,
+      vmExecuteRegistered,
+      vmGetActiveModule,
+      vmGetExecutorContext,
+      vmGetFunctionList,
+      vmGetFunctionListLength,
+      vmGetFunctionType,
+      vmGetFunctionTypeRegistered,
+      vmGetImportModuleContext,
+      vmGetLoaderContext,
+      vmGetRegisteredModule,
+      vmGetStatisticsContext,
+      vmGetStoreContext,
+      vmGetValidatorContext,
+      vmInstantiate,
+      vmListRegisteredModule,
+      vmListRegisteredModuleLength,
+      vmLoadWasmFromASTModule,
+      vmLoadWasmFromBuffer,
+      vmLoadWasmFromFile,
+      vmRegisterModuleFromASTModule,
+      vmRegisterModuleFromBuffer,
+      vmRegisterModuleFromFile,
+      vmRegisterModuleFromImport,
+      vmRunWasmFromASTModule,
+      vmRunWasmFromBuffer,
+      vmRunWasmFromFile,
+      vmValidate,
+      VMContext )

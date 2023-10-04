@@ -120,9 +120,9 @@ module WasmEdge.Internal.FFI.Bindings
   , statisticsSetCostTable
   , statisticsSetCostLimit
   , statisticsClear
-  , aSTModuleListImportsLength
+  , astModuleListImportsLength
   , astModuleListImports
-  , aSTModuleListExportsLength
+  , astModuleListExportsLength
   , astModuleListExports
   , functionTypeCreate
   , functionTypeGetParametersLength
@@ -190,41 +190,41 @@ module WasmEdge.Internal.FFI.Bindings
   , asyncCancel
   , asyncGetReturnsLength
   , asyncGet
-  , vMCreate
-  , vMRegisterModuleFromFile
-  , vMRunWasmFromFile
-  , vMRunWasmFromBuffer
-  , vMRunWasmFromASTModule
-  , vMAsyncRunWasmFromFile
-  , vMAsyncRunWasmFromASTModule
-  , vMAsyncRunWasmFromBuffer
-  , vMRegisterModuleFromBuffer
-  , vMRegisterModuleFromASTModule
-  , vMRegisterModuleFromImport
-  , vMLoadWasmFromFile
-  , vMLoadWasmFromBuffer
-  , vMLoadWasmFromASTModule
-  , vMValidate
-  , vMInstantiate
-  , vMExecute
-  , vMExecuteRegistered
-  , vMAsyncExecute
-  , vMAsyncExecuteRegistered
-  , vMGetFunctionType
-  , vMGetFunctionTypeRegistered
-  , vMCleanup
-  , vMGetFunctionListLength
-  , vMGetFunctionList
-  , vMGetImportModuleContext
-  , vMGetActiveModule
-  , vMGetRegisteredModule
-  , vMListRegisteredModuleLength
-  , vMListRegisteredModule
-  , vMGetStoreContext
-  , vMGetLoaderContext
-  , vMGetValidatorContext
-  , vMGetExecutorContext
-  , vMGetStatisticsContext
+  , vmCreate
+  , vmRegisterModuleFromFile
+  , vmRunWasmFromFile
+  , vmRunWasmFromBuffer
+  , vmRunWasmFromASTModule
+  , vmAsyncRunWasmFromFile
+  , vmAsyncRunWasmFromASTModule
+  , vmAsyncRunWasmFromBuffer
+  , vmRegisterModuleFromBuffer
+  , vmRegisterModuleFromASTModule
+  , vmRegisterModuleFromImport
+  , vmLoadWasmFromFile
+  , vmLoadWasmFromBuffer
+  , vmLoadWasmFromASTModule
+  , vmValidate
+  , vmInstantiate
+  , vmExecute
+  , vmExecuteRegistered
+  , vmAsyncExecute
+  , vmAsyncExecuteRegistered
+  , vmGetFunctionType
+  , vmGetFunctionTypeRegistered
+  , vmCleanup
+  , vmGetFunctionListLength
+  , vmGetFunctionList
+  , vmGetImportModuleContext
+  , vmGetActiveModule
+  , vmGetRegisteredModule
+  , vmListRegisteredModuleLength
+  , vmListRegisteredModule
+  , vmGetStoreContext
+  , vmGetLoaderContext
+  , vmGetValidatorContext
+  , vmGetExecutorContext
+  , vmGetStatisticsContext
   , pluginLoadWithDefaultPaths 
   , pluginLoadFromPath 
   , pluginListPluginsLength 
@@ -303,7 +303,7 @@ module WasmEdge.Internal.FFI.Bindings
   , testonly_getFPtrType
   , OwnedBy (..)
   , FPtrType (..)
-#endif
+  #endif
   ) where
 
 import Data.Int
@@ -1045,12 +1045,12 @@ uint32_t VMGetFunctionListOut(
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t FTLen)
 {
   // TODO: assert(NLen == FTLen);
-  WasmEdge_String *Names = (WasmEdge_String *)malloc(FTLen * sizeof(WasmEdge_String));
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(NLen * sizeof(WasmEdge_String));
   uint32_t retLen = WasmEdge_VMGetFunctionList(Cxt, Names, FuncTypes, FTLen);
   for(int i=0; i < retLen; i++)
   {
     WasmEdge_String *nameOut = NamesOut[i];
-    *nameOut = Names[i];
+    *NamesOut[i] = Names[i];
   }
   free(Names);
   return retLen;
@@ -2253,7 +2253,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 {-|
   Get the length of imports list of the AST module.
 -}
-{#fun unsafe ASTModuleListImportsLength as ^ 
+{#fun unsafe ASTModuleListImportsLength as astModuleListImportsLength 
   {`ASTModuleContext'          -- ^ the WasmEdge_ASTModuleContext.
   } -> `Word32'                -- ^ length of the imports list.
 #}
@@ -2262,7 +2262,7 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
 {-|
   Get the length of exports list of the AST module.
 -}
-{#fun unsafe ASTModuleListExportsLength as ^ 
+{#fun unsafe ASTModuleListExportsLength as astModuleListExportsLength 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   } -> `Word32'               -- ^ length of the exports list.
 #}
@@ -2701,7 +2701,7 @@ executorInvoke ecxt ficxt pars = do
 {#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke 
   {`ExecutorContext'                              -- ^ the WasmEdge_ExecutorContext.
   ,`FunctionInstanceContext'                      -- ^ the function instance context to invoke.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length
   } -> `Async'                                    -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
@@ -3424,7 +3424,7 @@ asyncGet async retLen = do
   After calling this function, the existing module instance will be registered into 
   the store context in this VM, and the other modules can import the exported instances for linking when instantiation.
 -}
-{#fun unsafe VMRegisterModuleFromImportOut as vMRegisterModuleFromImport 
+{#fun unsafe VMRegisterModuleFromImportOut as vmRegisterModuleFromImport 
   {+
   ,`VMContext'                  -- ^ the WasmEdge_VMContext which contains the store.
   ,`ModuleInstanceContext'      -- ^ the WasmEdge_ModuleInstanceContext to register.
@@ -3452,7 +3452,7 @@ asyncGet async retLen = do
   message.
 -}
 
-{#fun unsafe VMRunWasmFromFileOut as vMRunWasmFromFile_ {+,`VMContext',`String',%`WasmString',fromVecOfFPtr*`V.Vector WasmVal'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
+{#fun unsafe VMRunWasmFromFileOut as vmRunWasmFromFile_ {+,`VMContext',`String',%`WasmString',fromVecOfFPtr*`V.Vector WasmVal'&,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&} -> `WasmResult'#}
 
 
 {-|
@@ -3463,16 +3463,16 @@ asyncGet async retLen = do
  
   This function is thread-safe.
 -}
-vMRunWasmFromFile ::
+vmRunWasmFromFile ::
   VMContext -- ^ the WasmEdge_VMContext.
   -> String -- ^ the WASM file path.
   -> WasmString -- ^ the function name.
   -> V.Vector WasmVal -- ^ the parameter values.
   -> Word32 -- ^ the return buffer length.
   -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
-vMRunWasmFromFile cxt fp fname args retLen = do
+vmRunWasmFromFile cxt fp fname args retLen = do
   retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
-  res <- vMRunWasmFromFile_ cxt fp fname args retOut
+  res <- vmRunWasmFromFile_ cxt fp fname args retOut
   rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
   pure (res, rets)
   
@@ -3485,7 +3485,7 @@ vMRunWasmFromFile cxt fp fname args retLen = do
   This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
   If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
 -}
-{#fun unsafe VMRunWasmFromBufferOut as vMRunWasmFromBuffer_ 
+{#fun unsafe VMRunWasmFromBufferOut as vmRunWasmFromBuffer_ 
   {+
   ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,fromByteStringIn*`ByteString'&                 -- ^ the buffer of WASM binary and the length of the buffer
@@ -3501,16 +3501,16 @@ vMRunWasmFromFile cxt fp fname args retLen = do
   This is the function to invoke a WASM function rapidly. Load and instantiate the WASM module from a buffer, and then invoke a function by name and parameters. 
   If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded. After calling this function, a new module instance is instantiated, and the old one will be destroyed.
 -}
-vMRunWasmFromBuffer ::
+vmRunWasmFromBuffer ::
   VMContext -- ^ the WasmEdge_VMContext.
   -> ByteString -- ^ the buffer of WASM binary.
   -> WasmString -- ^ the function name.
   -> V.Vector WasmVal -- ^ the parameter values.
   -> Word32 -- ^ the return buffer length.
   -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
-vMRunWasmFromBuffer cxt wasmBuff fname args retLen = do
+vmRunWasmFromBuffer cxt wasmBuff fname args retLen = do
   retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
-  res <- vMRunWasmFromBuffer_ cxt wasmBuff fname args retOut
+  res <- vmRunWasmFromBuffer_ cxt wasmBuff fname args retOut
   rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
   pure (res, rets)
 
@@ -3522,7 +3522,7 @@ vMRunWasmFromBuffer cxt wasmBuff fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMRunWasmFromASTModuleOut as vMRunWasmFromASTModule_ 
+{#fun unsafe VMRunWasmFromASTModuleOut as vmRunWasmFromASTModule_ 
   {+
   ,`VMContext'                                      -- ^ the WasmEdge_VMContext.
   ,`ASTModuleContext'                               -- ^ the WasmEdge AST Module context generated by loader or compiler.
@@ -3540,16 +3540,16 @@ vMRunWasmFromBuffer cxt wasmBuff fname args retLen = do
  
   This function is thread-safe.
 -}
-vMRunWasmFromASTModule ::
+vmRunWasmFromASTModule ::
   VMContext -- ^ the WasmEdge_VMContext.
   -> ASTModuleContext -- ^ the WasmEdge AST Module context generated by loader or compiler.
   -> WasmString -- ^ the function name.
   -> V.Vector WasmVal -- ^ the parameter values.
   -> Word32 -- ^ the return buffer length.
   -> IO (WasmResult, V.Vector WasmVal) -- ^ the result status & the return values.
-vMRunWasmFromASTModule cxt astMod fname args retLen = do
+vmRunWasmFromASTModule cxt astMod fname args retLen = do
   retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
-  res <- vMRunWasmFromASTModule_ cxt astMod fname args retOut
+  res <- vmRunWasmFromASTModule_ cxt astMod fname args retOut
   rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
   pure (res, rets)
 
@@ -3561,7 +3561,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   
   This function is thread-safe.
 -}
-{#fun VMAsyncRunWasmFromFileOut as vMAsyncRunWasmFromFile 
+{#fun VMAsyncRunWasmFromFileOut as vmAsyncRunWasmFromFile 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
   ,`String'                                        -- ^ the WASM file path.
   ,%`WasmString'                                   -- ^ the function name WasmEdge_String.
@@ -3577,11 +3577,11 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
 
   This function is thread-safe.
 -}
-{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vMAsyncRunWasmFromASTModule 
+{#fun unsafe VMAsyncRunWasmFromASTModuleOut as vmAsyncRunWasmFromASTModule 
   {`VMContext'                                          -- ^ the WasmEdge_VMContext.
   ,`ASTModuleContext'                                   -- ^ the WasmEdge AST Module context generated by loader or compiler.
   ,%`WasmString'                                        -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&         -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  ,fromVecOfFPtr*`V.Vector WasmVal'&					-- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
   } -> `Async'                                          -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
@@ -3593,11 +3593,11 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMAsyncRunWasmFromBufferOut as vMAsyncRunWasmFromBuffer 
+{#fun unsafe VMAsyncRunWasmFromBufferOut as vmAsyncRunWasmFromBuffer
   {`VMContext'                                        -- ^ the WasmEdge_VMContext.
   ,fromByteStringIn*`ByteString'&                     -- ^ the buffer of WASM binary and the length of the buffer.
   , %`WasmString'                                     -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&        -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&               -- ^ the parameter values
   } -> `Async'                                        -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
@@ -3616,7 +3616,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe VMCreate as ^ {`ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
+{#fun unsafe VMCreate as vmCreate {`ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
 
 {-|
   Register and instantiate WASM into the store in VM from a WASM file.
@@ -3625,7 +3625,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMRegisterModuleFromFileOut as vMRegisterModuleFromFile 
+{#fun unsafe VMRegisterModuleFromFileOut as vmRegisterModuleFromFile 
   {+
   ,`VMContext'                  -- ^ the WasmEdge_VMContext which contains the store.
   ,%`WasmString'                -- ^ the WasmEdge_String of module name for all exported instances.
@@ -3640,7 +3640,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMRegisterModuleFromBufferOut as vMRegisterModuleFromBuffer 
+{#fun unsafe VMRegisterModuleFromBufferOut as vmRegisterModuleFromBuffer 
   {+
   ,`VMContext'                      -- ^ the WasmEdge_VMContext which contains the store.
   ,%`WasmString'                    -- ^ the WasmEdge_String of module name for all exported instances.
@@ -3655,7 +3655,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMRegisterModuleFromASTModuleOut as vMRegisterModuleFromASTModule 
+{#fun unsafe VMRegisterModuleFromASTModuleOut as vmRegisterModuleFromASTModule 
   {+
   ,`VMContext'                        -- ^ the WasmEdge_VMContext which contains the store.
   ,%`WasmString'                      -- ^ the WasmEdge_String of module name for all exported instances.
@@ -3670,7 +3670,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMLoadWasmFromFileOut as vMLoadWasmFromFile 
+{#fun unsafe VMLoadWasmFromFileOut as vmLoadWasmFromFile 
   {+
   ,`VMContext'                        -- ^ the WasmEdge_VMContext.
   ,`String'                           -- ^ the NULL-terminated C string of the WASM file path.
@@ -3684,7 +3684,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMLoadWasmFromBufferOut as vMLoadWasmFromBuffer 
+{#fun unsafe VMLoadWasmFromBufferOut as vmLoadWasmFromBuffer 
   {+
   ,`VMContext'                        -- ^ the WasmEdge_VMContext.
   ,fromByteStringIn*`ByteString'&     -- ^ the buffer of WASM binary and the length of the buffer
@@ -3699,7 +3699,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMLoadWasmFromASTModuleOut as vMLoadWasmFromASTModule 
+{#fun unsafe VMLoadWasmFromASTModuleOut as vmLoadWasmFromASTModule 
   {+
   ,`VMContext'                         -- ^ the WasmEdge_VMContext.
   ,`ASTModuleContext'                  -- ^ the WasmEdge AST Module context generated by loader or compiler.
@@ -3714,7 +3714,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMValidateOut as vMValidate  
+{#fun unsafe VMValidateOut as vmValidate  
   {+,
   `VMContext'                           -- ^ the WasmEdge_VMContext.
   } -> `WasmResult'                     -- ^ WasmResult
@@ -3729,7 +3729,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMInstantiateOut as vMInstantiate  
+{#fun unsafe VMInstantiateOut as vmInstantiate  
   {+
   ,`VMContext'                                -- ^ the WasmEdge_VMContext.
   } -> `WasmResult'                           -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
@@ -3744,30 +3744,54 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMExecuteOut as vMExecute 
+{#fun unsafe VMExecuteOut as vmExecute_ 
   {+
   ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                  -- ^ the function name WasmEdge_String.  
-  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  ,fromVecOfFPtr*`V.Vector WasmVal'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values and the return buffer length.
   } -> `WasmResult'
 #}
 
+vmExecute ::
+ VMContext -- ^ the WasmEdge_VMContext
+ -> WasmString -- ^ the function name
+ -> V.Vector WasmVal -- ^ the parameter values
+ -> Word32 -- ^ the return buffer length
+ -> IO (WasmResult,V.Vector WasmVal) -- ^ the result status & the return values
+vmExecute cxt fname args retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+ res <- vmExecute_ cxt fname args retOut
+ rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure (res,rets)
 {-|
   Invoke a WASM function by its module name and function name.
  
   After registering a WASM module in the VM context, you can repeatedly call this function to invoke exported WASM functions by their module names and function names until the VM context is reset. 
   If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded.
 -}
-{#fun unsafe VMExecuteRegisteredOut as vMExecuteRegistered 
+{#fun unsafe VMExecuteRegisteredOut as vmExecuteRegistered_ 
   {+                                             
   ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
   ,%`WasmString'                                  -- ^ the function name WasmEdge_String.
-  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
+  , fromVecOfFPtr*`V.Vector WasmVal'&			  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values.
   } -> `WasmResult'                               -- ^ WasmEdge_Result
 #}
+
+vmExecuteRegistered ::
+ VMContext                  -- ^ the WasmEdge_VMContext
+ -> WasmString              -- ^ the module name
+ -> WasmString              -- ^ the function name
+ -> V.Vector WasmVal        -- ^ the parameter values
+ -> Word32                  -- ^ the return buffer length
+ -> IO (WasmResult,V.Vector WasmVal)       -- ^ the result status & the return values
+vmExecuteRegistered cxt modName fname args retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+ res <- vmExecuteRegistered_ cxt modName fname args retOut
+ rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure (res,rets)
 
 {-|
   Asynchronous invoke a WASM function by name.
@@ -3778,10 +3802,10 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe VMAsyncExecuteOut as vMAsyncExecute 
+{#fun unsafe VMAsyncExecuteOut as vmAsyncExecute 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                   -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&    -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
+  ,fromVecOfFPtr*`V.Vector WasmVal'&			   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length.
   } -> `Async'                                     -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
@@ -3790,7 +3814,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   After registering a WASM module in the VM context, you can repeatedly call this function to invoke exported WASM functions by their module names and function names until the VM context is reset.
   This function is thread-safe.
 -}
-{#fun unsafe VMAsyncExecuteRegisteredOut as vMAsyncExecuteRegistered 
+{#fun unsafe VMAsyncExecuteRegisteredOut as vmAsyncExecuteRegistered 
   {`VMContext'                                        -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                      -- ^ the module name WasmEdge_String.
   ,%`WasmString'                                      -- ^ the function name WasmEdge_String.
@@ -3807,7 +3831,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   
   This function is thread-safe.
 -}
-{#fun unsafe VMGetFunctionType as ^ 
+{#fun unsafe VMGetFunctionType as vmGetFunctionType
   {`VMContext'                                         -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                       -- ^ the function name WasmEdge_String.
   } -> `FunctionTypeContext'                           -- ^ the function type. NULL if the function not found.
@@ -3818,7 +3842,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   After registering a WASM module in the VM context, you can call this function to get the function type by the functions' exported module names and function names until the VM context is reset.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetFunctionTypeRegistered as ^ 
+{#fun unsafe VMGetFunctionTypeRegistered as vmGetFunctionTypeRegistered 
   {`VMContext',                                         -- ^ the WasmEdge_VMContext.
   %`WasmString',                                        -- ^ the module name WasmEdge_String.
   %`WasmString'                                         -- ^ the function name WasmEdge_String.
@@ -3830,7 +3854,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   After calling this function, the statistics, loaded module, the instantiated instances, and the registered instances except the WASI and plug-ins will all be cleared.
   This function is thread-safe.
 -}
-{#fun unsafe VMCleanup as ^ 
+{#fun unsafe VMCleanup as vmCleanup 
   {`VMContext'                                          -- ^ the WasmEdge_VMContext to reset.
   } -> `()'
 #} 
@@ -3839,7 +3863,7 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
   Get the length of exported function list.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetFunctionListLength as ^ 
+{#fun unsafe VMGetFunctionListLength as vmGetFunctionListLength
   {`VMContext'                                          -- ^ the WasmEdge_VMContext.
   } -> `Word32'                                         -- ^ length of exported function list.
 #} 
@@ -3854,12 +3878,12 @@ vMRunWasmFromASTModule cxt astMod fname args retLen = do
 {-|
 Get the length of exported function list.
 -}
-vMGetFunctionList ::
+vmGetFunctionList ::
   VMContext                                                 -- ^ the WasmEdge_VMContext.
-  -> Word32                                                 -- ^ Names the output names WasmEdge_String buffer of exported functions and length of the buffer
-  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext) -- ^ actual exported function list size.
-vMGetFunctionList vmcxt sz = do
-  namesVSM <- VSM.new (fromIntegral sz)
+  -> Word32                                                 -- ^ actual exported function list size.
+  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext) -- ^ Names the output names WasmEdge_String buffer of exported functions and length of the buffer
+vmGetFunctionList vmcxt sz = do
+  namesVSM <- VSM.generateM (fromIntegral sz) (const $ allocWasmString pure)
   ftypesVSM <- VSM.new (fromIntegral sz)
   listSz <- vmGetFunctionList_ vmcxt namesVSM ftypesVSM
   names <- V.generateM (fromIntegral listSz) ((noFinalizer =<<) . (VSM.read namesVSM))
@@ -3869,7 +3893,7 @@ vMGetFunctionList vmcxt sz = do
 {-|
 Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 -}
-{#fun unsafe VMGetImportModuleContext as ^ 
+{#fun unsafe VMGetImportModuleContext as vmGetImportModuleContext 
   {`VMContext',                                 -- ^ the WasmEdge_VMContext.
   `HostRegistration'                            -- ^ the host registration value to get the import module.                            
   } -> `ModuleInstanceContext'                  -- ^  the module instance context. NULL if not found.
@@ -3879,7 +3903,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the current instantiated module in VM.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetActiveModule as ^ 
+{#fun unsafe VMGetActiveModule as vmGetActiveModule 
   {`VMContext'                                  -- ^ the WasmEdge_VMContext. 
   } -> `ModuleInstanceContext'                  -- ^ the module instance context. NULL if not found.
 #} 
@@ -3888,7 +3912,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the registered module in VM by the module name.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetRegisteredModule as ^ 
+{#fun unsafe VMGetRegisteredModule as vmGetRegisteredModule 
   {`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
   } -> `ModuleInstanceContext'                    -- ^ the module instance context. NULL if not found.
@@ -3898,7 +3922,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the length of registered module list in the WasmEdge_VMContext.
   This function is thread-safe.
 -}
-{#fun unsafe VMListRegisteredModuleLength as ^ 
+{#fun unsafe VMListRegisteredModuleLength as vmListRegisteredModuleLength 
   {`VMContext'                                    -- ^ the WasmEdge_VMContext.
   } -> `Word32'                                   -- ^ length of registered module list.
 #} 
@@ -3908,7 +3932,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   If the `Names` buffer length is smaller than the result of the registered named module list size, the overflowed return values will be discarded.
   This function is thread-safe.
 -}
-{#fun unsafe VMListRegisteredModuleOut as vMListRegisteredModule 
+{#fun unsafe VMListRegisteredModuleOut as vmListRegisteredModule 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'& -- ^ WasmEdge_String buffer of the registered modules and length of the buffer
   } -> `Word32'                                    -- ^ actual registered module list size.
@@ -3918,7 +3942,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the store context used in the WasmEdge_VMContext.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetStoreContext as ^ 
+{#fun unsafe VMGetStoreContext as vmGetStoreContext 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext
   } -> `StoreContext'                              -- ^ the store context.
 #} 
@@ -3927,7 +3951,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the loader context used in the WasmEdge_VMContext.
   This function is thread-safe.
  -}
-{#fun unsafe VMGetLoaderContext as ^ 
+{#fun unsafe VMGetLoaderContext as vmGetLoaderContext 
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
   } -> `LoaderContext'                             -- ^ the loader context.
 #} 
@@ -3936,7 +3960,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the validator context used in the WasmEdge_VMContext.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetValidatorContext as ^ 
+{#fun unsafe VMGetValidatorContext as vmGetValidatorContext
   {`VMContext'                                      -- ^ the WasmEdge_VMContext.
   } -> `ValidatorContext'                           -- ^ the validator context.
 #} 
@@ -3945,7 +3969,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the executor context used in the WasmEdge_VMContext.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetExecutorContext as ^ 
+{#fun unsafe VMGetExecutorContext as vmGetExecutorContext 
   {`VMContext'                                        -- ^ the WasmEdge_VMContext.
   } -> `ExecutorContext'                              -- ^ the executor context.
 #} 
@@ -3954,7 +3978,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   Get the statistics context used in the WasmEdge_VMContext.
   This function is thread-safe.
 -}
-{#fun unsafe VMGetStatisticsContext as ^ 
+{#fun unsafe VMGetStatisticsContext as vmGetStatisticsContext 
   {`VMContext'                                          -- ^ the WasmEdge_VMContext
   } -> `StatisticsContext'                              -- ^ pointer to the statistics context.
 #} 
