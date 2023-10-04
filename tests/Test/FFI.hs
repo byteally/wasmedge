@@ -186,7 +186,10 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test9
   liftIO $ testAsyncRun
   liftIO $ testAsyncRunFromBuffer
+  liftIO $ testAsyncRunFromATSModule
   liftIO $ testCompilerCompile
+  liftIO $ testVmExecute
+  liftIO $ testVmAsyncExecute
   liftIO $ testCompilerCompileFromBuffer
   liftIO $ testStore
   liftIO $ testModInst
@@ -234,7 +237,7 @@ test3 = do
       _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
         addTwoRes <- vmRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
         print addTwoRes
-      pure ()
+      pure () 
     pure ()
 
 -- loaderParseFromBuffer 
@@ -326,6 +329,38 @@ test9 = do
             res <- executorInvoke exec _fnInst (V.fromList [WasmInt32 1, WasmInt32 3])
             print res
 
+-- vmexecute
+testVmExecute :: IO ()
+testVmExecute = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+   _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/addTwo.wasm"
+   _ <- vmValidate vm
+   _ <- vmInstantiate vm
+   addTwoRes <- vmExecute vm "addTwo" (V.fromList [WasmInt32 33,WasmInt32 33]) 1
+   print addTwoRes
+   pure ()
+  pure ()
+
+--vmAsyncExecute
+testVmAsyncExecute :: IO ()
+testVmAsyncExecute = do
+ wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+   _ <- vmLoadWasmFromBuffer vm wasmBS
+   _ <- vmValidate vm
+   _ <- vmInstantiate vm
+   _addTwoAsync <- vmAsyncExecute vm "addTwo" (V.fromList [WasmInt32 33,WasmInt32 34])
+   retLen <- asyncGetReturnsLength _addTwoAsync
+   res <- asyncGet _addTwoAsync retLen
+   print ("vmAsyncExecute" :: String, res)
+   pure ()
+  pure ()
+
+
 testAsyncRun :: IO ()
 testAsyncRun = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do
@@ -352,6 +387,21 @@ testAsyncRunFromBuffer = do
    print ("AsyncRet from buffer" :: String, res)
    pure ()
   pure ()
+
+testAsyncRunFromATSModule :: IO ()
+testAsyncRunFromATSModule = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+   (_,astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+   let astMod = maybe (error "Failed to load AST module") id astModMay
+   _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+    _addTwoResAsync <- vmAsyncRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 12,WasmInt32 13])
+    retLen <- asyncGetReturnsLength _addTwoResAsync
+    res <- asyncGet _addTwoResAsync retLen
+    print ("AsyncRet from ats module" :: String, res)
+    pure ()
+   pure ()
 
 {- Failing
 testAsyncRun :: IO ()
