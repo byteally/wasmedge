@@ -190,6 +190,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ testCompilerCompile
   liftIO $ testVmExecute
   liftIO $ testVmAsyncExecute
+  liftIO $ testVmExecuteRegistered
   liftIO $ testCompilerCompileFromBuffer
   liftIO $ testStore
   liftIO $ testModInst
@@ -357,6 +358,18 @@ testVmAsyncExecute = do
    retLen <- asyncGetReturnsLength _addTwoAsync
    res <- asyncGet _addTwoAsync retLen
    print ("vmAsyncExecute" :: String, res)
+   pure ()
+  pure ()
+
+
+testVmExecuteRegistered :: IO ()
+testVmExecuteRegistered = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+   _ <- vmRegisterModuleFromFile vm "mod" "./tests/sample/wasm/addTwo.wasm"
+   addTwoRes <- vmExecuteRegistered vm "mod" "addTwo" (V.fromList [WasmInt32 11,WasmInt32 12]) 1
+   print addTwoRes
    pure ()
   pure ()
 

@@ -3746,15 +3746,28 @@ vmExecute cxt fname args retLen = do
   After registering a WASM module in the VM context, you can repeatedly call this function to invoke exported WASM functions by their module names and function names until the VM context is reset. 
   If the `Returns` buffer length is smaller than the arity of the function, the overflowed return values will be discarded.
 -}
-{#fun unsafe VMExecuteRegisteredOut as vmExecuteRegistered 
+{#fun unsafe VMExecuteRegisteredOut as vmExecuteRegistered_ 
   {+                                             
   ,`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
   ,%`WasmString'                                  -- ^ the function name WasmEdge_String.
-  , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
+  , fromVecOfFPtr*`V.Vector WasmVal'&			  -- ^ the WasmEdge_Value buffer with the parameter values and the parameter buffer length
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ [out] Returns the WasmEdge_Value buffer to fill the return values.
   } -> `WasmResult'                               -- ^ WasmEdge_Result
 #}
+
+vmExecuteRegistered ::
+ VMContext                  -- ^ the WasmEdge_VMContext
+ -> WasmString              -- ^ the module name
+ -> WasmString              -- ^ the function name
+ -> V.Vector WasmVal        -- ^ the parameter values
+ -> Word32                  -- ^ the return buffer length
+ -> IO (WasmResult,V.Vector WasmVal)       -- ^ the result status & the return values
+vmExecuteRegistered cxt modName fname args retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmVal pure)
+ res <- vmExecuteRegistered_ cxt modName fname args retOut
+ rets <- V.generateM (fromIntegral retLen) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure (res,rets)
 
 {-|
   Asynchronous invoke a WASM function by name.
