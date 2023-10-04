@@ -1021,12 +1021,12 @@ uint32_t VMGetFunctionListOut(
     const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t FTLen)
 {
   // TODO: assert(NLen == FTLen);
-  WasmEdge_String *Names = (WasmEdge_String *)malloc(FTLen * sizeof(WasmEdge_String));
+  WasmEdge_String *Names = (WasmEdge_String *)malloc(NLen * sizeof(WasmEdge_String));
   uint32_t retLen = WasmEdge_VMGetFunctionList(Cxt, Names, FuncTypes, FTLen);
   for(int i=0; i < retLen; i++)
   {
     WasmEdge_String *nameOut = NamesOut[i];
-    *nameOut = Names[i];
+    *NamesOut[i] = Names[i];
   }
   free(Names);
   return retLen;
@@ -2677,7 +2677,7 @@ executorInvoke ecxt ficxt pars = do
 {#fun unsafe ExecutorAsyncInvokeOut as executorAsyncInvoke 
   {`ExecutorContext'                              -- ^ the WasmEdge_ExecutorContext.
   ,`FunctionInstanceContext'                      -- ^ the function instance context to invoke.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length
+  ,fromVecOfFPtr*`V.Vector WasmVal'&   -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length
   } -> `Async'                                    -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #}
 
@@ -3856,10 +3856,10 @@ Get the length of exported function list.
 -}
 vmGetFunctionList ::
   VMContext                                                 -- ^ the WasmEdge_VMContext.
-  -> Word32                                                 -- ^ Names the output names WasmEdge_String buffer of exported functions and length of the buffer
-  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext) -- ^ actual exported function list size.
+  -> Word32                                                 -- ^ actual exported function list size.
+  -> IO (V.Vector WasmString, V.Vector FunctionTypeContext) -- ^ Names the output names WasmEdge_String buffer of exported functions and length of the buffer
 vmGetFunctionList vmcxt sz = do
-  namesVSM <- VSM.new (fromIntegral sz)
+  namesVSM <- VSM.generateM (fromIntegral sz) (const $ allocWasmString pure)
   ftypesVSM <- VSM.new (fromIntegral sz)
   listSz <- vmGetFunctionList_ vmcxt namesVSM ftypesVSM
   names <- V.generateM (fromIntegral listSz) ((noFinalizer =<<) . (VSM.read namesVSM))

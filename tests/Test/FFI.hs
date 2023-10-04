@@ -184,6 +184,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ test7
   liftIO $ test8
   liftIO $ test9
+  liftIO $ testExecutorAsyncInvoke
   liftIO $ testAsyncRun
   liftIO $ testAsyncRunFromBuffer
   liftIO $ testAsyncRunFromATSModule
@@ -191,6 +192,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ testVmExecute
   liftIO $ testVmAsyncExecute
   liftIO $ testVmExecuteRegistered
+  liftIO $ testVmGetFunctionList
   liftIO $ testCompilerCompileFromBuffer
   liftIO $ testStore
   liftIO $ testModInst
@@ -330,6 +332,26 @@ test9 = do
             res <- executorInvoke exec _fnInst (V.fromList [WasmInt32 1, WasmInt32 3])
             print res
 
+-- ExecutorAsyncInvoke
+testExecutorAsyncInvoke :: IO ()
+testExecutorAsyncInvoke = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  void $ withWasmResT (executorCreate (Just cfgCxt) Nothing) $ \exec -> do
+   void $ withWasmResT (storeCreate) $ \store -> do
+    void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+     (_,astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+     let astMod = maybe (error "Failed to load AST module") id astModMay
+     void $ withWasmResT (validatorCreate cfgCxt) $ \validator -> do
+      _vres <- validatorValidate validator astMod
+      -- Not validating before Instantiate throws an error
+      (_eres, _modInst) <- executorInstantiate exec store astMod
+      Just _fnInst <- moduleInstanceFindFunction _modInst "addTwo"
+      _asyncAddTwo <- executorAsyncInvoke exec _fnInst (V.fromList [WasmInt32 1,WasmInt32 23])
+      retLen <- asyncGetReturnsLength _asyncAddTwo
+      res <- asyncGet _asyncAddTwo retLen
+      print ("ExecutorAsyncInvoke" :: String, res)
+
 -- vmexecute
 testVmExecute :: IO ()
 testVmExecute = do
@@ -373,14 +395,30 @@ testVmExecuteRegistered = do
    pure ()
   pure ()
 
+testVmGetFunctionList :: IO ()
+testVmGetFunctionList = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+  configureAddHostRegistration cfgCxt HostRegistration_Wasi
+  _ <- withWasmResT (storeCreate) $ \storeCxt -> do
+   _ <- withWasmResT (vmCreate cfgCxt (Just storeCxt)) $ \vm -> do
+    _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/addTwo.wasm"
+    _ <- vmValidate vm
+    _ <- vmInstantiate vm
+    funcNum <- vmGetFunctionListLength vm
+    (names,_) <- vmGetFunctionList vm funcNum
+    print ("getFunctionlist" :: String,names)
+    pure ()
+   pure ()
+  pure ()
 
 testAsyncRun :: IO ()
 testAsyncRun = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
     _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \_vm -> do
-      _addTwoAsync <- vmAsyncRunWasmFromFile _vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3])
+      _addTwoAsync <- vmAsyncRunWasmFromFile _vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 90, WasmInt32 9])
       -- TODO: Fix: Not waiting sometimes segv. Chcck the lifetime of WasmVal passed or async returned(most likely). If later, try cancel before finalization
+      asyncWait _addTwoAsync
       retLen <- asyncGetReturnsLength _addTwoAsync
       res <- asyncGet _addTwoAsync retLen
       print ("AsyncRet" :: String, res)
