@@ -300,7 +300,9 @@ module WasmEdge.Internal.FFI.Bindings
   , Int128
   #if TESTONLY && !(__HADDOCK_VERSION__)
   , testonly_getOwner
+  , testonly_getFPtrType
   , OwnedBy (..)
+  , FPtrType (..)
 #endif
   ) where
 
@@ -345,6 +347,7 @@ import Data.Typeable
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Concurrent.MVar
+import qualified GHC.ForeignPtr as GHC
 #endif
 
 #include "wasmedge/wasmedge.h"
@@ -386,6 +389,27 @@ testonly_getOwner t = do
 
 data OwnedBy = HsOwned | COwned
   deriving (Show, Eq)
+
+data FPtrType
+  = PlainFPtr
+  | MallocFPtr
+  | OtherFPtr
+  deriving (Show, Eq)
+
+testonly_getFPtrType :: HasFinalizer t => t -> FPtrType
+testonly_getFPtrType t =
+  let GHC.ForeignPtr _ c = unsafeToFP t
+  in case c of
+    GHC.PlainForeignPtr _ -> PlainFPtr
+    GHC.MallocPtr _ _ -> MallocFPtr
+    _ -> OtherFPtr
+  where
+    unsafeToFP :: t -> ForeignPtr t
+    unsafeToFP = unsafeCoerce  
+
+instance HasFinalizer WasmVal where
+  getFinalizer = error "Panic: Hit Test Only Dummy Instance"
+  runFinalizer = error "Panic: Hit Test Only Dummy Instance"
   
 #endif
 
@@ -2418,7 +2442,7 @@ Get the value type from a global type.
 {#fun unsafe ImportTypeGetFunctionType as ^ 
   {`ASTModuleContext'                     -- ^ the WasmEdge_ASTModuleContext.
   ,`ImportTypeContext'                    -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
-  } -> `FunctionTypeContext'noFinalizer*  -- ^ the function type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Function`.
+  } -> `Maybe FunctionTypeContext'nullableNoFinalizer*  -- ^ the function type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Function`.
 #} 
 
 {-|
@@ -2427,7 +2451,7 @@ Get the value type from a global type.
 {#fun unsafe ImportTypeGetTableType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ImportTypeContext'        -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
-  } -> `TableTypeContext'     -- ^ the table type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Table`.
+  } -> `Maybe TableTypeContext'nullableNoFinalizer*  -- ^ the table type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Table`.
 #} 
 
 {-|
@@ -2436,7 +2460,7 @@ Get the value type from a global type.
 {#fun unsafe ImportTypeGetMemoryType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ImportTypeContext'        -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
-  } -> `MemoryTypeContext'    -- ^ the memory type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Memory`.
+  } -> `Maybe MemoryTypeContext'nullableNoFinalizer*    -- ^ the memory type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Memory`.
 #} 
 
 {-|
@@ -2445,7 +2469,7 @@ Get the value type from a global type.
 {#fun unsafe ImportTypeGetGlobalType as ^ 
   {`ASTModuleContext'     -- ^ the WasmEdge_ASTModuleContext.
   ,`ImportTypeContext'    -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
-  } -> `GlobalTypeContext' -- ^ the global type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Global`.
+  } -> `Maybe GlobalTypeContext'nullableNoFinalizer* -- ^ the global type. NULL if failed or the external type of the import type is not `WasmEdge_ExternalType_Global`.
 #} 
 
 -- Export Type
@@ -2474,7 +2498,7 @@ Get the value type from a global type.
 {#fun unsafe ExportTypeGetFunctionType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
-  } -> `FunctionTypeContext'  -- ^ the function type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Function`.
+  } -> `Maybe FunctionTypeContext'nullableNoFinalizer*  -- ^ the function type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Function`.
 #} 
 
 {-|
@@ -2483,7 +2507,7 @@ Get the value type from a global type.
 {#fun unsafe ExportTypeGetTableType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
-  } -> `TableTypeContext'     -- ^ the table type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Table`.
+  } -> `Maybe TableTypeContext'nullableNoFinalizer*     -- ^ the table type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Table`.
 #}
 
 {-|
@@ -2492,7 +2516,7 @@ Get the value type from a global type.
 {#fun unsafe ExportTypeGetMemoryType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
-  } -> `MemoryTypeContext'    -- ^ the memory type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Memory`.
+  } -> `Maybe MemoryTypeContext'nullableNoFinalizer*    -- ^ the memory type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Memory`.
 #}
 
 {-|
@@ -2501,7 +2525,7 @@ Get the value type from a global type.
 {#fun unsafe ExportTypeGetGlobalType as ^ 
   {`ASTModuleContext'         -- ^ the WasmEdge_ASTModuleContext.
   ,`ExportTypeContext'        -- ^ the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
-  } -> `GlobalTypeContext'    -- ^ the global type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Global`.
+  } -> `Maybe GlobalTypeContext'nullableNoFinalizer*    -- ^ the global type. NULL if failed or the external type of the export type is not `WasmEdge_ExternalType_Global`.
 #}
 
 -- AOT Compiler
@@ -2517,7 +2541,7 @@ Get the value type from a global type.
   Compile the input WASM from the file path.
   The compiler compiles the WASM from file path for the ahead-of-time mode and store the result to the output file path.
 -}
-{#fun unsafe CompilerCompileOut as compilerCompile 
+{#fun CompilerCompileOut as compilerCompile 
   {+
   ,`CompilerContext'      -- ^ the WasmEdge_CompilerContext.
   ,`String'               -- ^ the input WASM file path.
@@ -2529,7 +2553,7 @@ Get the value type from a global type.
   Compile the input WASM from the given buffer.
   The compiler compiles the WASM from the given buffer for the ahead-of-time mode and store the result to the output file path.
 -}
-{#fun unsafe CompilerCompileFromBufferOut as compilerCompileFromBuffer 
+{#fun CompilerCompileFromBufferOut as compilerCompileFromBuffer 
   {+
   ,`CompilerContext'                 -- ^ the WasmEdge_CompilerContext.
   , fromByteStringIn*`ByteString'&   -- ^ the input WASM binary buffer and the length of the binary buffer
@@ -2551,7 +2575,7 @@ Get the value type from a global type.
   Load and parse the WASM module from the file path, and return a `ASTModuleContext` as the result.
   The caller owns the object.
 -}
-{#fun unsafe LoaderParseFromFileOut as loaderParseFromFile
+{#fun LoaderParseFromFileOut as loaderParseFromFile
    {+
    ,`LoaderContext'  -- ^ the WasmEdge `LoaderContext`.
    ,alloca-`Maybe ASTModuleContext'peekOutNullablePtr*
@@ -2563,7 +2587,7 @@ Get the value type from a global type.
   Load and parse the WASM module from a buffer, and return a `ASTModuleContext` as the result.
   The caller owns the object.
 -}
-{#fun unsafe LoaderParseFromBufferOut as loaderParseFromBuffer
+{#fun LoaderParseFromBufferOut as loaderParseFromBuffer
  {+
  , `LoaderContext'  -- ^ the WasmEdge `LoaderContext`.
  ,alloca-`Maybe ASTModuleContext'peekOutNullablePtr*
@@ -2583,7 +2607,7 @@ Get the value type from a global type.
 {-|
   Validate the WasmEdge AST Module.
 -}
-{#fun unsafe ValidatorValidateOut as validatorValidate 
+{#fun ValidatorValidateOut as validatorValidate 
   {+
   ,`ValidatorContext'       -- ^ the WasmEdge_ValidatorContext.
   ,`ASTModuleContext'       -- ^ the WasmEdge_ASTModuleContext to validate.

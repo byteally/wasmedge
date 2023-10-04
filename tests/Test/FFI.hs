@@ -25,6 +25,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as SV
 import GHC.Stack
+import Data.Foldable
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -100,6 +101,26 @@ data NewString (v :: Type -> Type) = NewString ByteString
   deriving (Generic, Show)
   deriving anyclass (FunctorB, TraversableB)
 
+data CreateConfigure (v :: Type -> Type) = CreateConfigure
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
+data AddHostRegistration (v :: Type -> Type) = AddHostRegistration
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
+data RemoveHostRegistration (v :: Type -> Type) = RemoveHostRegistration
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
+data CreateLoader (v :: Type -> Type) = CreateLoader
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
+data ParseFromFile (v :: Type -> Type) = ParseFromFile
+  deriving (Generic, Show)
+  deriving anyclass (FunctorB, TraversableB)
+
 newtype ShowableUnique = ShowableUnique {getShowableUnique :: Unique}
 instance Show ShowableUnique where
   show = show . hashUnique . getShowableUnique
@@ -135,15 +156,200 @@ ownershipTT = testGroup "ownership tests"
   , testProperty "TableTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (tableTypeCreate RefType_ExternRef (WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}))
   , testProperty "MemoryTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (memoryTypeCreate (WasmLimit {hasMax = True, shared = False, minLimit = 10, maxLimit = 20}))
   , testProperty "GlobalTypeCreate" $ withTests 1 $ property $ assertHsOwnedOptResult (globalTypeCreate ValType_I32 Mutability_Const)
-  -- , testProperty "ImportTypeGetModuleName" $ withTests 1 $ property $ do
-  --     imps <- liftIO $ withWasmResT configureCreate $ \cfgCxt -> do    
-  --       configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  --       withWasmResT (loaderCreate cfgCxt) $ \loader -> do
-  --         (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/trap.wasm"
-  --         let astMod = maybe (error "Failed to load AST module") id astModMay
-  --         astModuleListImports astMod 10
-  --     assertCOwnedResult (importTypeGetModuleName (SV.head $ maybe mempty id (join imps)))
+  , testProperty "ImportTypeGetModuleName" $ withTests 1 $ property $ do
+      imps <- liftIO $ withWasmResT configureCreate $ \cfgCxt -> do    
+        configureAddHostRegistration cfgCxt HostRegistration_Wasi
+        withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/trap.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          astModuleListImports astMod 10
+      assertHsAlloc'NoFinalzr (importTypeGetModuleName (SV.head $ maybe mempty id (join imps)))
+  , testProperty "ImportTypeGetExternalName" $ withTests 1 $ property $ do
+      imps <- liftIO $ withWasmResT configureCreate $ \cfgCxt -> do    
+        configureAddHostRegistration cfgCxt HostRegistration_Wasi
+        withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/trap.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          astModuleListImports astMod 10
+      assertHsAlloc'NoFinalzr (importTypeGetExternalName (SV.head $ maybe mempty id (join imps)))      
+  , testProperty "ImportTypeGetFunctionType" $ withTests 1 $ property $ do
+      (astMod, imp) <- liftIO $ do
+        Just cfg <- configureCreate
+        configureAddHostRegistration cfg HostRegistration_Wasi
+        Just loader <- loaderCreate cfg
+        (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/trap.wasm"
+        let astMod = maybe (error "Failed to load AST module") id astModMay
+        Just imp <- (SV.!?0) <$> astModuleListImports astMod 10
+        pure (astMod, imp)
+      assertCAlloc'NoFinalzrOpt (importTypeGetFunctionType astMod imp)
+
+  , testProperty "ImportTypeGetTableType" $ withTests 1 $ property $ do
+      (astMod, imp) <- liftIO $ do
+        Just cfg <- configureCreate
+        configureAddHostRegistration cfg HostRegistration_Wasi
+        Just loader <- loaderCreate cfg
+        (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/import_export.wasm"
+        let astMod = maybe (error "Failed to load AST module") id astModMay
+        Just imp <- (SV.!?10) <$> astModuleListImports astMod 30
+        pure (astMod, imp)
+      assertCAlloc'NoFinalzrOpt (importTypeGetTableType astMod imp)
+
+    , testProperty "ImportTypeGetMemoryType" $ withTests 1 $ property $ do
+      (astMod, imp) <- liftIO $ do
+        Just cfg <- configureCreate
+        configureAddHostRegistration cfg HostRegistration_Wasi
+        Just loader <- loaderCreate cfg
+        (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/import_export.wasm"
+        let astMod = maybe (error "Failed to load AST module") id astModMay
+        Just imp <- (SV.!?12) <$> astModuleListImports astMod 30
+        pure (astMod, imp)
+      assertCAlloc'NoFinalzrOpt (importTypeGetMemoryType astMod imp)
+
+    , testProperty "ImportTypeGetGlobalType" $ withTests 1 $ property $ do
+      (astMod, imp) <- liftIO $ do
+        Just cfg <- configureCreate
+        configureAddHostRegistration cfg HostRegistration_Wasi
+        Just loader <- loaderCreate cfg
+        (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/mutable_globals.wasm"
+        let astMod = maybe (error "Failed to load AST module") id astModMay
+        Just imp <- (SV.!?0) <$> astModuleListImports astMod 10
+        pure (astMod, imp)
+      assertCAlloc'NoFinalzrOpt (importTypeGetGlobalType astMod imp)      
+        
+    , testProperty "ExportTypeGetExternalName" $ withTests 1 $ property $ do
+      exps <- liftIO $ withWasmResT configureCreate $ \cfgCxt -> do    
+        configureAddHostRegistration cfgCxt HostRegistration_Wasi
+        withWasmResT (loaderCreate cfgCxt) $ \loader -> do
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          astModuleListExports astMod 10
+      assertHsAlloc'NoFinalzr $ exportTypeGetExternalName (SV.head $ maybe mempty id (join exps))
+
+    , testProperty "ExportTypeGetFunctionType" $ withTests 1 $ property $ do
+        (astMod, expt) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/import_export.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just expt <- (SV.!?0) <$> astModuleListExports astMod 30
+          pure (astMod, expt)
+        assertCAlloc'NoFinalzrOpt (exportTypeGetFunctionType astMod expt)
+
+    , testProperty "ExportTypeGetTableType" $ withTests 1 $ property $ do
+        (astMod, expt) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/import_export.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just expt <- (SV.!?11) <$> astModuleListExports astMod 30
+          pure (astMod, expt)
+        assertCAlloc'NoFinalzrOpt (exportTypeGetTableType astMod expt)
+
+    , testProperty "ExportTypeGetMemoryType" $ withTests 1 $ property $ do
+        (astMod, expt) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/bulk_memory.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just expt <- (SV.!?0) <$> astModuleListExports astMod 10
+          pure (astMod, expt)
+        assertCAlloc'NoFinalzrOpt (exportTypeGetMemoryType astMod expt)
+
+    , testProperty "ExportTypeGetGlobalType" $ withTests 1 $ property $ do
+        (astMod, expt) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/import_export.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just expt <- (SV.!?14) <$> astModuleListExports astMod 30
+          pure (astMod, expt)
+        assertCAlloc'NoFinalzrOpt (exportTypeGetGlobalType astMod expt)
+
+    , testProperty "CompilerCreate" $ withTests 1 $ property $ do
+        cfg <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          pure cfg
+        assertCAlloc'CFinalzrOpt (compilerCreate cfg)
+
+    , testProperty "LoaderCreate" $ withTests 1 $ property $ do
+        cfg <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          pure cfg
+        assertCAlloc'CFinalzrOpt (loaderCreate cfg)        
+
+    , testProperty "ValidatorCreate" $ withTests 1 $ property $ do
+        cfg <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          pure cfg
+        assertCAlloc'CFinalzrOpt (validatorCreate cfg)
+
+    , testProperty "ExecutorCreate" $ withTests 1 $ property $ do
+        cfg <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          pure cfg
+        assertCAlloc'CFinalzrOpt (executorCreate (Just cfg) Nothing)        
+
+    , testProperty "ExecutorInstantiate" $ withTests 1 $ property $ do
+        (exec, store, astMod) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just store <- storeCreate
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just validator <- validatorCreate cfg
+          void $ validatorValidate validator astMod
+          Just exec <- executorCreate (Just cfg) Nothing
+          pure (exec, store, astMod)
+        assertCAlloc'CFinalzr (snd <$> executorInstantiate exec store astMod)
+
+    , testProperty "ExecutorRegister" $ withTests 1 $ property $ do
+        (exec, store, astMod) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just store <- storeCreate
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just validator <- validatorCreate cfg
+          void $ validatorValidate validator astMod
+          Just exec <- executorCreate (Just cfg) Nothing
+          pure (exec, store, astMod)
+        assertCAlloc'CFinalzr (snd <$> executorRegister exec store astMod "add2")
+
+    , testProperty "ExecutorInvoke" $ withTests 1 $ property $ do
+        (exec, fnInst) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just store <- storeCreate
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just validator <- validatorCreate cfg
+          void $ validatorValidate validator astMod
+          Just exec <- executorCreate (Just cfg) Nothing
+          (_eres, _modInst) <- executorInstantiate exec store astMod
+          Just fnInst <- moduleInstanceFindFunction _modInst "addTwo"
+          pure (exec, fnInst)
+        assertCAlloc'CFinalzrVec (snd <$> executorInvoke exec fnInst (V.fromList [WasmInt32 1, WasmInt32 5]))
+
+          -- TODO: Async Invoke
+          
   ]
+
+_TmpDirFP :: String
+_TmpDirFP = "/tmp"
+
+_TmpFileFP :: String -> String
+_TmpFileFP fn = _TmpDirFP <> "/" <> fn
 
 assertHsOwnedResult :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
 assertHsOwnedResult act = withFrozenCallStack $ do
@@ -160,7 +366,52 @@ assertHsOwnedOptResult act = withFrozenCallStack $ do
 _assertCOwnedResult :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
 _assertCOwnedResult act = withFrozenCallStack $ do
   ownr <- liftIO $ act >>= testonly_getOwner
-  ownr === Just COwned  
+  ownr === Just COwned
+
+assertHsAlloc'NoFinalzr :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
+assertHsAlloc'NoFinalzr act = withFrozenCallStack $ do
+  (r, ownr) <- liftIO $ act >>= \r -> (r,) <$> testonly_getOwner r
+  ownr === Nothing
+  testonly_getFPtrType r === MallocFPtr
+
+_assertCAlloc'NoFinalzr :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
+_assertCAlloc'NoFinalzr act = withFrozenCallStack $ do
+  (r, ownr) <- liftIO $ act >>= \r -> (r,) <$> testonly_getOwner r
+  ownr === Just COwned
+  testonly_getFPtrType r === PlainFPtr
+
+assertCAlloc'NoFinalzrOpt :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO (Maybe a) -> m ()
+assertCAlloc'NoFinalzrOpt act = withFrozenCallStack $ do
+  resMay <- liftIO $ act
+  res <- maybe failure pure resMay
+  ownr <- liftIO $ testonly_getOwner res
+  ownr === Just COwned
+  testonly_getFPtrType res === PlainFPtr
+
+assertCAlloc'CFinalzr :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO a -> m ()
+assertCAlloc'CFinalzr act = withFrozenCallStack $ do
+  res <- liftIO $ act
+  ownr <- liftIO $ testonly_getOwner res
+  ownr === Just HsOwned
+  testonly_getFPtrType res === PlainFPtr
+  
+assertCAlloc'CFinalzrOpt :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack) => IO (Maybe a) -> m ()
+assertCAlloc'CFinalzrOpt act = withFrozenCallStack $ do
+  resMay <- liftIO $ act
+  res <- maybe failure pure resMay
+  ownr <- liftIO $ testonly_getOwner res
+  ownr === Just HsOwned
+  testonly_getFPtrType res === PlainFPtr
+
+assertCAlloc'CFinalzrVec :: (HasFinalizer a, MonadTest m, MonadIO m, HasCallStack, Traversable v) => IO (v a) -> m ()
+assertCAlloc'CFinalzrVec act = withFrozenCallStack $ do
+  resV <- liftIO $ act
+  allocs <- liftIO $ flip mapM resV $ \res -> do
+    ownr <- testonly_getOwner res
+    pure (ownr, testonly_getFPtrType res)
+  if all (\(ownr, fpty) -> Just HsOwned == ownr && PlainFPtr == fpty) allocs
+    then pure ()
+    else error $ "Unexpected alloc: " ++ (show $ toList allocs)
   
 
 prop_finalization :: TestTree
