@@ -140,6 +140,7 @@ library
                       WasmEdge.Executor
                       WasmEdge.Driver
                       WasmEdge.Instance
+                      WasmEdge.Internal.Module
                       WasmEdge.Internal.FFI.Bindings
 
     -- Modules included in this library but not exported.
