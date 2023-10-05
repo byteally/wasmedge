@@ -1050,7 +1050,7 @@ uint32_t VMGetFunctionListOut(
   for(int i=0; i < retLen; i++)
   {
     WasmEdge_String *nameOut = NamesOut[i];
-    *NamesOut[i] = Names[i];
+    *nameOut = Names[i];
   }
   free(Names);
   return retLen;
