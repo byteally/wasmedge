@@ -2267,7 +2267,6 @@ deriving via ViaFromEnum ExternalType instance Storable ExternalType
   } -> `Word32'               -- ^ length of the exports list.
 #}
 -- TODO:
--- why is there the _ ?
 {#fun unsafe ASTModuleListExports as astModuleListExports_ {`ASTModuleContext', fromMutIOVecOr0Ptr*`IOVector ExportTypeContext'&} -> `Word32'#}
 
 -- Function
@@ -2966,11 +2965,21 @@ moduleInstanceListFunction modInst retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe ModuleInstanceListTableOut as moduleInstanceListTable 
+{#fun unsafe ModuleInstanceListTableOut as moduleInstanceListTable_
   {`ModuleInstanceContext'                            -- ^ the WasmEdge_ModuleInstanceContext.
   , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&   -- ^ [out] Names the output WasmEdge_String buffer of the table names and the length of the buffer
   } -> `Word32'                                       -- ^ actual exported table list size.
   #}
+
+moduleInstanceListTable ::
+ ModuleInstanceContext
+ -> Word32
+ -> IO (V.Vector WasmString)
+moduleInstanceListTable modInst retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- moduleInstanceListTable_ modInst retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure rets
 
 {-|
   Get the length of exported memory list of a module instance.
@@ -2993,11 +3002,21 @@ moduleInstanceListFunction modInst retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory 
+{#fun unsafe ModuleInstanceListMemoryOut as moduleInstanceListMemory_
   {`ModuleInstanceContext'                              -- ^ the WasmEdge_ModuleInstanceContext. 
   , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&     -- ^ [out] Names the output WasmEdge_String buffer of the memory names and length of the buffer
   } -> `Word32'                                         -- ^ actual exported memory list size.
 #} 
+
+moduleInstanceListMemory ::
+ ModuleInstanceContext
+ -> Word32                   -- ^ length of the buffer
+ -> IO (V.Vector WasmString)
+moduleInstanceListMemory modInst retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- moduleInstanceListMemory_ modInst retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure rets
 
 {-|
   Get the length of exported global list of a module instance.
@@ -3019,11 +3038,21 @@ moduleInstanceListFunction modInst retLen = do
  
   This function is thread-safe.
 -}
-{#fun unsafe ModuleInstanceListGlobalOut as moduleInstanceListGlobal 
+{#fun unsafe ModuleInstanceListGlobalOut as moduleInstanceListGlobal_ 
   {`ModuleInstanceContext'                            -- ^ the WasmEdge_ModuleInstanceContext.
   , fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&   -- ^ [out] Names the output WasmEdge_String buffer of the global names and the length of the buffer
   } -> `Word32'                                       -- ^ actual exported global list size.
   #} 
+
+moduleInstanceListGlobal ::
+ ModuleInstanceContext
+ -> Word32                     -- ^ Length of the buffer
+ -> IO (V.Vector WasmString)
+moduleInstanceListGlobal modInst retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- moduleInstanceListGlobal_ modInst retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure rets
 
 {-|
   Add a function instance context into a WasmEdge_ModuleInstanceContext.
@@ -3818,7 +3847,7 @@ vmExecuteRegistered cxt modName fname args retLen = do
   {`VMContext'                                        -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                      -- ^ the module name WasmEdge_String.
   ,%`WasmString'                                      -- ^ the function name WasmEdge_String.
-  ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmVal)'&       -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length buffer 
+  ,fromVecOfFPtr*`V.Vector WasmVal'&       -- ^ the WasmEdge_Value buffer with the parameter values and the parameter length buffer 
   } -> `Async'                                        -- ^ WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call `WasmEdge_AsyncDelete` to destroy this object.
 #} 
 
@@ -3932,11 +3961,21 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
   If the `Names` buffer length is smaller than the result of the registered named module list size, the overflowed return values will be discarded.
   This function is thread-safe.
 -}
-{#fun unsafe VMListRegisteredModuleOut as vmListRegisteredModule 
+{#fun unsafe VMListRegisteredModuleOut as vmListRegisteredModule_
   {`VMContext'                                     -- ^ the WasmEdge_VMContext.
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'& -- ^ WasmEdge_String buffer of the registered modules and length of the buffer
   } -> `Word32'                                    -- ^ actual registered module list size.
 #} 
+
+vmListRegisteredModule :: 
+ VMContext                    -- ^ vm context
+ -> Word32                    -- ^ length of the buffer
+ -> IO (V.Vector WasmString)
+vmListRegisteredModule vm retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- vmListRegisteredModule_ vm retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<). VSM.read retOut)
+ pure rets
 
 {-|
   Get the store context used in the WasmEdge_VMContext.
@@ -4051,10 +4090,19 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 {-|
   List the loaded plug-ins with their names.
  -}
-{#fun unsafe PluginListPluginsOut as pluginListPlugins 
+{#fun unsafe PluginListPluginsOut as pluginListPlugins_
   {fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&      -- ^ Names the output WasmEdge_String buffer of the function names and length of the buffer
   } -> `Word32'                                         -- ^ actual loaded plug-in list size.
 #} 
+
+pluginListPlugins ::
+ Word32              -- ^ length of the buffer
+ -> IO (V.Vector WasmString)
+pluginListPlugins retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- pluginListPlugins_ retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure rets
 
 {-|
   Find the loaded plug-in context by name.
@@ -4084,11 +4132,21 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 {-|
   List the modules in the plug-in context with their names.
 -}
-{#fun unsafe PluginListModuleOut as pluginListModule 
+{#fun unsafe PluginListModuleOut as pluginListModule_ 
   {`PluginContext'                                    -- ^ the WasmEdge_PluginContext to list the modules. 
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&    -- ^ Names the output WasmEdge_String buffer of the function names and the Buffer length
   } -> `Word32'                                       -- ^ actual module list size of the plug-in.
 #} 
+
+pluginListModule ::
+ PluginContext
+ -> Word32
+ -> IO (V.Vector WasmString)
+pluginListModule plug retLen = do
+ retOut <- VSM.generateM (fromIntegral retLen) (const $ allocWasmString pure)
+ res <- pluginListModule_ plug retOut
+ rets <- V.generateM (fromIntegral res) ((useFinalizerFree =<<) . (VSM.read retOut))
+ pure rets
 
 {-|
   Create the module instance in the plug-in by the module name. By giving the module name, developers can retrieve the module in the plug-in and create the module instance. 
