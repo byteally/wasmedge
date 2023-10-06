@@ -81,7 +81,6 @@ common ghc2021Shim
                        , EmptyDataDeriving
                        , ExistentialQuantification
                        , ExplicitForAll
-                       , FieldSelectors
                        , FlexibleContexts
                        , FlexibleInstances
                        , ForeignFunctionInterface
@@ -89,7 +88,6 @@ common ghc2021Shim
                        , GeneralisedNewtypeDeriving
                        , HexFloatLiterals
                        , ImplicitPrelude
-                       , ImportQualifiedPost
                        , InstanceSigs
                        , KindSignatures
                        , MonomorphismRestriction
@@ -104,7 +102,6 @@ common ghc2021Shim
                        , RelaxedPolyRec
                        , ScopedTypeVariables
                        , StandaloneDeriving
-                       , StandaloneKindSignatures
                        , StarIsType
                        , TraditionalRecordSyntax
                        , TupleSections
@@ -115,8 +112,8 @@ common ghc2021Shim
 common common-build-deps
   build-depends:       base              >= 4.13 && < 5
                      , text              >= 2.0
-                     , bytestring        >= 0.11
-                     , vector            >= 0.13
+                     , bytestring        >= 0.10
+                     , vector            >= 0.12
                      , wide-word         >= 0.1.5
                      , containers        >= 0.6
                                             
