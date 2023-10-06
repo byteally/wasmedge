@@ -464,7 +464,7 @@ test1 :: IO ()
 test1 = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+    _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
       addTwoRes <- vmRunWasmFromFile vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
       print addTwoRes
       pure ()
@@ -476,7 +476,7 @@ test2 = do
   wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
   void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+    _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
       addTwoRes <- vmRunWasmFromBuffer vm wasmBS "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
       print addTwoRes
       pure ()
@@ -490,7 +490,7 @@ test3 = do
     void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
       (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
       let astMod = maybe (error "Failed to load AST module") id astModMay
-      _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+      _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
         addTwoRes <- vmRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
         print addTwoRes
       pure () 
@@ -505,7 +505,7 @@ test4 = do
     void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
       (_, astModMay) <- loaderParseFromBuffer loader wasmBS
       let astMod = maybe (error "Failed to load AST module") id astModMay
-      _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+      _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
         addTwoRes <- vmRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3]) 1
         print addTwoRes
       pure ()
@@ -593,7 +593,7 @@ testVmLoadWasmFromASTModule = do
   void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
    (_,astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
    let astMod = maybe (error "Failed to load AST module") id astModMay
-   _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+   _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
     _ <- vmLoadWasmFromASTModule vm astMod
     _ <- vmValidate vm
     _ <- vmInstantiate vm
@@ -628,7 +628,7 @@ testVmExecute :: IO ()
 testVmExecute = do
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+  _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
    _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/addTwo.wasm"
    _ <- vmValidate vm
    _ <- vmInstantiate vm
@@ -643,7 +643,7 @@ testVmAsyncExecute = do
  wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+  _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
    _ <- vmLoadWasmFromBuffer vm wasmBS
    _ <- vmValidate vm
    _ <- vmInstantiate vm
@@ -659,7 +659,7 @@ testVmExecuteRegistered :: IO ()
 testVmExecuteRegistered = do
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+  _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
    _ <- vmRegisterModuleFromFile vm "mod" "./tests/sample/wasm/addTwo.wasm"
    addTwoRes <- vmExecuteRegistered vm "mod" "addTwo" (V.fromList [WasmInt32 11,WasmInt32 12]) 1
    print addTwoRes
@@ -673,7 +673,7 @@ testVmAsyncExecuteRegistered :: IO ()
 testVmAsyncExecuteRegistered = do
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+  _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
    _ <- vmRegisterModuleFromFile vm "mod" "./tests/sample/wasm/addTwo.wasm"
    _addTwoAsync <- vmAsyncExecuteRegistered vm "mod" "addTwo" (V.fromList [WasmInt32 80,WasmInt32 8])
    retLen <- asyncGetReturnsLength _addTwoAsync
@@ -687,7 +687,7 @@ testVmGetFunctionList = do
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
   _ <- withWasmResT (storeCreate) $ \storeCxt -> do
-   _ <- withWasmResT (vmCreate cfgCxt (Just storeCxt)) $ \vm -> do
+   _ <- withWasmResT (vmCreate (Just cfgCxt) (Just storeCxt)) $ \vm -> do
     _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/addTwo.wasm"
     _ <- vmValidate vm
     _ <- vmInstantiate vm
@@ -702,7 +702,7 @@ testAsyncRun :: IO ()
 testAsyncRun = do
   void $ withWasmResT configureCreate $ \cfgCxt -> do
     configureAddHostRegistration cfgCxt HostRegistration_Wasi
-    _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \_vm -> do
+    _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \_vm -> do
       _addTwoAsync <- vmAsyncRunWasmFromFile _vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 90, WasmInt32 9])
       -- TODO: Fix: Not waiting sometimes segv. Chcck the lifetime of WasmVal passed or async returned(most likely). If later, try cancel before finalization
       asyncWait _addTwoAsync
@@ -717,7 +717,7 @@ testAsyncRunFromBuffer = do
  wasmBS <- BS.readFile "./tests/sample/wasm/addTwo.wasm"
  void $ withWasmResT configureCreate $ \cfgCxt -> do
   configureAddHostRegistration cfgCxt HostRegistration_Wasi
-  _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \_vm -> do
+  _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \_vm -> do
    _addTwoAsync <- vmAsyncRunWasmFromBuffer _vm wasmBS "addTwo" (V.fromList [WasmInt32 1, WasmInt32 3])
    -- TODO: Fix: Not waiting sometimes segv. Chcck the lifetime of WasmVal passed or async returned(most likely). If later, try cancel before finalization
    retLen <- asyncGetReturnsLength _addTwoAsync
@@ -733,7 +733,7 @@ testAsyncRunFromATSModule = do
   void $ withWasmResT (loaderCreate cfgCxt) $ \loader -> do
    (_,astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
    let astMod = maybe (error "Failed to load AST module") id astModMay
-   _ <- withWasmResT (vmCreate cfgCxt Nothing) $ \vm -> do
+   _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
     _addTwoResAsync <- vmAsyncRunWasmFromASTModule vm astMod "addTwo" (V.fromList [WasmInt32 12,WasmInt32 13])
     retLen <- asyncGetReturnsLength _addTwoResAsync
     res <- asyncGet _addTwoResAsync retLen

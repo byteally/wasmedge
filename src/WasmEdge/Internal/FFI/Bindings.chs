@@ -1443,6 +1443,7 @@ Generate the I32 WASM value.
 
 {-|
 Creation of the WasmEdge_String with the C string.
+Null if failed
 -}
 {#fun pure unsafe StringCreateByCStringOut as stringCreateByCString 
   {allocWasmString-`WasmString'useCAndFinalizerFree*
@@ -1452,6 +1453,7 @@ Creation of the WasmEdge_String with the C string.
 
 {- |
 Creation of the WasmEdge_String with the buffer and its length.
+Null if failed
 -}
 {#fun pure unsafe StringCreateByBufferOut as stringCreateByBuffer
   {allocWasmString-`WasmString'useCAndFinalizerFree*
@@ -2418,6 +2420,7 @@ Get the value type from a global type.
 -- Import Type
 {-|
   Get the module name from an import type.
+  Null if failed
 -}
 {#fun unsafe ImportTypeGetModuleNameOut as importTypeGetModuleName 
   {+
@@ -2427,6 +2430,7 @@ Get the value type from a global type.
 
 {- |
   Get the external name from an import type.
+  Null if failed
 -}
 {#fun unsafe ImportTypeGetExternalNameOut as importTypeGetExternalName 
   {+
@@ -2437,7 +2441,6 @@ Get the value type from a global type.
 {-|
   Get the external value (which is function type) from an import type.
 -}
--- Question: Why have you written noFinalizer here
 {#fun unsafe ImportTypeGetFunctionType as ^ 
   {`ASTModuleContext'                     -- ^ the WasmEdge_ASTModuleContext.
   ,`ImportTypeContext'                    -- ^ the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
@@ -2483,6 +2486,7 @@ Get the value type from a global type.
 {-|
   Get the external name from an export type.
   The returned string object is linked to the external name of the export type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+  Null if failed
 -}
 {#fun unsafe ExportTypeGetExternalNameOut as exportTypeGetExternalName 
   {+
@@ -2783,6 +2787,7 @@ storeListModule store retLen = do
   Creation of the WasmEdge_ModuleInstanceContext for the WASI specification.
   This function will create a WASI host module that contains the WASI host functions and initialize it. The caller owns the object and should call `WasmEdge_ModuleInstanceDelete` to destroy it.
 -}
+-- null if length is zero
 {#fun unsafe ModuleInstanceCreateWASI as ^ 
   {fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the command line arguments. The first argument suggests being the program name. NULL if the length is 0. and the length
   ,fromVecStringOr0Ptr*`V.Vector String'&  -- ^ the environment variables in the format `ENV=VALUE`. NULL if the length is 0. and the length
@@ -2813,6 +2818,7 @@ storeListModule store retLen = do
 {-|
   Get the native handler from the WASI mapped FD/Handler.
 -}
+-- make moduleInst context nullable
 {#fun unsafe ModuleInstanceWASIGetNativeHandler as ^ 
   {`ModuleInstanceContext'                  -- ^ the WasmEdge_ModuleInstanceContext of WASI import object.
   ,`Word32'                                 -- ^ the WASI mapped Fd.
@@ -2824,6 +2830,7 @@ storeListModule store retLen = do
   Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process specification.
   This function will initialize the wasmedge_process host module with the parameters.
 -}
+-- null if length is zero
 {#fun unsafe ModuleInstanceInitWasmEdgeProcess as ^ 
   {fromVecStringOr0Ptr*`V.Vector String'&     -- ^ the allowed commands white list. NULL if the length is 0. and length of the list
   ,`Bool'                                     -- ^ the boolean value to allow all commands. `false` is suggested. If this value is `true`, the allowed commands white list will not be recorded and all commands can be executed by wasmedge_process.
@@ -2833,6 +2840,7 @@ storeListModule store retLen = do
 {-|
   Get the export module name of a module instance.
 -}
+-- null if failed
 {#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName 
   {+
   ,`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext.
@@ -2843,6 +2851,7 @@ storeListModule store retLen = do
   Get the host data set into the module instance when creating.
   The returned data is owned by the module instance, and will be passed into the finalizer when deleting this module instance.
 -}
+-- null if failed
 {#fun unsafe ModuleInstanceGetHostData as ^ 
   {`ModuleInstanceContext'              -- ^ the WasmEdge_ModuleInstanceContext.
   } -> `HsRef'toHsRefFromVoidPtrOut*    -- ^ host data. NULL if the module instance context is NULL or no host data set into the module instance.
@@ -2875,7 +2884,7 @@ storeListModule store retLen = do
 {#fun unsafe ModuleInstanceFindTable as ^ 
   {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
   ,%`WasmString'                  -- ^ the table name WasmEdge_String.
-  } -> `TableInstanceContext'     -- ^ pointer to the table instance context. NULL if not found.
+  } -> `Maybe TableInstanceContext'nullableNoFinalizer*     -- ^ pointer to the table instance context. NULL if not found.
 #}
 
 {-|
@@ -2890,7 +2899,7 @@ storeListModule store retLen = do
 {#fun unsafe ModuleInstanceFindMemory as ^ 
   {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
   ,%`WasmString'                  -- ^ the memory name WasmEdge_String.
-  } -> `MemoryInstanceContext'    -- ^ pointer to the memory instance context. NULL if not found.
+  } -> `Maybe MemoryInstanceContext'nullableNoFinalizer*    -- ^ pointer to the memory instance context. NULL if not found.
 #}
 
 {-|
@@ -2905,7 +2914,7 @@ storeListModule store retLen = do
 {#fun unsafe ModuleInstanceFindGlobal as ^ 
   {`ModuleInstanceContext'        -- ^ the WasmEdge_ModuleInstanceContext.
   ,%`WasmString'                  -- ^ the global name WasmEdge_String.
-  } -> `GlobalInstanceContext'    -- ^ pointer to the global instance context. NULL if not found.
+  } -> `Maybe GlobalInstanceContext'nullableNoFinalizer*    -- ^ pointer to the global instance context. NULL if not found.
 #}
 
 {-|
@@ -3232,7 +3241,7 @@ hostFuncCallbackPure parCnt retCnt cb = hostFuncCallback parCnt retCnt $ \ref cf
 -}
 {#fun unsafe MemoryInstanceGetMemoryType as ^ 
   {`MemoryInstanceContext'  -- ^ the WasmEdge_MemoryInstanceContext.
-  } -> `MemoryTypeContext'  -- ^ pointer to context, NULL if failed.
+  } -> `Maybe MemoryTypeContext'nullableNoFinalizer*  -- ^ pointer to context, NULL if failed.
 #} 
 {#fun unsafe MemoryInstanceGetDataOut as memoryInstanceGetData_ {+,`MemoryInstanceContext',fromByteStringIn*`ByteString'&,`Word32'} -> `WasmResult'#}
 
@@ -3261,11 +3270,14 @@ memoryInstanceGetData micxt len off = do
   } -> `WasmResult'                   -- ^ WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error message.
 #}
 
-{#fun unsafe MemoryInstanceGetPointer as memoryInstanceGetPointer_ {`MemoryInstanceContext',`Word32',`Word32'} -> `Ptr Word8'coercePtr#}
+{#fun unsafe MemoryInstanceGetPointer as memoryInstanceGetPointer_ {`MemoryInstanceContext',`Word32',`Word32'} 
+-> `Ptr Word8'coercePtr
+#}
 
 {-|
 Get the data pointer in a memory instance.
 -}
+-- null if failed
 memoryInstanceGetPointer ::
   MemoryInstanceContext
   -> Word32 -- ^ Length of the Buffer
@@ -3344,7 +3356,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 -}
 {#fun unsafe CallingFrameGetExecutor as ^ 
   {`CallingFrameContext'      -- ^ the WasmEdge_CallingFrameContext.
-  } -> `ExecutorContext'      -- ^ the executor context, NULL if the Cxt is NULL.
+  } -> `Maybe ExecutorContext'nullableNoFinalizer*      -- ^ the executor context, NULL if the Cxt is NULL.
 #}
 
 {-|
@@ -3366,7 +3378,7 @@ memoryInstanceGetPointerConst micxt len off = (BS.packCStringLen . \pW8 -> (cast
 {#fun unsafe CallingFrameGetMemoryInstance as ^ 
   {`CallingFrameContext'        -- ^ the WasmEdge_CallingFrameContext.
   ,`Word32'                     -- ^ the index of memory instance in the module instance.  
-  } -> `MemoryInstanceContext'  -- ^ the memory instance, NULL if not found.
+  } -> `Maybe MemoryInstanceContext'nullableNoFinalizer*  -- ^ the memory instance, NULL if not found.
 #}
 
 -- Async
@@ -3645,7 +3657,8 @@ vmRunWasmFromASTModule cxt astMod fname args retLen = do
  
   \returns pointer to context, NULL if failed.
 -}
-{#fun unsafe VMCreate as vmCreate {`ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
+-- Configure context can be null as well...hence we need to make nullable
+{#fun unsafe VMCreate as vmCreate {nullablePtrIn*`Maybe ConfigureContext',nullablePtrIn*`Maybe StoreContext'} -> `Maybe VMContext'nullableFinalizablePtrOut*#}
 
 {-|
   Register and instantiate WASM into the store in VM from a WASM file.
@@ -3863,7 +3876,7 @@ vmExecuteRegistered cxt modName fname args retLen = do
 {#fun unsafe VMGetFunctionType as vmGetFunctionType
   {`VMContext'                                         -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                       -- ^ the function name WasmEdge_String.
-  } -> `FunctionTypeContext'                           -- ^ the function type. NULL if the function not found.
+  } -> `Maybe FunctionTypeContext'nullableNoFinalizer*                           -- ^ the function type. NULL if the function not found.
 #}
 
 {-|
@@ -3875,7 +3888,7 @@ vmExecuteRegistered cxt modName fname args retLen = do
   {`VMContext',                                         -- ^ the WasmEdge_VMContext.
   %`WasmString',                                        -- ^ the module name WasmEdge_String.
   %`WasmString'                                         -- ^ the function name WasmEdge_String.
-  } -> `FunctionTypeContext'                            -- ^ the function type. NULL if the function not found.
+  } -> `Maybe FunctionTypeContext'nullableNoFinalizer*                            -- ^ the function type. NULL if the function not found.
 #}
 
 {-|
@@ -3897,7 +3910,7 @@ vmExecuteRegistered cxt modName fname args retLen = do
   } -> `Word32'                                         -- ^ length of exported function list.
 #} 
 
-
+-- names,functypes can be null
 {#fun unsafe VMGetFunctionListOut as vmGetFunctionList_ 
   {`VMContext'
   ,fromMutIOVecOr0Ptr*`IOVector (Ptr WasmString)'&, fromMutIOVecOr0Ptr*`IOVector (Ptr FunctionTypeContext)'&
@@ -3925,7 +3938,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 {#fun unsafe VMGetImportModuleContext as vmGetImportModuleContext 
   {`VMContext',                                 -- ^ the WasmEdge_VMContext.
   `HostRegistration'                            -- ^ the host registration value to get the import module.                            
-  } -> `ModuleInstanceContext'                  -- ^  the module instance context. NULL if not found.
+  } -> `Maybe ModuleInstanceContext'nullableNoFinalizer*                  -- ^  the module instance context. NULL if not found.
 #} 
 
 {-|
@@ -3934,7 +3947,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 -}
 {#fun unsafe VMGetActiveModule as vmGetActiveModule 
   {`VMContext'                                  -- ^ the WasmEdge_VMContext. 
-  } -> `ModuleInstanceContext'                  -- ^ the module instance context. NULL if not found.
+  } -> `Maybe ModuleInstanceContext'nullableNoFinalizer*                  -- ^ the module instance context. NULL if not found.
 #} 
 
 {-|
@@ -3944,7 +3957,7 @@ Get the module instance corresponding to the WasmEdge_HostRegistration settings.
 {#fun unsafe VMGetRegisteredModule as vmGetRegisteredModule 
   {`VMContext'                                    -- ^ the WasmEdge_VMContext.
   ,%`WasmString'                                  -- ^ the module name WasmEdge_String.
-  } -> `ModuleInstanceContext'                    -- ^ the module instance context. NULL if not found.
+  } -> `Maybe ModuleInstanceContext'nullableNoFinalizer*                    -- ^ the module instance context. NULL if not found.
 #}
 
 {-|
@@ -4109,16 +4122,17 @@ pluginListPlugins retLen = do
 -}
 {#fun unsafe PluginFind as ^ 
   {%`WasmString'              -- ^ the plug-in name WasmEdge_String.
-  } -> `PluginContext'        -- ^ pointer to the plug-in context. NULL if the plug-in not found.
+  } -> `Maybe PluginContext'nullableNoFinalizer*        -- ^ pointer to the plug-in context. NULL if the plug-in not found.
 #} 
 
 {-|
   Get the plug-in name of the plug-in context.
 -}
+-- null if failed
 {#fun unsafe PluginGetPluginNameOut as pluginGetPluginName 
   {+,                                                      -- ^ WasmEdge_String* in which the result would be stored
   `PluginContext'                                          -- ^ the WasmEdge_PluginContext.
-  } -> `WasmString'                                        -- ^ WasmString Which contains name of the plugin
+  } -> `WasmString'                                         -- ^ WasmString Which contains name of the plugin
 #} 
 
 {-|
@@ -4155,7 +4169,7 @@ pluginListModule plug retLen = do
 {#fun unsafe PluginCreateModule as ^ 
   {`PluginContext'                   -- ^ the WasmEdge_PluginContext to retrieve and create module.
     ,%`WasmString'                   -- ^ the module name to retrieve.
-  } -> `ModuleInstanceContext'       -- ^ pointer to the module instance context, NULL if the module name not found in the plug-in or the plug-in is not valid.
+  } -> `Maybe ModuleInstanceContext'nullableNoFinalizer*       -- ^ pointer to the module instance context, NULL if the module name not found in the plug-in or the plug-in is not valid.
 #} 
 
 {-|
