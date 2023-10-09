@@ -1,76 +1,21 @@
 module WasmEdge.VM
-  ( VMContext
-  , vmCreate
-  , vmRegisterModuleFromFile
-  , vmRunWasmFromFile
-  , vmRunWasmFromBuffer
-  , vmRunWasmFromASTModule
-  , vmAsyncRunWasmFromFile
-  , vmAsyncRunWasmFromASTModule
-  , vmAsyncRunWasmFromBuffer
-  , vmRegisterModuleFromBuffer
-  , vmRegisterModuleFromASTModule
-  , vmRegisterModuleFromImport
-  , vmLoadWasmFromFile
-  , vmLoadWasmFromBuffer
-  , vmLoadWasmFromASTModule
-  , vmValidate
-  , vmInstantiate
-  , vmExecute
-  , vmExecuteRegistered
-  , vmAsyncExecute
-  , vmAsyncExecuteRegistered
-  , vmGetFunctionType
-  , vmGetFunctionTypeRegistered
-  , vmCleanup
-  , vmGetFunctionListLength
-  , vmGetFunctionList
-  , vmGetImportModuleContext
-  , vmGetActiveModule
-  , vmGetRegisteredModule
-  , vmListRegisteredModuleLength
+  ( module WasmEdge.Internal.VM
   , vmListRegisteredModule
-  , vmGetStoreContext
-  , vmGetLoaderContext
-  , vmGetValidatorContext
-  , vmGetExecutorContext
-  , vmGetStatisticsContext
+  , vmGetFunctionList
   ) where
 
-import WasmEdge.Internal.FFI.Bindings
-    ( vmAsyncExecute,
-      vmAsyncExecuteRegistered,
-      vmAsyncRunWasmFromASTModule,
-      vmAsyncRunWasmFromBuffer,
-      vmAsyncRunWasmFromFile,
-      vmCleanup,
-      vmCreate,
-      vmExecute,
-      vmExecuteRegistered,
-      vmGetActiveModule,
-      vmGetExecutorContext,
-      vmGetFunctionList,
-      vmGetFunctionListLength,
-      vmGetFunctionType,
-      vmGetFunctionTypeRegistered,
-      vmGetImportModuleContext,
-      vmGetLoaderContext,
-      vmGetRegisteredModule,
-      vmGetStatisticsContext,
-      vmGetStoreContext,
-      vmGetValidatorContext,
-      vmInstantiate,
-      vmListRegisteredModule,
-      vmListRegisteredModuleLength,
-      vmLoadWasmFromASTModule,
-      vmLoadWasmFromBuffer,
-      vmLoadWasmFromFile,
-      vmRegisterModuleFromASTModule,
-      vmRegisterModuleFromBuffer,
-      vmRegisterModuleFromFile,
-      vmRegisterModuleFromImport,
-      vmRunWasmFromASTModule,
-      vmRunWasmFromBuffer,
-      vmRunWasmFromFile,
-      vmValidate,
-      VMContext )
+import WasmEdge.Internal.VM 
+ hiding (vmListRegisteredModule,vmGetFunctionList)
+
+import qualified WasmEdge.Internal.FFI.Bindings as Int
+import Data.Vector as V
+
+vmListRegisteredModule 
+ :: VMContext 
+ -> IO (V.Vector Int.WasmString)
+vmListRegisteredModule vm = Int.vmListRegisteredModule vm =<< vmListRegisteredModuleLength vm
+
+vmGetFunctionList
+ :: VMContext
+ -> IO (V.Vector Int.WasmString,V.Vector Int.FunctionTypeContext)
+vmGetFunctionList vm = Int.vmGetFunctionList vm =<< vmGetFunctionListLength vm

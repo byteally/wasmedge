@@ -1,16 +1,16 @@
 module WasmEdge.Async
-  ( Async
-  , asyncWait
-  , asyncWaitFor
-  , asyncCancel
-  , asyncGetReturnsLength
-  , asyncGet
+  ( module WasmEdge.Internal.Async 
+ , asyncGet
+ ,Vector
   ) where
 
-import WasmEdge.Internal.FFI.Bindings
-    ( asyncCancel,
-      asyncGet,
-      asyncGetReturnsLength,
-      asyncWait,
-      asyncWaitFor,
-      Async )
+import WasmEdge.Internal.Async
+ hiding (asyncGet)
+
+import qualified WasmEdge.Internal.FFI.Bindings as Int
+import Data.Vector as V
+
+asyncGet :: 
+ Async 
+ -> IO (Int.WasmResult,V.Vector Int.WasmVal)
+asyncGet async = Int.asyncGet async =<< asyncGetReturnsLength async

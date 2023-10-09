@@ -26,6 +26,9 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Storable as SV
 import GHC.Stack
 import Data.Foldable
+import qualified WasmEdge.Async as AS
+import qualified WasmEdge.Store as ST
+import qualified WasmEdge.VM as ModVM
 
 import Data.Unique
 -- import Data.Set (Set)
@@ -691,8 +694,7 @@ testVmGetFunctionList = do
     _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/addTwo.wasm"
     _ <- vmValidate vm
     _ <- vmInstantiate vm
-    funcNum <- vmGetFunctionListLength vm
-    (names,_) <- vmGetFunctionList vm funcNum
+    (names,_) <- ModVM.vmGetFunctionList vm
     print ("getFunctionlist" :: String,names)
     pure ()
    pure ()
@@ -706,8 +708,7 @@ testAsyncRun = do
       _addTwoAsync <- vmAsyncRunWasmFromFile _vm "./tests/sample/wasm/addTwo.wasm" "addTwo" (V.fromList [WasmInt32 90, WasmInt32 9])
       -- TODO: Fix: Not waiting sometimes segv. Chcck the lifetime of WasmVal passed or async returned(most likely). If later, try cancel before finalization
       asyncWait _addTwoAsync
-      retLen <- asyncGetReturnsLength _addTwoAsync
-      res <- asyncGet _addTwoAsync retLen
+      res <- AS.asyncGet _addTwoAsync 
       print ("AsyncRet" :: String, res)
       pure ()
     pure ()
@@ -794,9 +795,7 @@ testStore = do
           _vres <- validatorValidate validator astMod
           void $ withWasmResT (storeCreate) $ \store -> do
             (_eres, _modInst) <- executorRegister exec store astMod "mod"
-            modLen <- storeListModuleLength store
-            mods <- storeListModule store modLen
-            print ("StoreListModLen"::String, modLen)
+            mods <- ST.storeListModule store
             print ("StoreList"::String, mods)
 
             modNameMay <- storeFindModule store "mod"
