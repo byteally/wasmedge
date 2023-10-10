@@ -2840,7 +2840,6 @@ storeListModule store retLen = do
 {-|
   Get the export module name of a module instance.
 -}
--- null if failed
 {#fun unsafe ModuleInstanceGetModuleNameOut as moduleInstanceGetModuleName 
   {+
   ,`ModuleInstanceContext'          -- ^ the WasmEdge_ModuleInstanceContext.
