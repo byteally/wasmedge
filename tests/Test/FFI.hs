@@ -349,6 +349,29 @@ ownershipTT = testGroup "ownership tests"
           pure (exec, fnInst)
         assertCAlloc'CFinalzrVec (snd <$> executorInvoke exec fnInst (V.fromList [WasmInt32 1, WasmInt32 5]))
 
+    {-
+     -  ━━━ Failed (- lhs) (+ rhs) ━━━
+              ┃         │ - Nothing
+              ┃         │ + Just HsOwned
+
+    ,testProperty "ExecutorAsyncInvoke" $ withTests 1 $ property $ do
+        (exec, fnInst) <- liftIO $ do
+          Just cfg <- configureCreate
+          configureAddHostRegistration cfg HostRegistration_Wasi
+          Just store <- storeCreate
+          Just loader <- loaderCreate cfg
+          (_, astModMay) <- loaderParseFromFile loader "./tests/sample/wasm/addTwo.wasm"
+          let astMod = maybe (error "Failed to load AST module") id astModMay
+          Just validator <- validatorCreate cfg
+          void $ validatorValidate validator astMod
+          Just exec <- executorCreate (Just cfg) Nothing
+          (_eres, _modInst) <- executorInstantiate exec store astMod
+          Just fnInst <- moduleInstanceFindFunction _modInst "addTwo"
+          pure (exec, fnInst)
+        assertCAlloc'CFinalzr (executorAsyncInvoke exec fnInst (V.fromList [WasmInt32 1, WasmInt32 5]))
+-}
+
+
           -- skipped (TODO later):
           -- Async Invoke
         
@@ -806,6 +829,7 @@ prop_finalization = testProperty "finalization tests" $ withTests 1 $ property $
   liftIO $ testConstGlobalInst
   liftIO $ testValueGenNullRef
   liftIO $ testHostFnAlloc
+  liftIO $ testPassingString
   actions <- forAll $ Gen.sequential (Range.linear 1 100) initialState commands
   executeSequential initialState actions
 
@@ -1338,6 +1362,29 @@ testHostFnAlloc = do
   hsref <- toHsRef ("test" :: T.Text)
   Just _funInst <- functionInstanceCreate funTy hFn hsref 0
   pure ()
+
+-- passing string to rust
+testPassingString :: IO ()
+testPassingString = do
+ void $ withWasmResT configureCreate $ \cfgCxt -> do
+   configureAddHostRegistration cfgCxt HostRegistration_Wasi
+   _ <- withWasmResT (vmCreate (Just cfgCxt) Nothing) $ \vm -> do
+     _ <- vmLoadWasmFromFile vm "./tests/sample/wasm/memAllocator.wasm"
+     _ <- vmValidate vm
+     _ <- vmInstantiate vm
+     let subject = "WasmEdge"
+     (_,inputPointerRes) <- vmExecute vm "allocate" (V.fromList [WasmInt32 (fromIntegral $ length subject)]) 1
+     let inputPointer = V.head inputPointerRes
+     (Just modInst) <- vmGetActiveModule vm
+     (Just memInst) <- moduleInstanceFindMemory modInst "memory"
+     _ <- memoryInstanceSetData memInst (Char8.pack subject) (fromIntegral $ valueGetI32 inputPointer) 
+     (_,outputPointerRes) <- vmExecute vm "greet" (V.fromList [inputPointer]) 1
+     let outputPointer = V.head outputPointerRes
+     (_,res) <- memoryInstanceGetData memInst 16 (fromIntegral $ valueGetI32 outputPointer)
+     print res
+     pure ()
+   pure ()
+
 
 -- testHostFnCallingFrameCxt :: IO ()
 -- testHostFnCallingFrameCxt = do
