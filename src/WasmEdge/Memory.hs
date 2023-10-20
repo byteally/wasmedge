@@ -1,6 +1,6 @@
 module WasmEdge.Memory
   ( MemoryTypeContext
-  , memoryInstanceContext 
+  , MemoryInstanceContext 
   , memoryInstanceCreate 
   , memoryInstanceGetMemoryType 
   , memoryInstanceGetData

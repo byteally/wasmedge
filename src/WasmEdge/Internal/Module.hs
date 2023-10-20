@@ -6,7 +6,6 @@ module WasmEdge.Internal.Module
   , astModuleListImports
   , astModuleListExportsLength
   , astModuleListExports
-  , moduleInstanceFindMemory
   , moduleInstanceCreate
   , moduleInstanceCreateWithData 
   , moduleInstanceCreateWASI
