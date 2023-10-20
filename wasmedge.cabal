@@ -125,6 +125,7 @@ library
     -- Modules exported by the library.
     exposed-modules:  WasmEdge
                       WasmEdge.Async
+                      WasmEdge.Configure
                       WasmEdge.Function
                       WasmEdge.Log
                       WasmEdge.VM
