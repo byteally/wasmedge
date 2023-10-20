@@ -6,6 +6,32 @@ module WasmEdge.Internal.Module
   , astModuleListImports
   , astModuleListExportsLength
   , astModuleListExports
+  , moduleInstanceFindMemory
+  , moduleInstanceCreate
+  , moduleInstanceCreateWithData 
+  , moduleInstanceCreateWASI
+  , moduleInstanceInitWASI 
+  , moduleInstanceWASIGetExitCode
+  , moduleInstanceWASIGetNativeHandler
+  , moduleInstanceInitWasmEdgeProcess 
+  , moduleInstanceGetModuleName
+  , moduleInstanceGetHostData
+  , moduleInstanceFindFunction 
+  , moduleInstanceFindTable
+  , moduleInstanceFindMemory
+  , moduleInstanceFindGlobal
+  , moduleInstanceListFunctionLength
+  , moduleInstanceListFunction
+  , moduleInstanceListTableLength
+  , moduleInstanceListTable
+  , moduleInstanceListMemoryLength
+  , moduleInstanceListMemory
+  , moduleInstanceListGlobalLength
+  , moduleInstanceListGlobal
+  , moduleInstanceAddFunction
+  , moduleInstanceAddTable
+  , moduleInstanceAddMemory
+  , moduleInstanceAddGlobal 
   ) where
 
 import WasmEdge.Internal.FFI.Bindings
